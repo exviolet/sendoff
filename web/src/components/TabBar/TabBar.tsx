@@ -4,11 +4,12 @@ import { useEditorStore } from "../../store/editorStore";
 interface TabBarProps {
   onPresetsToggle: () => void;
   presetsOpen: boolean;
+  onDownloadTab: () => void;
   onExportAll: () => void;
   onImportBackup: () => void;
 }
 
-export function TabBar({ onPresetsToggle, presetsOpen, onExportAll, onImportBackup }: TabBarProps) {
+export function TabBar({ onPresetsToggle, presetsOpen, onDownloadTab, onExportAll, onImportBackup }: TabBarProps) {
   const tabs = useEditorStore((s) => s.tabs);
   const activeTabId = useEditorStore((s) => s.activeTabId);
   const setActiveTab = useEditorStore((s) => s.setActiveTab);
@@ -131,6 +132,19 @@ export function TabBar({ onPresetsToggle, presetsOpen, onExportAll, onImportBack
       </nav>
 
       <div className="flex items-center gap-0.5 mr-2 shrink-0">
+        {/* Download current tab as .txt */}
+        <button
+          onClick={onDownloadTab}
+          className="flex items-center justify-center w-7 h-7 rounded-[4px] text-text-muted hover:text-text hover:bg-surface-hover transition-colors duration-150"
+          aria-label="Download as .txt"
+          title="Download as .txt"
+        >
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+            <path d="M2 2h5l3 3v5a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V2z" stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round" fill="none" />
+            <path d="M7 2v3h3" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+
         {/* Export all */}
         <button
           onClick={onExportAll}

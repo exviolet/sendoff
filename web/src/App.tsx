@@ -16,7 +16,7 @@ function App() {
   const [activeHighlight, setActiveHighlight] = useState(0);
 
   useSessionPersistence();
-  const { saveCurrentTab, openFile, exportAll, importBackup } = useFileIO();
+  const { saveCurrentTab, downloadCurrentTab, openFile, exportAll, importBackup } = useFileIO();
 
   const handleMatchesChange = useCallback(
     (matches: { index: number; length: number }[], currentIndex: number) => {
@@ -36,8 +36,12 @@ function App() {
     onFind: () => setPanelMode("find"),
     onFindReplace: () => setPanelMode("findReplace"),
     onClosePanels: () => {
-      closePanel();
-      setPresetsOpen(false);
+      if (panelMode || presetsOpen) {
+        closePanel();
+        setPresetsOpen(false);
+      } else if (document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur();
+      }
     },
     onSave: saveCurrentTab,
     onOpen: openFile,
@@ -48,6 +52,7 @@ function App() {
       <TabBar
         onPresetsToggle={() => setPresetsOpen((v) => !v)}
         presetsOpen={presetsOpen}
+        onDownloadTab={downloadCurrentTab}
         onExportAll={exportAll}
         onImportBackup={importBackup}
       />

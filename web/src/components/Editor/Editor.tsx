@@ -50,7 +50,7 @@ export function Editor({ highlights = [], activeHighlight = -1 }: EditorProps) {
   }
 
   return (
-    <div className="flex-1 min-h-0 relative bg-bg">
+    <div className="h-full relative bg-bg overflow-hidden">
       {/* Highlight backdrop */}
       {highlights.length > 0 && (
         <div

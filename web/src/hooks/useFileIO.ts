@@ -3,6 +3,11 @@ import { usePresetsStore } from "../store/presetsStore";
 
 export function useFileIO() {
   function saveCurrentTab() {
+    const { activeTabId, markSaved } = useEditorStore.getState();
+    if (activeTabId) markSaved(activeTabId);
+  }
+
+  function downloadCurrentTab() {
     const { tabs, activeTabId } = useEditorStore.getState();
     const tab = tabs.find((t) => t.id === activeTabId);
     if (!tab) return;
@@ -76,5 +81,5 @@ export function useFileIO() {
     input.click();
   }
 
-  return { saveCurrentTab, openFile, exportAll, importBackup };
+  return { saveCurrentTab, downloadCurrentTab, openFile, exportAll, importBackup };
 }

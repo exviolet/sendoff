@@ -19,6 +19,7 @@ interface EditorStore {
   setActiveTab: (id: string) => void;
   updateContent: (id: string, content: string) => void;
   renameTab: (id: string, title: string) => void;
+  markSaved: (id: string) => void;
   addTabFromFile: (title: string, content: string) => void;
   hydrate: (tabs: Tab[], activeTabId: string | null, tabCounter: number) => void;
 }
@@ -93,6 +94,13 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     set((s) => ({
       tabs: s.tabs.map((t) =>
         t.id === id ? { ...t, title, updatedAt: Date.now() } : t
+      ),
+    })),
+
+  markSaved: (id) =>
+    set((s) => ({
+      tabs: s.tabs.map((t) =>
+        t.id === id ? { ...t, isDirty: false, updatedAt: Date.now() } : t
       ),
     })),
 
