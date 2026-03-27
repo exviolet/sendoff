@@ -5,20 +5,23 @@ interface ShortcutCallbacks {
   onFind?: () => void;
   onFindReplace?: () => void;
   onClosePanels?: () => void;
+  onSave?: () => void;
+  onOpen?: () => void;
 }
 
 export function useKeyboardShortcuts(callbacks?: ShortcutCallbacks) {
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       const ctrl = e.ctrlKey || e.metaKey;
+      const code = e.code;
 
-      if (ctrl && e.key === "n") {
+      if (ctrl && code === "KeyN") {
         e.preventDefault();
         useEditorStore.getState().createTab();
         return;
       }
 
-      if (ctrl && e.key === "w") {
+      if (ctrl && code === "KeyW") {
         e.preventDefault();
         const { activeTabId, closeTab } = useEditorStore.getState();
         if (activeTabId) closeTab(activeTabId);
@@ -38,15 +41,27 @@ export function useKeyboardShortcuts(callbacks?: ShortcutCallbacks) {
         return;
       }
 
-      if (ctrl && e.key === "f" && !e.shiftKey) {
+      if (ctrl && code === "KeyF" && !e.shiftKey) {
         e.preventDefault();
         callbacks?.onFind?.();
         return;
       }
 
-      if (ctrl && e.key === "h") {
+      if (ctrl && code === "KeyH") {
         e.preventDefault();
         callbacks?.onFindReplace?.();
+        return;
+      }
+
+      if (ctrl && code === "KeyS") {
+        e.preventDefault();
+        callbacks?.onSave?.();
+        return;
+      }
+
+      if (ctrl && code === "KeyO") {
+        e.preventDefault();
+        callbacks?.onOpen?.();
         return;
       }
 

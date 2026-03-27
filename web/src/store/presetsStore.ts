@@ -42,6 +42,7 @@ interface PresetsStore {
   deletePreset: (id: string) => void;
   applyPreset: (presetId: string, tabId: string) => void;
   clearLastResult: () => void;
+  hydrate: (presets: ReplacePreset[]) => void;
 }
 
 export const usePresetsStore = create<PresetsStore>((set, get) => ({
@@ -74,4 +75,6 @@ export const usePresetsStore = create<PresetsStore>((set, get) => ({
   },
 
   clearLastResult: () => set({ lastApplyResult: null }),
+
+  hydrate: (presets) => set({ presets }),
 }));

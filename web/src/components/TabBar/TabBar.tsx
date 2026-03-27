@@ -4,9 +4,11 @@ import { useEditorStore } from "../../store/editorStore";
 interface TabBarProps {
   onPresetsToggle: () => void;
   presetsOpen: boolean;
+  onExportAll: () => void;
+  onImportBackup: () => void;
 }
 
-export function TabBar({ onPresetsToggle, presetsOpen }: TabBarProps) {
+export function TabBar({ onPresetsToggle, presetsOpen, onExportAll, onImportBackup }: TabBarProps) {
   const tabs = useEditorStore((s) => s.tabs);
   const activeTabId = useEditorStore((s) => s.activeTabId);
   const setActiveTab = useEditorStore((s) => s.setActiveTab);
@@ -128,23 +130,49 @@ export function TabBar({ onPresetsToggle, presetsOpen }: TabBarProps) {
         </button>
       </nav>
 
-      {/* Presets button */}
-      <button
-        onClick={onPresetsToggle}
-        className={`
-          flex items-center justify-center w-7 h-7 rounded-[4px] mr-2 shrink-0 transition-colors duration-150
-          ${presetsOpen
-            ? "text-accent bg-accent/10"
-            : "text-text-muted hover:text-text hover:bg-surface-hover"
-          }
-        `}
-        aria-label="Presets"
-        title="Replace Presets"
-      >
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-          <path d="M2 4h12M2 8h8M2 12h10" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-        </svg>
-      </button>
+      <div className="flex items-center gap-0.5 mr-2 shrink-0">
+        {/* Export all */}
+        <button
+          onClick={onExportAll}
+          className="flex items-center justify-center w-7 h-7 rounded-[4px] text-text-muted hover:text-text hover:bg-surface-hover transition-colors duration-150"
+          aria-label="Export all"
+          title="Export backup"
+        >
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+            <path d="M6 2v6M3.5 5.5L6 8l2.5-2.5M2 10h8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+
+        {/* Import backup */}
+        <button
+          onClick={onImportBackup}
+          className="flex items-center justify-center w-7 h-7 rounded-[4px] text-text-muted hover:text-text hover:bg-surface-hover transition-colors duration-150"
+          aria-label="Import backup"
+          title="Import backup"
+        >
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+            <path d="M6 8V2M3.5 4.5L6 2l2.5 2.5M2 10h8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+
+        {/* Presets button */}
+        <button
+          onClick={onPresetsToggle}
+          className={`
+            flex items-center justify-center w-7 h-7 rounded-[4px] transition-colors duration-150
+            ${presetsOpen
+              ? "text-accent bg-accent/10"
+              : "text-text-muted hover:text-text hover:bg-surface-hover"
+            }
+          `}
+          aria-label="Presets"
+          title="Replace Presets"
+        >
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+            <path d="M2 4h12M2 8h8M2 12h10" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+          </svg>
+        </button>
+      </div>
     </header>
   );
 }

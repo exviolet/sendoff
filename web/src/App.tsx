@@ -4,6 +4,8 @@ import { Editor } from "./components/Editor/Editor";
 import { FindReplacePanel } from "./components/FindReplace/FindReplacePanel";
 import { PresetsPanel } from "./components/Presets/PresetsPanel";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
+import { useSessionPersistence } from "./hooks/useSessionPersistence";
+import { useFileIO } from "./hooks/useFileIO";
 
 type PanelMode = null | "find" | "findReplace";
 
@@ -12,6 +14,9 @@ function App() {
   const [presetsOpen, setPresetsOpen] = useState(false);
   const [highlights, setHighlights] = useState<{ index: number; length: number }[]>([]);
   const [activeHighlight, setActiveHighlight] = useState(0);
+
+  useSessionPersistence();
+  const { saveCurrentTab, openFile, exportAll, importBackup } = useFileIO();
 
   const handleMatchesChange = useCallback(
     (matches: { index: number; length: number }[], currentIndex: number) => {
@@ -34,6 +39,8 @@ function App() {
       closePanel();
       setPresetsOpen(false);
     },
+    onSave: saveCurrentTab,
+    onOpen: openFile,
   });
 
   return (
@@ -41,6 +48,8 @@ function App() {
       <TabBar
         onPresetsToggle={() => setPresetsOpen((v) => !v)}
         presetsOpen={presetsOpen}
+        onExportAll={exportAll}
+        onImportBackup={importBackup}
       />
       {panelMode && (
         <FindReplacePanel
