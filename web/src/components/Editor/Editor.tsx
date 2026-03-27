@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useEditorStore } from "../../store/editorStore";
 
 interface HighlightMatch {
@@ -11,12 +11,21 @@ interface EditorProps {
   activeHighlight?: number;
 }
 
+const ACCEPTED_EXTENSIONS = [".txt", ".md", ".markdown", ".text"];
+
+function isAcceptedFile(file: File): boolean {
+  return ACCEPTED_EXTENSIONS.some((ext) => file.name.toLowerCase().endsWith(ext));
+}
+
 export function Editor({ highlights = [], activeHighlight = -1 }: EditorProps) {
   const activeTabId = useEditorStore((s) => s.activeTabId);
   const tab = useEditorStore((s) => s.tabs.find((t) => t.id === s.activeTabId));
   const updateContent = useEditorStore((s) => s.updateContent);
+  const addTabFromFile = useEditorStore((s) => s.addTabFromFile);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const backdropRef = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragCounter = useRef(0);
 
   useEffect(() => {
     textareaRef.current?.focus();
@@ -28,6 +37,45 @@ export function Editor({ highlights = [], activeHighlight = -1 }: EditorProps) {
       backdropRef.current.scrollLeft = textareaRef.current.scrollLeft;
     }
   }, []);
+
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current++;
+    if (e.dataTransfer.types.includes("Files")) {
+      setIsDragging(true);
+    }
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current--;
+    if (dragCounter.current === 0) {
+      setIsDragging(false);
+    }
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current = 0;
+    setIsDragging(false);
+
+    const files = Array.from(e.dataTransfer.files).filter(isAcceptedFile);
+    for (const file of files) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        addTabFromFile(file.name, reader.result as string);
+      };
+      reader.readAsText(file);
+    }
+  }, [addTabFromFile]);
 
   if (!tab) return null;
 
@@ -50,7 +98,13 @@ export function Editor({ highlights = [], activeHighlight = -1 }: EditorProps) {
   }
 
   return (
-    <div className="h-full relative bg-bg overflow-hidden">
+    <div
+      className="h-full relative bg-bg overflow-hidden"
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+    >
       {/* Highlight backdrop */}
       {highlights.length > 0 && (
         <div
@@ -81,6 +135,20 @@ export function Editor({ highlights = [], activeHighlight = -1 }: EditorProps) {
       />
 
       <div className="absolute inset-x-0 top-0 h-px bg-border/50 pointer-events-none" />
+
+      {/* Drop overlay */}
+      {isDragging && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-bg/80 backdrop-blur-sm border-2 border-dashed border-accent/50 rounded-lg m-3 animate-drop-zone">
+          <div className="flex flex-col items-center gap-3 text-accent">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" className="animate-drop-icon">
+              <path d="M12 3v12M8 11l4 4 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <span className="text-sm tracking-wide font-medium">Drop files here</span>
+            <span className="text-xs text-text-muted">.txt, .md, .markdown</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

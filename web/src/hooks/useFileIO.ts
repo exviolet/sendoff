@@ -24,7 +24,7 @@ export function useFileIO() {
   function openFile() {
     const input = document.createElement("input");
     input.type = "file";
-    input.accept = ".txt,.md,.text";
+    input.accept = ".txt,.md,.markdown,.text";
     input.onchange = () => {
       const file = input.files?.[0];
       if (!file) return;
