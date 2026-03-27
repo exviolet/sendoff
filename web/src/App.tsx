@@ -1,11 +1,13 @@
-import { useState, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { TabBar } from "./components/TabBar/TabBar";
 import { Editor } from "./components/Editor/Editor";
 import { FindReplacePanel } from "./components/FindReplace/FindReplacePanel";
 import { PresetsPanel } from "./components/Presets/PresetsPanel";
+import { StatusBar } from "./components/StatusBar/StatusBar";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useSessionPersistence } from "./hooks/useSessionPersistence";
 import { useFileIO } from "./hooks/useFileIO";
+import { useEditorStore } from "./store/editorStore";
 
 type PanelMode = null | "find" | "findReplace";
 
@@ -17,6 +19,18 @@ function App() {
 
   useSessionPersistence();
   const { saveCurrentTab, downloadCurrentTab, openFile, exportAll, importBackup } = useFileIO();
+
+  // Warn on browser close if dirty tabs exist
+  useEffect(() => {
+    function handleBeforeUnload(e: BeforeUnloadEvent) {
+      const hasDirty = useEditorStore.getState().tabs.some((t) => t.isDirty);
+      if (hasDirty) {
+        e.preventDefault();
+      }
+    }
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, []);
 
   const handleMatchesChange = useCallback(
     (matches: { index: number; length: number }[], currentIndex: number) => {
@@ -67,6 +81,7 @@ function App() {
         <Editor highlights={highlights} activeHighlight={activeHighlight} />
         {presetsOpen && <PresetsPanel onClose={() => setPresetsOpen(false)} />}
       </div>
+      <StatusBar />
     </div>
   );
 }

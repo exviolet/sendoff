@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useEditorStore } from "../../store/editorStore";
 
 interface TabBarProps {
@@ -16,9 +16,12 @@ export function TabBar({ onPresetsToggle, presetsOpen, onDownloadTab, onExportAl
   const closeTab = useEditorStore((s) => s.closeTab);
   const createTab = useEditorStore((s) => s.createTab);
   const renameTab = useEditorStore((s) => s.renameTab);
+  const reorderTab = useEditorStore((s) => s.reorderTab);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const dragIndexRef = useRef<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -40,6 +43,37 @@ export function TabBar({ onPresetsToggle, presetsOpen, onDownloadTab, onExportAl
     setEditingId(null);
   }
 
+  const handleTabDragStart = useCallback((e: React.DragEvent, index: number) => {
+    dragIndexRef.current = index;
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", String(index));
+    (e.currentTarget as HTMLElement).style.opacity = "0.4";
+  }, []);
+
+  const handleTabDragEnd = useCallback((e: React.DragEvent) => {
+    (e.currentTarget as HTMLElement).style.opacity = "";
+    dragIndexRef.current = null;
+    setDragOverIndex(null);
+  }, []);
+
+  const handleTabDragOver = useCallback((e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (dragIndexRef.current !== null && dragIndexRef.current !== index) {
+      setDragOverIndex(index);
+    }
+  }, []);
+
+  const handleTabDrop = useCallback((e: React.DragEvent, toIndex: number) => {
+    e.preventDefault();
+    const fromIndex = dragIndexRef.current;
+    if (fromIndex !== null && fromIndex !== toIndex) {
+      reorderTab(fromIndex, toIndex);
+    }
+    dragIndexRef.current = null;
+    setDragOverIndex(null);
+  }, [reorderTab]);
+
   return (
     <header className="flex items-center h-10 bg-surface border-b border-border shrink-0 select-none">
       {/* App identity — ultra-compact */}
@@ -52,17 +86,23 @@ export function TabBar({ onPresetsToggle, presetsOpen, onDownloadTab, onExportAl
 
       {/* Tab strip */}
       <nav className="flex items-center gap-px flex-1 overflow-x-auto min-w-0 pr-1" role="tablist">
-        {tabs.map((tab) => {
+        {tabs.map((tab, index) => {
           const isActive = tab.id === activeTabId;
           const isEditing = tab.id === editingId;
+          const isDragTarget = dragOverIndex === index;
 
           return (
             <div
               key={tab.id}
               role="tab"
               aria-selected={isActive}
+              draggable={!isEditing}
               onClick={() => setActiveTab(tab.id)}
               onDoubleClick={() => startRename(tab.id, tab.title)}
+              onDragStart={(e) => handleTabDragStart(e, index)}
+              onDragEnd={handleTabDragEnd}
+              onDragOver={(e) => handleTabDragOver(e, index)}
+              onDrop={(e) => handleTabDrop(e, index)}
               className={`
                 group relative flex items-center gap-1.5 h-7 px-2.5 rounded-[4px] cursor-pointer
                 text-[11px] tracking-wide whitespace-nowrap
@@ -71,6 +111,7 @@ export function TabBar({ onPresetsToggle, presetsOpen, onDownloadTab, onExportAl
                   ? "bg-surface-hover text-text shadow-[inset_0_0_0_1px_rgba(124,110,240,0.15)]"
                   : "text-text-muted hover:text-text hover:bg-surface-hover/50"
                 }
+                ${isDragTarget ? "ring-1 ring-accent/40" : ""}
               `}
             >
               {/* Dirty indicator */}

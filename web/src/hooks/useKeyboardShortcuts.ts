@@ -65,6 +65,18 @@ export function useKeyboardShortcuts(callbacks?: ShortcutCallbacks) {
         return;
       }
 
+      if (ctrl && code === "KeyZ") {
+        e.preventDefault();
+        const { activeTabId } = useEditorStore.getState();
+        if (!activeTabId) return;
+        if (e.shiftKey) {
+          useEditorStore.getState().redo(activeTabId);
+        } else {
+          useEditorStore.getState().undo(activeTabId);
+        }
+        return;
+      }
+
       if (e.key === "Escape") {
         callbacks?.onClosePanels?.();
         return;
