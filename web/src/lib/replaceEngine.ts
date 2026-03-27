@@ -50,19 +50,56 @@ export function replaceAll(
   content: string,
   query: string,
   replacement: string,
-  options: { caseSensitive: boolean; regex: boolean }
+  options: { caseSensitive: boolean; regex: boolean; wholeWord?: boolean }
 ): { result: string; count: number } {
-  const matches = findMatches(content, query, options);
-  if (matches.length === 0) return { result: content, count: 0 };
+  if (!query) return { result: content, count: 0 };
 
-  let result = "";
-  let lastEnd = 0;
+  const flags = options.caseSensitive ? "gu" : "giu";
+  const escaped = options.regex ? query : escapeRegex(query);
+  // \b doesn't work with Cyrillic in JS — use Unicode-aware word boundary lookarounds
+  const wb = `(?<![\\p{L}\\p{N}])`;
+  const wbEnd = `(?![\\p{L}\\p{N}])`;
+  const pattern = options.wholeWord ? `${wb}${escaped}${wbEnd}` : escaped;
 
-  for (const m of matches) {
-    result += content.slice(lastEnd, m.index) + replacement;
-    lastEnd = m.index + m.length;
+  let re: RegExp;
+  try {
+    re = new RegExp(pattern, flags);
+  } catch {
+    return { result: content, count: 0 };
   }
 
-  result += content.slice(lastEnd);
-  return { result, count: matches.length };
+  let count = 0;
+  const result = content.replace(re, () => {
+    count++;
+    return replacement;
+  });
+
+  return { result, count };
+}
+
+export interface ReplacePair {
+  from: string;
+  to: string;
+  caseSensitive: boolean;
+  wholeWord: boolean;
+}
+
+export function applyReplacePairs(
+  content: string,
+  pairs: ReplacePair[]
+): { result: string; totalCount: number } {
+  let result = content;
+  let totalCount = 0;
+
+  for (const pair of pairs) {
+    const { result: newResult, count } = replaceAll(result, pair.from, pair.to, {
+      caseSensitive: pair.caseSensitive,
+      regex: false,
+      wholeWord: pair.wholeWord,
+    });
+    result = newResult;
+    totalCount += count;
+  }
+
+  return { result, totalCount };
 }

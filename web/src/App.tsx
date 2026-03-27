@@ -2,12 +2,14 @@ import { useState, useCallback } from "react";
 import { TabBar } from "./components/TabBar/TabBar";
 import { Editor } from "./components/Editor/Editor";
 import { FindReplacePanel } from "./components/FindReplace/FindReplacePanel";
+import { PresetsPanel } from "./components/Presets/PresetsPanel";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 
 type PanelMode = null | "find" | "findReplace";
 
 function App() {
   const [panelMode, setPanelMode] = useState<PanelMode>(null);
+  const [presetsOpen, setPresetsOpen] = useState(false);
   const [highlights, setHighlights] = useState<{ index: number; length: number }[]>([]);
   const [activeHighlight, setActiveHighlight] = useState(0);
 
@@ -28,12 +30,18 @@ function App() {
   useKeyboardShortcuts({
     onFind: () => setPanelMode("find"),
     onFindReplace: () => setPanelMode("findReplace"),
-    onClosePanels: closePanel,
+    onClosePanels: () => {
+      closePanel();
+      setPresetsOpen(false);
+    },
   });
 
   return (
     <div className="flex flex-col h-full">
-      <TabBar />
+      <TabBar
+        onPresetsToggle={() => setPresetsOpen((v) => !v)}
+        presetsOpen={presetsOpen}
+      />
       {panelMode && (
         <FindReplacePanel
           mode={panelMode}
@@ -41,7 +49,10 @@ function App() {
           onMatchesChange={handleMatchesChange}
         />
       )}
-      <Editor highlights={highlights} activeHighlight={activeHighlight} />
+      <div className="flex-1 min-h-0 relative">
+        <Editor highlights={highlights} activeHighlight={activeHighlight} />
+        {presetsOpen && <PresetsPanel onClose={() => setPresetsOpen(false)} />}
+      </div>
     </div>
   );
 }
