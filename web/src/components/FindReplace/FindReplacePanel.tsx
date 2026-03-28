@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useEditorStore } from "../../store/editorStore";
 import { findMatches, replaceAt, replaceAll } from "../../lib/replaceEngine";
 
@@ -22,16 +22,25 @@ export function FindReplacePanel({ mode, onClose, onMatchesChange }: FindReplace
   const updateContent = useEditorStore((s) => s.updateContent);
 
   const content = tab?.content ?? "";
-  const matches = findMatches(content, query, { caseSensitive, regex });
+
+  const matches = useMemo(
+    () => findMatches(content, query, { caseSensitive, regex }),
+    [content, query, caseSensitive, regex]
+  );
 
   const clampedIndex = useMemo(
     () => (matches.length === 0 ? 0 : Math.min(currentIndex, matches.length - 1)),
     [currentIndex, matches.length]
   );
 
+  const notifyParent = useCallback(
+    () => onMatchesChange(matches, clampedIndex),
+    [matches, clampedIndex, onMatchesChange]
+  );
+
   useEffect(() => {
-    onMatchesChange(matches, clampedIndex);
-  }, [matches, clampedIndex, onMatchesChange]);
+    notifyParent();
+  }, [notifyParent]);
 
   useEffect(() => {
     findInputRef.current?.focus();
