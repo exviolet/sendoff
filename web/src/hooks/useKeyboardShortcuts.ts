@@ -13,6 +13,7 @@ interface ShortcutCallbacks {
   onShortcutsHelp?: () => void;
   onToggleSidebar?: () => void;
   onToggleMarkdownPreview?: () => void;
+  onSettings?: () => void;
 }
 
 export function useKeyboardShortcuts(callbacks?: ShortcutCallbacks) {
@@ -80,6 +81,12 @@ export function useKeyboardShortcuts(callbacks?: ShortcutCallbacks) {
       if (ctrl && code === "Slash") {
         e.preventDefault();
         callbacks?.onShortcutsHelp?.();
+        return;
+      }
+
+      if (ctrl && code === "Comma") {
+        e.preventDefault();
+        callbacks?.onSettings?.();
         return;
       }
 

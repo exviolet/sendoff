@@ -70,7 +70,16 @@ export async function loadSession() {
   const activeTabId = (await db.get("meta", "activeTabId")) as string | undefined;
   const tabCounter = (await db.get("meta", "tabCounter")) as number | undefined;
   const theme = (await db.get("meta", "theme")) as string | undefined;
-  return { tabs, presets, promptTemplates, activeTabId: activeTabId ?? null, tabCounter: tabCounter ?? 0, theme: theme ?? "dark" };
+  const fontSize = (await db.get("meta", "fontSize")) as number | undefined;
+  const wordWrap = (await db.get("meta", "wordWrap")) as string | undefined;
+  return {
+    tabs, presets, promptTemplates,
+    activeTabId: activeTabId ?? null,
+    tabCounter: tabCounter ?? 0,
+    theme: theme ?? "dark",
+    fontSize: fontSize ?? 13,
+    wordWrap: wordWrap === "false" ? false : true,
+  };
 }
 
 export async function saveSession(
@@ -80,6 +89,8 @@ export async function saveSession(
   presets: ReplacePreset[],
   promptTemplates: PromptTemplate[],
   theme: string,
+  fontSize: number,
+  wordWrap: boolean,
 ) {
   const db = await getDB();
   const tx = db.transaction(["tabs", "presets", "promptTemplates", "meta"], "readwrite");
@@ -110,6 +121,8 @@ export async function saveSession(
   await metaStore.put(activeTabId ?? "", "activeTabId");
   await metaStore.put(tabCounter, "tabCounter");
   await metaStore.put(theme, "theme");
+  await metaStore.put(fontSize, "fontSize");
+  await metaStore.put(String(wordWrap), "wordWrap");
 
   await tx.done;
 }

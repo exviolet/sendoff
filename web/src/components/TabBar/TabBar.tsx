@@ -7,6 +7,8 @@ interface TabBarProps {
   presetsOpen: boolean;
   onAIPromptToggle: () => void;
   aiPromptOpen: boolean;
+  onSettingsToggle: () => void;
+  settingsOpen: boolean;
   onDownloadTab: (format: "txt" | "md") => void;
   onExportAll: () => void;
   onImportBackup: () => void;
@@ -14,7 +16,7 @@ interface TabBarProps {
   onThemeToggle: () => void;
 }
 
-export function TabBar({ onPresetsToggle, presetsOpen, onAIPromptToggle, aiPromptOpen, onDownloadTab, onExportAll, onImportBackup, theme, onThemeToggle }: TabBarProps) {
+export function TabBar({ onPresetsToggle, presetsOpen, onAIPromptToggle, aiPromptOpen, onSettingsToggle, settingsOpen, onDownloadTab, onExportAll, onImportBackup, theme, onThemeToggle }: TabBarProps) {
   const tabs = useEditorStore((s) => s.tabs);
   const activeTabId = useEditorStore((s) => s.activeTabId);
   const setActiveTab = useEditorStore((s) => s.setActiveTab);
@@ -202,6 +204,25 @@ export function TabBar({ onPresetsToggle, presetsOpen, onAIPromptToggle, aiPromp
         >
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
             <path d="M6 8V2M3.5 4.5L6 2l2.5 2.5M2 10h8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+
+        {/* Settings button */}
+        <button
+          onClick={onSettingsToggle}
+          className={`
+            flex items-center justify-center w-7 h-7 rounded-[4px] transition-colors duration-150
+            ${settingsOpen
+              ? "text-accent bg-accent/10"
+              : "text-text-muted hover:text-text hover:bg-surface-hover"
+            }
+          `}
+          aria-label="Настройки"
+          title="Настройки (Ctrl+,)"
+        >
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+            <circle cx="8" cy="8" r="2" stroke="currentColor" strokeWidth="1.3" />
+            <path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.41 1.41M11.54 11.54l1.41 1.41M3.05 12.95l1.41-1.41M11.54 4.46l1.41-1.41" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
           </svg>
         </button>
 

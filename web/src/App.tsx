@@ -7,11 +7,13 @@ import { AIPromptPanel } from "./components/AIPrompt/AIPromptPanel";
 import { StatusBar } from "./components/StatusBar/StatusBar";
 import { CommandPalette, type Command } from "./components/CommandPalette/CommandPalette";
 import { ShortcutsModal } from "./components/ShortcutsModal/ShortcutsModal";
+import { SettingsPanel } from "./components/Settings/SettingsPanel";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useSessionPersistence } from "./hooks/useSessionPersistence";
 import { useFileIO } from "./hooks/useFileIO";
 import { useEditorStore } from "./store/editorStore";
 import { useThemeStore } from "./store/themeStore";
+import { useSettingsStore } from "./store/settingsStore";
 
 type PanelMode = null | "find" | "findReplace";
 
@@ -26,9 +28,13 @@ function App() {
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [markdownPreview, setMarkdownPreview] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const theme = useThemeStore((s) => s.theme);
   const toggleTheme = useThemeStore((s) => s.toggleTheme);
+
+  const fontSize = useSettingsStore((s) => s.fontSize);
+  const wordWrap = useSettingsStore((s) => s.wordWrap);
 
   // Sync data-theme attribute on <html>
   useEffect(() => {
@@ -88,6 +94,7 @@ function App() {
     { id: "toggle-theme", label: theme === "dark" ? "Светлая тема" : "Тёмная тема", action: toggleTheme },
     { id: "toggle-sidebar", label: "Пресеты (sidebar)", shortcut: "Ctrl+.", action: () => { setPresetsOpen((v) => !v); setAiPromptOpen(false); } },
     { id: "toggle-md-preview", label: markdownPreview ? "Редактор" : "Markdown превью", shortcut: "Ctrl+M", action: () => setMarkdownPreview((v) => !v) },
+    { id: "settings", label: "Настройки", shortcut: "Ctrl+,", action: () => { setSettingsOpen((v) => !v); setPresetsOpen(false); setAiPromptOpen(false); } },
   ], [saveCurrentTab, openFile, downloadCurrentTab, exportAll, importBackup, toggleDistractionFree, theme, toggleTheme, markdownPreview]);
 
   useKeyboardShortcuts({
@@ -98,10 +105,11 @@ function App() {
         setDistractionFree(false);
       } else if (commandPaletteOpen || shortcutsOpen) {
         // handled by their own listeners
-      } else if (panelMode || presetsOpen || aiPromptOpen) {
+      } else if (panelMode || presetsOpen || aiPromptOpen || settingsOpen) {
         closePanel();
         setPresetsOpen(false);
         setAiPromptOpen(false);
+        setSettingsOpen(false);
       } else if (document.activeElement instanceof HTMLElement) {
         document.activeElement.blur();
       }
@@ -120,6 +128,11 @@ function App() {
       setAiPromptOpen(false);
     },
     onToggleMarkdownPreview: () => setMarkdownPreview((v) => !v),
+    onSettings: () => {
+      setSettingsOpen((v) => !v);
+      setPresetsOpen(false);
+      setAiPromptOpen(false);
+    },
   });
 
   return (
@@ -129,13 +142,21 @@ function App() {
           onPresetsToggle={() => {
             setPresetsOpen((v) => !v);
             setAiPromptOpen(false);
+            setSettingsOpen(false);
           }}
           presetsOpen={presetsOpen}
           onAIPromptToggle={() => {
             setAiPromptOpen((v) => !v);
             setPresetsOpen(false);
+            setSettingsOpen(false);
           }}
           aiPromptOpen={aiPromptOpen}
+          onSettingsToggle={() => {
+            setSettingsOpen((v) => !v);
+            setPresetsOpen(false);
+            setAiPromptOpen(false);
+          }}
+          settingsOpen={settingsOpen}
           onDownloadTab={downloadCurrentTab}
           onExportAll={exportAll}
           onImportBackup={importBackup}
@@ -153,11 +174,12 @@ function App() {
       <div className="flex-1 min-h-0 relative">
         <div className={distractionFree ? "h-full flex justify-center" : "h-full"}>
           <div className={distractionFree ? "w-full max-w-[780px]" : "w-full h-full"}>
-            <Editor highlights={highlights} activeHighlight={activeHighlight} textareaRef={textareaRef} markdownPreview={markdownPreview} />
+            <Editor highlights={highlights} activeHighlight={activeHighlight} textareaRef={textareaRef} markdownPreview={markdownPreview} fontSize={fontSize} wordWrap={wordWrap} />
           </div>
         </div>
         {!distractionFree && presetsOpen && <PresetsPanel onClose={() => setPresetsOpen(false)} />}
         {!distractionFree && aiPromptOpen && <AIPromptPanel onClose={() => setAiPromptOpen(false)} textareaRef={textareaRef} />}
+        {!distractionFree && settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} />}
       </div>
       {!distractionFree && <StatusBar />}
 

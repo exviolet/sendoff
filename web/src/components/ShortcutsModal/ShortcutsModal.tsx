@@ -23,6 +23,7 @@ const SHORTCUT_GROUPS = [
     title: "Панели",
     items: [
       { keys: "Ctrl+K", action: "AI Prompt" },
+      { keys: "Ctrl+,", action: "Настройки" },
       { keys: "Ctrl+.", action: "Toggle sidebar" },
       { keys: "Ctrl+M", action: "Markdown превью" },
       { keys: "Ctrl+P", action: "Command Palette" },

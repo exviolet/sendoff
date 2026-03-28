@@ -12,6 +12,8 @@ interface EditorProps {
   activeHighlight?: number;
   textareaRef: React.RefObject<HTMLTextAreaElement | null>;
   markdownPreview?: boolean;
+  fontSize?: number;
+  wordWrap?: boolean;
 }
 
 const ACCEPTED_EXTENSIONS = [".txt", ".md", ".markdown", ".text"];
@@ -20,7 +22,7 @@ function isAcceptedFile(file: File): boolean {
   return ACCEPTED_EXTENSIONS.some((ext) => file.name.toLowerCase().endsWith(ext));
 }
 
-export function Editor({ highlights = [], activeHighlight = -1, textareaRef, markdownPreview = false }: EditorProps) {
+export function Editor({ highlights = [], activeHighlight = -1, textareaRef, markdownPreview = false, fontSize = 13, wordWrap = true }: EditorProps) {
   const activeTabId = useEditorStore((s) => s.activeTabId);
   const tab = useEditorStore((s) => s.tabs.find((t) => t.id === s.activeTabId));
   const updateContent = useEditorStore((s) => s.updateContent);
@@ -124,8 +126,13 @@ export function Editor({ highlights = [], activeHighlight = -1, textareaRef, mar
           {highlights.length > 0 && (
             <div
               ref={backdropRef}
-              className="absolute inset-0 w-full h-full p-6 pt-5 overflow-hidden pointer-events-none text-[13px] leading-[1.7] tracking-wide whitespace-pre-wrap break-words text-transparent"
-              style={{ wordBreak: "break-word" }}
+              className="absolute inset-0 w-full h-full p-6 pt-5 overflow-hidden pointer-events-none leading-[1.7] tracking-wide text-transparent"
+              style={{
+                fontSize: `${fontSize}px`,
+                whiteSpace: wordWrap ? "pre-wrap" : "pre",
+                wordBreak: wordWrap ? "break-word" : "normal",
+                overflowX: wordWrap ? "hidden" : "auto",
+              }}
               dangerouslySetInnerHTML={{
                 __html: buildHighlightHTML(tab.content, highlights, activeHighlight),
               }}
@@ -142,11 +149,17 @@ export function Editor({ highlights = [], activeHighlight = -1, textareaRef, mar
             className="
               absolute inset-0 w-full h-full
               bg-transparent text-text placeholder:text-text-muted/40
-              text-[13px] leading-[1.7] tracking-wide
+              leading-[1.7] tracking-wide
               p-6 pt-5
               resize-none outline-none
               caret-accent
             "
+            style={{
+              fontSize: `${fontSize}px`,
+              whiteSpace: wordWrap ? "pre-wrap" : "pre",
+              wordBreak: wordWrap ? "break-word" : "normal",
+              overflowX: wordWrap ? "hidden" : "auto",
+            }}
           />
         </>
       )}
