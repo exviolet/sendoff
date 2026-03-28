@@ -219,8 +219,8 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
           title="Настройки (Ctrl+,)"
         >
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-            <path d="M6.8 1h2.4l.4 2.2a5.5 5.5 0 0 1 1.3.8l2.1-.7.9 1.6-1.7 1.4a5.5 5.5 0 0 1 0 1.4l1.7 1.4-.9 1.6-2.1-.7a5.5 5.5 0 0 1-1.3.8L9.2 15H6.8l-.4-2.2a5.5 5.5 0 0 1-1.3-.8l-2.1.7-.9-1.6 1.7-1.4a5.5 5.5 0 0 1 0-1.4L2.1 6.9l.9-1.6 2.1.7a5.5 5.5 0 0 1 1.3-.8L6.8 1z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
-            <circle cx="8" cy="8" r="2" stroke="currentColor" strokeWidth="1.2" />
+            <circle cx="8" cy="8" r="2.5" stroke="currentColor" strokeWidth="1.3" />
+            <circle cx="8" cy="8" r="5.5" stroke="currentColor" strokeWidth="1.3" strokeDasharray="2.8 2.4" />
           </svg>
         </button>
 
