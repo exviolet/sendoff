@@ -11,6 +11,8 @@ interface ShortcutCallbacks {
   onCommandPalette?: () => void;
   onDistractionFree?: () => void;
   onShortcutsHelp?: () => void;
+  onToggleSidebar?: () => void;
+  onToggleMarkdownPreview?: () => void;
 }
 
 export function useKeyboardShortcuts(callbacks?: ShortcutCallbacks) {
@@ -78,6 +80,18 @@ export function useKeyboardShortcuts(callbacks?: ShortcutCallbacks) {
       if (ctrl && code === "Slash") {
         e.preventDefault();
         callbacks?.onShortcutsHelp?.();
+        return;
+      }
+
+      if (ctrl && code === "Period") {
+        e.preventDefault();
+        callbacks?.onToggleSidebar?.();
+        return;
+      }
+
+      if (ctrl && code === "KeyM") {
+        e.preventDefault();
+        callbacks?.onToggleMarkdownPreview?.();
         return;
       }
 

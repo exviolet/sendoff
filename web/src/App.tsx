@@ -25,6 +25,7 @@ function App() {
   const [distractionFree, setDistractionFree] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [markdownPreview, setMarkdownPreview] = useState(false);
 
   const theme = useThemeStore((s) => s.theme);
   const toggleTheme = useThemeStore((s) => s.toggleTheme);
@@ -85,7 +86,9 @@ function App() {
     { id: "distraction-free", label: "Distraction-free режим", shortcut: "Ctrl+Shift+F", action: toggleDistractionFree },
     { id: "shortcuts", label: "Клавиатурные сокращения", shortcut: "Ctrl+/", action: () => setShortcutsOpen(true) },
     { id: "toggle-theme", label: theme === "dark" ? "Светлая тема" : "Тёмная тема", action: toggleTheme },
-  ], [saveCurrentTab, openFile, downloadCurrentTab, exportAll, importBackup, toggleDistractionFree, theme, toggleTheme]);
+    { id: "toggle-sidebar", label: "Пресеты (sidebar)", shortcut: "Ctrl+.", action: () => { setPresetsOpen((v) => !v); setAiPromptOpen(false); } },
+    { id: "toggle-md-preview", label: markdownPreview ? "Редактор" : "Markdown превью", shortcut: "Ctrl+M", action: () => setMarkdownPreview((v) => !v) },
+  ], [saveCurrentTab, openFile, downloadCurrentTab, exportAll, importBackup, toggleDistractionFree, theme, toggleTheme, markdownPreview]);
 
   useKeyboardShortcuts({
     onFind: () => setPanelMode("find"),
@@ -112,6 +115,11 @@ function App() {
     onCommandPalette: () => setCommandPaletteOpen((v) => !v),
     onDistractionFree: toggleDistractionFree,
     onShortcutsHelp: () => setShortcutsOpen((v) => !v),
+    onToggleSidebar: () => {
+      setPresetsOpen((v) => !v);
+      setAiPromptOpen(false);
+    },
+    onToggleMarkdownPreview: () => setMarkdownPreview((v) => !v),
   });
 
   return (
@@ -145,7 +153,7 @@ function App() {
       <div className="flex-1 min-h-0 relative">
         <div className={distractionFree ? "h-full flex justify-center" : "h-full"}>
           <div className={distractionFree ? "w-full max-w-[780px]" : "w-full h-full"}>
-            <Editor highlights={highlights} activeHighlight={activeHighlight} textareaRef={textareaRef} />
+            <Editor highlights={highlights} activeHighlight={activeHighlight} textareaRef={textareaRef} markdownPreview={markdownPreview} />
           </div>
         </div>
         {!distractionFree && presetsOpen && <PresetsPanel onClose={() => setPresetsOpen(false)} />}

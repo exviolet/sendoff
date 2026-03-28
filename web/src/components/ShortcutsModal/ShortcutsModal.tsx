@@ -23,6 +23,8 @@ const SHORTCUT_GROUPS = [
     title: "Панели",
     items: [
       { keys: "Ctrl+K", action: "AI Prompt" },
+      { keys: "Ctrl+.", action: "Toggle sidebar" },
+      { keys: "Ctrl+M", action: "Markdown превью" },
       { keys: "Ctrl+P", action: "Command Palette" },
       { keys: "Ctrl+Shift+F", action: "Distraction-free режим" },
       { keys: "Escape", action: "Закрыть панели" },
@@ -31,7 +33,7 @@ const SHORTCUT_GROUPS = [
   {
     title: "Файлы",
     items: [
-      { keys: "Ctrl+S", action: "Сохранить как .txt" },
+      { keys: "Ctrl+S", action: "Сохранить" },
       { keys: "Ctrl+O", action: "Открыть файл" },
     ],
   },

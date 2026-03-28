@@ -13,11 +13,17 @@ export function useFileIO() {
     const tab = tabs.find((t) => t.id === activeTabId);
     if (!tab) return;
 
-    const blob = new Blob([tab.content], { type: "text/plain;charset=utf-8" });
+    const hasExtension = /\.(txt|md|markdown|text)$/i.test(tab.title);
+    const filename = hasExtension ? tab.title : `${tab.title}.txt`;
+    const mimeType = /\.md$/i.test(filename) || /\.markdown$/i.test(filename)
+      ? "text/markdown;charset=utf-8"
+      : "text/plain;charset=utf-8";
+
+    const blob = new Blob([tab.content], { type: mimeType });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${tab.title}.txt`;
+    a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
   }

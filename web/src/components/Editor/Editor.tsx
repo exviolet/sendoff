@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { marked } from "marked";
 import { useEditorStore } from "../../store/editorStore";
 
 interface HighlightMatch {
@@ -10,6 +11,7 @@ interface EditorProps {
   highlights?: HighlightMatch[];
   activeHighlight?: number;
   textareaRef: React.RefObject<HTMLTextAreaElement | null>;
+  markdownPreview?: boolean;
 }
 
 const ACCEPTED_EXTENSIONS = [".txt", ".md", ".markdown", ".text"];
@@ -18,7 +20,7 @@ function isAcceptedFile(file: File): boolean {
   return ACCEPTED_EXTENSIONS.some((ext) => file.name.toLowerCase().endsWith(ext));
 }
 
-export function Editor({ highlights = [], activeHighlight = -1, textareaRef }: EditorProps) {
+export function Editor({ highlights = [], activeHighlight = -1, textareaRef, markdownPreview = false }: EditorProps) {
   const activeTabId = useEditorStore((s) => s.activeTabId);
   const tab = useEditorStore((s) => s.tabs.find((t) => t.id === s.activeTabId));
   const updateContent = useEditorStore((s) => s.updateContent);
@@ -77,6 +79,12 @@ export function Editor({ highlights = [], activeHighlight = -1, textareaRef }: E
     }
   }, [addTabFromFile]);
 
+  const markdownContent = tab?.content ?? "";
+  const renderedMarkdown = useMemo(() => {
+    if (!markdownPreview) return "";
+    return marked.parse(markdownContent, { async: false }) as string;
+  }, [markdownPreview, markdownContent]);
+
   if (!tab) return null;
 
   function buildHighlightHTML(content: string, matches: HighlightMatch[], activeIdx: number): string {
@@ -105,34 +113,43 @@ export function Editor({ highlights = [], activeHighlight = -1, textareaRef }: E
       onDragOver={handleDragOver}
       onDrop={handleDrop}
     >
-      {/* Highlight backdrop */}
-      {highlights.length > 0 && (
+      {markdownPreview ? (
         <div
-          ref={backdropRef}
-          className="absolute inset-0 w-full h-full p-6 pt-5 overflow-hidden pointer-events-none text-[13px] leading-[1.7] tracking-wide whitespace-pre-wrap break-words text-transparent"
-          style={{ wordBreak: "break-word" }}
-          dangerouslySetInnerHTML={{
-            __html: buildHighlightHTML(tab.content, highlights, activeHighlight),
-          }}
+          className="absolute inset-0 w-full h-full p-6 pt-5 overflow-y-auto prose-markdown text-text"
+          dangerouslySetInnerHTML={{ __html: renderedMarkdown }}
         />
-      )}
+      ) : (
+        <>
+          {/* Highlight backdrop */}
+          {highlights.length > 0 && (
+            <div
+              ref={backdropRef}
+              className="absolute inset-0 w-full h-full p-6 pt-5 overflow-hidden pointer-events-none text-[13px] leading-[1.7] tracking-wide whitespace-pre-wrap break-words text-transparent"
+              style={{ wordBreak: "break-word" }}
+              dangerouslySetInnerHTML={{
+                __html: buildHighlightHTML(tab.content, highlights, activeHighlight),
+              }}
+            />
+          )}
 
-      <textarea
-        ref={textareaRef}
-        value={tab.content}
-        onChange={(e) => updateContent(tab.id, e.target.value)}
-        onScroll={syncScroll}
-        placeholder="Start typing or paste text..."
-        spellCheck={false}
-        className="
-          absolute inset-0 w-full h-full
-          bg-transparent text-text placeholder:text-text-muted/40
-          text-[13px] leading-[1.7] tracking-wide
-          p-6 pt-5
-          resize-none outline-none
-          caret-accent
-        "
-      />
+          <textarea
+            ref={textareaRef}
+            value={tab.content}
+            onChange={(e) => updateContent(tab.id, e.target.value)}
+            onScroll={syncScroll}
+            placeholder="Start typing or paste text..."
+            spellCheck={false}
+            className="
+              absolute inset-0 w-full h-full
+              bg-transparent text-text placeholder:text-text-muted/40
+              text-[13px] leading-[1.7] tracking-wide
+              p-6 pt-5
+              resize-none outline-none
+              caret-accent
+            "
+          />
+        </>
+      )}
 
       <div className="absolute inset-x-0 top-0 h-px bg-border/50 pointer-events-none" />
 

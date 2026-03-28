@@ -105,9 +105,11 @@ interface PromptTemplate {
 | `Ctrl+F` | Find panel |
 | `Ctrl+H` | Find & Replace panel |
 | `Ctrl+K` | AI Prompt panel |
-| `Ctrl+S` | Save as `.txt` |
-| `Ctrl+O` | Open `.txt` file |
+| `Ctrl+S` | Save (mark as saved) |
+| `Ctrl+O` | Open file |
 | `Ctrl+P` | Command palette |
+| `Ctrl+.` | Toggle sidebar (Presets) |
+| `Ctrl+M` | Markdown preview toggle |
 | `Ctrl+Shift+F` | Distraction-free mode |
 | `Ctrl+?` | Keyboard shortcuts modal |
 | `Escape` | Close panels |
