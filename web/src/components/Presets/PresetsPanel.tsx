@@ -5,6 +5,7 @@ import type { ReplacePair } from "../../lib/replaceEngine";
 import { previewReplacePairs, type DiffEntry } from "../../lib/replaceEngine";
 import { useEditorStore } from "../../store/editorStore";
 import { PresetEditor } from "./PresetEditor";
+import { isTauri } from "../../lib/platform";
 
 function isValidPreset(data: unknown): data is { name: string; pairs: ReplacePair[] } {
   if (typeof data !== "object" || data === null) return false;
@@ -18,13 +19,26 @@ function isValidPreset(data: unknown): data is { name: string; pairs: ReplacePai
   });
 }
 
-function exportPreset(preset: ReplacePreset) {
-  const data = { name: preset.name, pairs: preset.pairs };
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+async function exportPreset(preset: ReplacePreset) {
+  const json = JSON.stringify({ name: preset.name, pairs: preset.pairs }, null, 2);
+  const fileName = `${preset.name.replace(/[^a-zA-Zа-яА-ЯёЁ0-9_-]/g, "_")}.json`;
+
+  if (isTauri) {
+    const { save } = await import("@tauri-apps/plugin-dialog");
+    const { writeTextFile } = await import("@tauri-apps/plugin-fs");
+    const path = await save({
+      filters: [{ name: "JSON", extensions: ["json"] }],
+      defaultPath: fileName,
+    });
+    if (path) await writeTextFile(path, json);
+    return;
+  }
+
+  const blob = new Blob([json], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `${preset.name.replace(/[^a-zA-Zа-яА-ЯёЁ0-9_-]/g, "_")}.json`;
+  a.download = fileName;
   a.click();
   URL.revokeObjectURL(url);
 }
@@ -50,7 +64,43 @@ export function PresetsPanel({ onClose }: PresetsPanelProps) {
   const [importError, setImportError] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  const handleImportPreset = useCallback(() => {
+  const handleImportPreset = useCallback(async () => {
+    function processPresetData(raw: string) {
+      const data: unknown = JSON.parse(raw);
+      if (!isValidPreset(data)) {
+        setImportError("Неверный формат пресета");
+        return;
+      }
+      const preset: ReplacePreset = {
+        id: crypto.randomUUID(),
+        name: data.name,
+        pairs: data.pairs.map((p) => ({
+          from: p.from,
+          to: p.to,
+          caseSensitive: p.caseSensitive ?? true,
+          wholeWord: p.wholeWord ?? false,
+        })),
+      };
+      addPreset(preset);
+      setImportError(null);
+    }
+
+    if (isTauri) {
+      try {
+        const { open } = await import("@tauri-apps/plugin-dialog");
+        const { readTextFile } = await import("@tauri-apps/plugin-fs");
+        const path = await open({
+          filters: [{ name: "JSON", extensions: ["json"] }],
+        });
+        if (!path) return;
+        const raw = await readTextFile(path);
+        processPresetData(raw);
+      } catch {
+        setImportError("Ошибка чтения файла");
+      }
+      return;
+    }
+
     const input = document.createElement("input");
     input.type = "file";
     input.accept = ".json";
@@ -60,23 +110,7 @@ export function PresetsPanel({ onClose }: PresetsPanelProps) {
       const reader = new FileReader();
       reader.onload = () => {
         try {
-          const data: unknown = JSON.parse(reader.result as string);
-          if (!isValidPreset(data)) {
-            setImportError("Неверный формат пресета");
-            return;
-          }
-          const preset: ReplacePreset = {
-            id: crypto.randomUUID(),
-            name: data.name,
-            pairs: data.pairs.map((p) => ({
-              from: p.from,
-              to: p.to,
-              caseSensitive: p.caseSensitive ?? true,
-              wholeWord: p.wholeWord ?? false,
-            })),
-          };
-          addPreset(preset);
-          setImportError(null);
+          processPresetData(reader.result as string);
         } catch {
           setImportError("Ошибка чтения файла");
         }

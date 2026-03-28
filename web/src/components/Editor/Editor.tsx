@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { marked } from "marked";
 import { useEditorStore } from "../../store/editorStore";
+import { isTauri } from "../../lib/platform";
 
 interface HighlightMatch {
   index: number;
@@ -34,6 +35,38 @@ export function Editor({ highlights = [], activeHighlight = -1, textareaRef, mar
   useEffect(() => {
     textareaRef.current?.focus();
   }, [activeTabId, textareaRef]);
+
+  useEffect(() => {
+    if (!isTauri) return;
+    let unlisten: (() => void) | undefined;
+
+    (async () => {
+      const { getCurrentWebview } = await import("@tauri-apps/api/webview");
+      const { readTextFile } = await import("@tauri-apps/plugin-fs");
+
+      unlisten = await getCurrentWebview().onDragDropEvent(async (event) => {
+        if (event.payload.type === "over") {
+          setIsDragging(true);
+        } else if (event.payload.type === "drop") {
+          for (const filePath of event.payload.paths) {
+            const ext = filePath.split(".").pop()?.toLowerCase();
+            if (["txt", "md", "markdown", "text"].includes(ext ?? "")) {
+              const content = await readTextFile(filePath);
+              const name = filePath.split(/[\\/]/).pop() ?? "Untitled";
+              addTabFromFile(name, content);
+            }
+          }
+          setIsDragging(false);
+          dragCounter.current = 0;
+        } else if (event.payload.type === "cancel") {
+          setIsDragging(false);
+          dragCounter.current = 0;
+        }
+      });
+    })();
+
+    return () => { unlisten?.(); };
+  }, [addTabFromFile]);
 
   const syncScroll = useCallback(() => {
     if (textareaRef.current && backdropRef.current) {

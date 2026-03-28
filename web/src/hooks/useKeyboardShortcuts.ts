@@ -35,13 +35,14 @@ export function useKeyboardShortcuts(callbacks?: ShortcutCallbacks) {
         return;
       }
 
-      if (ctrl && e.key === "Tab") {
+      if (ctrl && (e.key === "Tab" || code === "PageDown" || code === "PageUp")) {
         e.preventDefault();
         const { tabs, activeTabId, setActiveTab } =
           useEditorStore.getState();
         if (tabs.length < 2) return;
         const currentIndex = tabs.findIndex((t) => t.id === activeTabId);
-        const nextIndex = e.shiftKey
+        const goBack = e.shiftKey || code === "PageUp";
+        const nextIndex = goBack
           ? (currentIndex - 1 + tabs.length) % tabs.length
           : (currentIndex + 1) % tabs.length;
         setActiveTab(tabs[nextIndex].id);

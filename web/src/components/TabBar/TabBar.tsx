@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useEditorStore } from "../../store/editorStore";
 import type { Theme } from "../../store/themeStore";
+import { isTauri } from "../../lib/platform";
 
 type SidePanel = null | "presets" | "ai" | "settings";
 
@@ -80,7 +81,7 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
   }, [reorderTab]);
 
   return (
-    <header className="flex items-center h-10 bg-surface border-b border-border shrink-0 select-none">
+    <header data-tauri-drag-region className="flex items-center h-10 bg-surface border-b border-border shrink-0 select-none">
       {/* App identity — ultra-compact */}
       <div className="flex items-center gap-1.5 pl-3 pr-2 text-text-muted">
         <svg width="14" height="14" viewBox="0 0 16 16" fill="none" className="opacity-50">
@@ -279,8 +280,57 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
             <path d="M2 4h12M2 8h8M2 12h10" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
           </svg>
         </button>
+
+        {isTauri && <WindowControls />}
       </div>
     </header>
+  );
+}
+
+function WindowControls() {
+  const handleMinimize = async () => {
+    const { getCurrentWindow } = await import("@tauri-apps/api/window");
+    getCurrentWindow().minimize();
+  };
+  const handleMaximize = async () => {
+    const { getCurrentWindow } = await import("@tauri-apps/api/window");
+    getCurrentWindow().toggleMaximize();
+  };
+  const handleClose = async () => {
+    const { getCurrentWindow } = await import("@tauri-apps/api/window");
+    getCurrentWindow().close();
+  };
+
+  return (
+    <div className="flex items-center gap-0.5 ml-2 pl-2 border-l border-border/50">
+      <button
+        onClick={handleMinimize}
+        className="flex items-center justify-center w-7 h-7 rounded-[4px] text-text-muted hover:text-text hover:bg-surface-hover transition-colors duration-150"
+        aria-label="Minimize"
+      >
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+          <path d="M2 5h6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+        </svg>
+      </button>
+      <button
+        onClick={handleMaximize}
+        className="flex items-center justify-center w-7 h-7 rounded-[4px] text-text-muted hover:text-text hover:bg-surface-hover transition-colors duration-150"
+        aria-label="Maximize"
+      >
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+          <rect x="2" y="2" width="6" height="6" rx="0.5" stroke="currentColor" strokeWidth="1.2" />
+        </svg>
+      </button>
+      <button
+        onClick={handleClose}
+        className="flex items-center justify-center w-7 h-7 rounded-[4px] text-text-muted hover:text-danger hover:bg-danger/10 transition-colors duration-150"
+        aria-label="Close"
+      >
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+          <path d="M2.5 2.5l5 5M7.5 2.5l-5 5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+        </svg>
+      </button>
+    </div>
   );
 }
 
