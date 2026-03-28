@@ -15,7 +15,7 @@ export function findMatches(
 ): MatchResult[] {
   if (!query) return [];
 
-  const flags = options.caseSensitive ? "g" : "gi";
+  const flags = options.caseSensitive ? "gu" : "giu";
   let pattern: RegExp;
 
   try {
