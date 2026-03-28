@@ -7,7 +7,7 @@ interface TabBarProps {
   presetsOpen: boolean;
   onAIPromptToggle: () => void;
   aiPromptOpen: boolean;
-  onDownloadTab: () => void;
+  onDownloadTab: (format: "txt" | "md") => void;
   onExportAll: () => void;
   onImportBackup: () => void;
   theme: Theme;
@@ -178,18 +178,8 @@ export function TabBar({ onPresetsToggle, presetsOpen, onAIPromptToggle, aiPromp
       </nav>
 
       <div className="flex items-center gap-0.5 mr-2 shrink-0">
-        {/* Download current tab as .txt */}
-        <button
-          onClick={onDownloadTab}
-          className="flex items-center justify-center w-7 h-7 rounded-[4px] text-text-muted hover:text-text hover:bg-surface-hover transition-colors duration-150"
-          aria-label="Download as .txt"
-          title="Download as .txt"
-        >
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-            <path d="M2 2h5l3 3v5a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V2z" stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round" fill="none" />
-            <path d="M7 2v3h3" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </button>
+        {/* Download current tab */}
+        <DownloadButton onDownload={onDownloadTab} />
 
         {/* Export all */}
         <button
@@ -272,5 +262,55 @@ export function TabBar({ onPresetsToggle, presetsOpen, onAIPromptToggle, aiPromp
         </button>
       </div>
     </header>
+  );
+}
+
+function DownloadButton({ onDownload }: { onDownload: (format: "txt" | "md") => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [open]);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center justify-center w-7 h-7 rounded-[4px] text-text-muted hover:text-text hover:bg-surface-hover transition-colors duration-150"
+        aria-label="Download"
+        title="Download"
+      >
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+          <path d="M2 2h5l3 3v5a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V2z" stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round" fill="none" />
+          <path d="M7 2v3h3" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full mt-1 bg-surface border border-border rounded-[6px] shadow-lg z-50 overflow-hidden animate-slide-down">
+          <button
+            onClick={() => { onDownload("txt"); setOpen(false); }}
+            className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] tracking-wide text-text-muted hover:text-text hover:bg-surface-hover transition-colors whitespace-nowrap"
+          >
+            <span className="text-text-muted/60">.txt</span>
+            <span>Текстовый файл</span>
+          </button>
+          <button
+            onClick={() => { onDownload("md"); setOpen(false); }}
+            className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] tracking-wide text-text-muted hover:text-text hover:bg-surface-hover transition-colors whitespace-nowrap"
+          >
+            <span className="text-text-muted/60">.md</span>
+            <span>Markdown</span>
+          </button>
+        </div>
+      )}
+    </div>
   );
 }

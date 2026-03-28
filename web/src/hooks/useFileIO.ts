@@ -8,22 +8,20 @@ export function useFileIO() {
     if (activeTabId) markSaved(activeTabId);
   }
 
-  function downloadCurrentTab() {
+  function downloadCurrentTab(format: "txt" | "md" = "txt") {
     const { tabs, activeTabId } = useEditorStore.getState();
     const tab = tabs.find((t) => t.id === activeTabId);
     if (!tab) return;
 
-    const hasExtension = /\.(txt|md|markdown|text)$/i.test(tab.title);
-    const filename = hasExtension ? tab.title : `${tab.title}.txt`;
-    const mimeType = /\.md$/i.test(filename) || /\.markdown$/i.test(filename)
-      ? "text/markdown;charset=utf-8"
-      : "text/plain;charset=utf-8";
+    const baseName = tab.title.replace(/\.(txt|md|markdown|text)$/i, "");
+    const ext = format === "md" ? ".md" : ".txt";
+    const mimeType = format === "md" ? "text/markdown;charset=utf-8" : "text/plain;charset=utf-8";
 
     const blob = new Blob([tab.content], { type: mimeType });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = filename;
+    a.download = `${baseName}${ext}`;
     a.click();
     URL.revokeObjectURL(url);
   }
