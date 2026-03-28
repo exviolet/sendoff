@@ -84,6 +84,7 @@ function App() {
       const { activeTabId, closeTab } = useEditorStore.getState();
       if (activeTabId) closeTab(activeTabId);
     }},
+    { id: "reopen-tab", label: "Восстановить закрытый таб", shortcut: "Ctrl+Shift+T", action: () => useEditorStore.getState().reopenTab() },
     { id: "find", label: "Найти", shortcut: "Ctrl+F", action: () => setPanelMode("find") },
     { id: "find-replace", label: "Найти и заменить", shortcut: "Ctrl+H", action: () => setPanelMode("findReplace") },
     { id: "presets", label: "Пресеты замены", action: () => setSidePanel("presets") },

@@ -14,8 +14,10 @@ interface EditorStore {
   activeTabId: string | null;
   tabCounter: number;
   isHydrated: boolean;
+  closedTabs: Tab[];
   createTab: () => void;
   closeTab: (id: string) => void;
+  reopenTab: () => void;
   setActiveTab: (id: string) => void;
   updateContent: (id: string, content: string) => void;
   renameTab: (id: string, title: string) => void;
@@ -91,11 +93,14 @@ function makeTab(n: number): Tab {
 
 const initialTab = makeTab(1);
 
+const MAX_CLOSED_TABS = 20;
+
 export const useEditorStore = create<EditorStore>((set, get) => ({
   tabs: [initialTab],
   activeTabId: initialTab.id,
   tabCounter: 1,
   isHydrated: false,
+  closedTabs: [],
 
   createTab: () => {
     const next = get().tabCounter + 1;
@@ -108,18 +113,22 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   },
 
   closeTab: (id) => {
-    const { tabs, activeTabId } = get();
+    const { tabs, activeTabId, closedTabs } = get();
     const tab = tabs.find((t) => t.id === id);
     if (tab?.isDirty && !confirm(`Close "${tab.title}" without saving?`)) {
       return;
     }
+
+    const newClosedTabs = tab
+      ? [...closedTabs, tab].slice(-MAX_CLOSED_TABS)
+      : closedTabs;
 
     const remaining = tabs.filter((t) => t.id !== id);
 
     if (remaining.length === 0) {
       const next = get().tabCounter + 1;
       const fresh = makeTab(next);
-      set({ tabs: [fresh], activeTabId: fresh.id, tabCounter: next });
+      set({ tabs: [fresh], activeTabId: fresh.id, tabCounter: next, closedTabs: newClosedTabs });
       return;
     }
 
@@ -130,7 +139,18 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       newActiveId = remaining[newIndex].id;
     }
 
-    set({ tabs: remaining, activeTabId: newActiveId });
+    set({ tabs: remaining, activeTabId: newActiveId, closedTabs: newClosedTabs });
+  },
+
+  reopenTab: () => {
+    const { closedTabs } = get();
+    if (closedTabs.length === 0) return;
+    const tab = closedTabs[closedTabs.length - 1];
+    set((s) => ({
+      tabs: [...s.tabs, tab],
+      activeTabId: tab.id,
+      closedTabs: s.closedTabs.slice(0, -1),
+    }));
   },
 
   setActiveTab: (id) => set({ activeTabId: id }),

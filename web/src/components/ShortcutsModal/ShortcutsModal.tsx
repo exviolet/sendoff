@@ -6,6 +6,7 @@ const SHORTCUT_GROUPS = [
     items: [
       { keys: "Ctrl+N", action: "Новый таб" },
       { keys: "Ctrl+W", action: "Закрыть таб" },
+      { keys: "Ctrl+Shift+T", action: "Восстановить таб" },
       { keys: "Ctrl+Tab", action: "Следующий таб" },
       { keys: "Ctrl+Shift+Tab", action: "Предыдущий таб" },
     ],

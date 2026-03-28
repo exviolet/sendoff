@@ -35,6 +35,12 @@ export function useKeyboardShortcuts(callbacks?: ShortcutCallbacks) {
         return;
       }
 
+      if (ctrl && e.shiftKey && code === "KeyT") {
+        e.preventDefault();
+        useEditorStore.getState().reopenTab();
+        return;
+      }
+
       if (ctrl && (e.key === "Tab" || code === "PageDown" || code === "PageUp")) {
         e.preventDefault();
         const { tabs, activeTabId, setActiveTab } =
