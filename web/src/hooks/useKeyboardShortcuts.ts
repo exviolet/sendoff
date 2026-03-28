@@ -8,6 +8,9 @@ interface ShortcutCallbacks {
   onSave?: () => void;
   onOpen?: () => void;
   onAIPrompt?: () => void;
+  onCommandPalette?: () => void;
+  onDistractionFree?: () => void;
+  onShortcutsHelp?: () => void;
 }
 
 export function useKeyboardShortcuts(callbacks?: ShortcutCallbacks) {
@@ -57,6 +60,24 @@ export function useKeyboardShortcuts(callbacks?: ShortcutCallbacks) {
       if (ctrl && code === "KeyK") {
         e.preventDefault();
         callbacks?.onAIPrompt?.();
+        return;
+      }
+
+      if (ctrl && code === "KeyP") {
+        e.preventDefault();
+        callbacks?.onCommandPalette?.();
+        return;
+      }
+
+      if (ctrl && e.shiftKey && code === "KeyF") {
+        e.preventDefault();
+        callbacks?.onDistractionFree?.();
+        return;
+      }
+
+      if (ctrl && code === "Slash") {
+        e.preventDefault();
+        callbacks?.onShortcutsHelp?.();
         return;
       }
 

@@ -1,73 +1,63 @@
-# React + TypeScript + Vite
+# RewriteBox
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Fast, minimal browser-based text editor for bulk find & replace. Primary use case: converting text tone (e.g. formal "Вы/Ваш" to collaborative "Мы/Наш") using reusable presets.
 
-Currently, two official plugins are available:
+No backend, no API keys — everything runs client-side.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Quick Start
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+bun install
+bun dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Open [http://localhost:5173](http://localhost:5173) in your browser.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Production Build
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+bun run build
+bun run preview   # test the production build locally
 ```
+
+## Features
+
+- Tabbed editor with drag & drop reorder
+- Find & Replace with real-time highlight overlay
+- Replace Presets — save and apply bulk replacement rules
+- AI Prompt Builder — assemble prompts from templates, copy to clipboard
+- Session persistence via IndexedDB
+- File import/export (.txt, .md)
+- Command Palette (Ctrl+P)
+- Distraction-free mode
+- Undo/Redo with debounced history
+
+## Keyboard Shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl+N` | New tab |
+| `Ctrl+W` | Close tab |
+| `Ctrl+Tab` / `Ctrl+Shift+Tab` | Next / Previous tab |
+| `Ctrl+Z` / `Ctrl+Shift+Z` | Undo / Redo |
+| `Ctrl+F` | Find |
+| `Ctrl+H` | Find & Replace |
+| `Ctrl+K` | AI Prompt panel |
+| `Ctrl+P` | Command Palette |
+| `Ctrl+S` | Save as .txt |
+| `Ctrl+O` | Open file |
+| `Ctrl+Shift+F` | Distraction-free mode |
+| `Ctrl+/` | Keyboard shortcuts reference |
+| `Escape` | Close panels |
+
+## Tech Stack
+
+- React 19 + TypeScript (strict)
+- Vite + Bun
+- Tailwind CSS v4
+- Zustand (state management)
+- IndexedDB via `idb` (persistence)
+
+## Roadmap
+
+- **Phase 7** — Tauri v2 desktop wrapper (zero frontend changes required)
