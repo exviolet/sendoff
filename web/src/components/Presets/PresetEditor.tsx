@@ -41,54 +41,58 @@ export function PresetEditor({ preset, onSave, onCancel }: PresetEditorProps) {
         className="h-7 px-2 bg-bg border border-border rounded-[4px] text-[11px] text-text placeholder:text-text-muted/40 outline-none focus:border-accent/50 transition-colors"
       />
 
-      <div className="flex flex-col gap-1">
+      <div className="flex flex-col gap-1.5">
         {pairs.map((pair, i) => (
-          <div key={i} className="flex items-center gap-1.5">
-            <input
-              value={pair.from}
-              onChange={(e) => updatePair(i, "from", e.target.value)}
-              placeholder="From"
-              className="flex-1 h-6 px-2 bg-bg border border-border rounded-[3px] text-[10px] text-text placeholder:text-text-muted/40 outline-none focus:border-accent/50"
-            />
-            <span className="text-text-muted text-[10px]">{"\u2192"}</span>
-            <input
-              value={pair.to}
-              onChange={(e) => updatePair(i, "to", e.target.value)}
-              placeholder="To"
-              className="flex-1 h-6 px-2 bg-bg border border-border rounded-[3px] text-[10px] text-text placeholder:text-text-muted/40 outline-none focus:border-accent/50"
-            />
-            <button
-              onClick={() => updatePair(i, "caseSensitive", !pair.caseSensitive)}
-              title="Case sensitive"
-              className={`h-6 px-1.5 rounded-[3px] text-[9px] font-medium transition-colors ${
-                pair.caseSensitive
-                  ? "bg-accent/20 text-accent"
-                  : "text-text-muted hover:text-text hover:bg-surface-hover"
-              }`}
-            >
-              Aa
-            </button>
-            <button
-              onClick={() => updatePair(i, "wholeWord", !pair.wholeWord)}
-              title="Whole word"
-              className={`h-6 px-1.5 rounded-[3px] text-[9px] font-medium transition-colors ${
-                pair.wholeWord
-                  ? "bg-accent/20 text-accent"
-                  : "text-text-muted hover:text-text hover:bg-surface-hover"
-              }`}
-            >
-              W
-            </button>
-            {pairs.length > 1 && (
+          <div key={i} className="flex flex-col gap-1 p-1.5 rounded-[3px] border border-border/30 bg-bg/30">
+            <div className="flex items-center gap-1.5">
+              <input
+                value={pair.from}
+                onChange={(e) => updatePair(i, "from", e.target.value)}
+                placeholder="From"
+                className="flex-1 min-w-0 h-6 px-2 bg-bg border border-border rounded-[3px] text-[10px] text-text placeholder:text-text-muted/40 outline-none focus:border-accent/50"
+              />
+              <span className="text-text-muted text-[10px] shrink-0">{"\u2192"}</span>
+              <input
+                value={pair.to}
+                onChange={(e) => updatePair(i, "to", e.target.value)}
+                placeholder="To"
+                className="flex-1 min-w-0 h-6 px-2 bg-bg border border-border rounded-[3px] text-[10px] text-text placeholder:text-text-muted/40 outline-none focus:border-accent/50"
+              />
+            </div>
+            <div className="flex items-center gap-1">
               <button
-                onClick={() => removePair(i)}
-                className="flex items-center justify-center w-5 h-5 rounded-[3px] text-text-muted hover:text-danger hover:bg-danger/10 transition-colors"
+                onClick={() => updatePair(i, "caseSensitive", !pair.caseSensitive)}
+                title="Case sensitive"
+                className={`h-5 px-1.5 rounded-[3px] text-[9px] font-medium transition-colors ${
+                  pair.caseSensitive
+                    ? "bg-accent/20 text-accent"
+                    : "text-text-muted hover:text-text hover:bg-surface-hover"
+                }`}
               >
-                <svg width="8" height="8" viewBox="0 0 8 8">
-                  <path d="M1.5 1.5l5 5M6.5 1.5l-5 5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-                </svg>
+                Aa
               </button>
-            )}
+              <button
+                onClick={() => updatePair(i, "wholeWord", !pair.wholeWord)}
+                title="Whole word"
+                className={`h-5 px-1.5 rounded-[3px] text-[9px] font-medium transition-colors ${
+                  pair.wholeWord
+                    ? "bg-accent/20 text-accent"
+                    : "text-text-muted hover:text-text hover:bg-surface-hover"
+                }`}
+              >
+                W
+              </button>
+              {pairs.length > 1 && (
+                <button
+                  onClick={() => removePair(i)}
+                  className="flex items-center justify-center w-5 h-5 rounded-[3px] text-text-muted hover:text-danger hover:bg-danger/10 transition-colors ml-auto"
+                >
+                  <svg width="8" height="8" viewBox="0 0 8 8">
+                    <path d="M1.5 1.5l5 5M6.5 1.5l-5 5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+                  </svg>
+                </button>
+              )}
+            </div>
           </div>
         ))}
       </div>

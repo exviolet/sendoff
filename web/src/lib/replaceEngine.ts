@@ -103,3 +103,33 @@ export function applyReplacePairs(
 
   return { result, totalCount };
 }
+
+export interface DiffEntry {
+  from: string;
+  to: string;
+  count: number;
+}
+
+export function previewReplacePairs(
+  content: string,
+  pairs: ReplacePair[]
+): { entries: DiffEntry[]; totalCount: number; result: string } {
+  let current = content;
+  const entries: DiffEntry[] = [];
+  let totalCount = 0;
+
+  for (const pair of pairs) {
+    const { result: newContent, count } = replaceAll(current, pair.from, pair.to, {
+      caseSensitive: pair.caseSensitive,
+      regex: false,
+      wholeWord: pair.wholeWord,
+    });
+    if (count > 0) {
+      entries.push({ from: pair.from, to: pair.to, count });
+      totalCount += count;
+    }
+    current = newContent;
+  }
+
+  return { entries, totalCount, result: current };
+}
