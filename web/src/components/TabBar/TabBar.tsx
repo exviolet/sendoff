@@ -2,13 +2,11 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useEditorStore } from "../../store/editorStore";
 import type { Theme } from "../../store/themeStore";
 
+type SidePanel = null | "presets" | "ai" | "settings";
+
 interface TabBarProps {
-  onPresetsToggle: () => void;
-  presetsOpen: boolean;
-  onAIPromptToggle: () => void;
-  aiPromptOpen: boolean;
-  onSettingsToggle: () => void;
-  settingsOpen: boolean;
+  sidePanel: SidePanel;
+  onSidePanelToggle: (panel: SidePanel) => void;
   onDownloadTab: (format: "txt" | "md") => void;
   onExportAll: () => void;
   onImportBackup: () => void;
@@ -16,7 +14,7 @@ interface TabBarProps {
   onThemeToggle: () => void;
 }
 
-export function TabBar({ onPresetsToggle, presetsOpen, onAIPromptToggle, aiPromptOpen, onSettingsToggle, settingsOpen, onDownloadTab, onExportAll, onImportBackup, theme, onThemeToggle }: TabBarProps) {
+export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAll, onImportBackup, theme, onThemeToggle }: TabBarProps) {
   const tabs = useEditorStore((s) => s.tabs);
   const activeTabId = useEditorStore((s) => s.activeTabId);
   const setActiveTab = useEditorStore((s) => s.setActiveTab);
@@ -209,10 +207,10 @@ export function TabBar({ onPresetsToggle, presetsOpen, onAIPromptToggle, aiPromp
 
         {/* Settings button */}
         <button
-          onClick={onSettingsToggle}
+          onClick={() => onSidePanelToggle("settings")}
           className={`
             flex items-center justify-center w-7 h-7 rounded-[4px] transition-colors duration-150
-            ${settingsOpen
+            ${sidePanel === "settings"
               ? "text-accent bg-accent/10"
               : "text-text-muted hover:text-text hover:bg-surface-hover"
             }
@@ -220,9 +218,9 @@ export function TabBar({ onPresetsToggle, presetsOpen, onAIPromptToggle, aiPromp
           aria-label="Настройки"
           title="Настройки (Ctrl+,)"
         >
-          <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
-            <circle cx="8" cy="8" r="2" stroke="currentColor" strokeWidth="1.3" />
-            <path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.41 1.41M11.54 11.54l1.41 1.41M3.05 12.95l1.41-1.41M11.54 4.46l1.41-1.41" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+            <path d="M6.8 1h2.4l.4 2.2a5.5 5.5 0 0 1 1.3.8l2.1-.7.9 1.6-1.7 1.4a5.5 5.5 0 0 1 0 1.4l1.7 1.4-.9 1.6-2.1-.7a5.5 5.5 0 0 1-1.3.8L9.2 15H6.8l-.4-2.2a5.5 5.5 0 0 1-1.3-.8l-2.1.7-.9-1.6 1.7-1.4a5.5 5.5 0 0 1 0-1.4L2.1 6.9l.9-1.6 2.1.7a5.5 5.5 0 0 1 1.3-.8L6.8 1z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
+            <circle cx="8" cy="8" r="2" stroke="currentColor" strokeWidth="1.2" />
           </svg>
         </button>
 
@@ -247,10 +245,10 @@ export function TabBar({ onPresetsToggle, presetsOpen, onAIPromptToggle, aiPromp
 
         {/* AI Prompt button */}
         <button
-          onClick={onAIPromptToggle}
+          onClick={() => onSidePanelToggle("ai")}
           className={`
             flex items-center justify-center w-7 h-7 rounded-[4px] transition-colors duration-150
-            ${aiPromptOpen
+            ${sidePanel === "ai"
               ? "text-accent bg-accent/10"
               : "text-text-muted hover:text-text hover:bg-surface-hover"
             }
@@ -266,10 +264,10 @@ export function TabBar({ onPresetsToggle, presetsOpen, onAIPromptToggle, aiPromp
 
         {/* Presets button */}
         <button
-          onClick={onPresetsToggle}
+          onClick={() => onSidePanelToggle("presets")}
           className={`
             flex items-center justify-center w-7 h-7 rounded-[4px] transition-colors duration-150
-            ${presetsOpen
+            ${sidePanel === "presets"
               ? "text-accent bg-accent/10"
               : "text-text-muted hover:text-text hover:bg-surface-hover"
             }

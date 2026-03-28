@@ -18,7 +18,7 @@ interface RewriteBoxDB extends DBSchema {
   };
   meta: {
     key: string;
-    value: string | number;
+    value: string | number | boolean;
   };
 }
 
@@ -71,14 +71,14 @@ export async function loadSession() {
   const tabCounter = (await db.get("meta", "tabCounter")) as number | undefined;
   const theme = (await db.get("meta", "theme")) as string | undefined;
   const fontSize = (await db.get("meta", "fontSize")) as number | undefined;
-  const wordWrap = (await db.get("meta", "wordWrap")) as string | undefined;
+  const wordWrap = (await db.get("meta", "wordWrap")) as boolean | undefined;
   return {
     tabs, presets, promptTemplates,
     activeTabId: activeTabId ?? null,
     tabCounter: tabCounter ?? 0,
     theme: theme ?? "dark",
     fontSize: fontSize ?? 13,
-    wordWrap: wordWrap === "false" ? false : true,
+    wordWrap: wordWrap ?? true,
   };
 }
 
@@ -122,7 +122,7 @@ export async function saveSession(
   await metaStore.put(tabCounter, "tabCounter");
   await metaStore.put(theme, "theme");
   await metaStore.put(fontSize, "fontSize");
-  await metaStore.put(String(wordWrap), "wordWrap");
+  await metaStore.put(wordWrap, "wordWrap");
 
   await tx.done;
 }

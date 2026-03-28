@@ -16,19 +16,18 @@ import { useThemeStore } from "./store/themeStore";
 import { useSettingsStore } from "./store/settingsStore";
 
 type PanelMode = null | "find" | "findReplace";
+type SidePanel = null | "presets" | "ai" | "settings";
 
 function App() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [panelMode, setPanelMode] = useState<PanelMode>(null);
-  const [presetsOpen, setPresetsOpen] = useState(false);
-  const [aiPromptOpen, setAiPromptOpen] = useState(false);
+  const [sidePanel, setSidePanel] = useState<SidePanel>(null);
   const [highlights, setHighlights] = useState<{ index: number; length: number }[]>([]);
   const [activeHighlight, setActiveHighlight] = useState(0);
   const [distractionFree, setDistractionFree] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [markdownPreview, setMarkdownPreview] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const theme = useThemeStore((s) => s.theme);
   const toggleTheme = useThemeStore((s) => s.toggleTheme);
@@ -70,6 +69,10 @@ function App() {
     setActiveHighlight(0);
   }
 
+  const toggleSidePanel = useCallback((panel: SidePanel) => {
+    setSidePanel((v) => (v === panel ? null : panel));
+  }, []);
+
   const toggleDistractionFree = useCallback(() => {
     setDistractionFree((v) => !v);
   }, []);
@@ -82,8 +85,8 @@ function App() {
     }},
     { id: "find", label: "Найти", shortcut: "Ctrl+F", action: () => setPanelMode("find") },
     { id: "find-replace", label: "Найти и заменить", shortcut: "Ctrl+H", action: () => setPanelMode("findReplace") },
-    { id: "presets", label: "Пресеты замены", action: () => { setPresetsOpen(true); setAiPromptOpen(false); } },
-    { id: "ai-prompt", label: "AI Prompt", shortcut: "Ctrl+K", action: () => { setAiPromptOpen(true); setPresetsOpen(false); } },
+    { id: "presets", label: "Пресеты замены", action: () => setSidePanel("presets") },
+    { id: "ai-prompt", label: "AI Prompt", shortcut: "Ctrl+K", action: () => setSidePanel("ai") },
     { id: "save", label: "Сохранить как .txt", shortcut: "Ctrl+S", action: saveCurrentTab },
     { id: "open", label: "Открыть файл", shortcut: "Ctrl+O", action: openFile },
     { id: "download", label: "Скачать таб", action: downloadCurrentTab },
@@ -92,10 +95,10 @@ function App() {
     { id: "distraction-free", label: "Distraction-free режим", shortcut: "Ctrl+Shift+F", action: toggleDistractionFree },
     { id: "shortcuts", label: "Клавиатурные сокращения", shortcut: "Ctrl+/", action: () => setShortcutsOpen(true) },
     { id: "toggle-theme", label: theme === "dark" ? "Светлая тема" : "Тёмная тема", action: toggleTheme },
-    { id: "toggle-sidebar", label: "Пресеты (sidebar)", shortcut: "Ctrl+.", action: () => { setPresetsOpen((v) => !v); setAiPromptOpen(false); } },
+    { id: "toggle-sidebar", label: "Пресеты (sidebar)", shortcut: "Ctrl+.", action: () => toggleSidePanel("presets") },
     { id: "toggle-md-preview", label: markdownPreview ? "Редактор" : "Markdown превью", shortcut: "Ctrl+M", action: () => setMarkdownPreview((v) => !v) },
-    { id: "settings", label: "Настройки", shortcut: "Ctrl+,", action: () => { setSettingsOpen((v) => !v); setPresetsOpen(false); setAiPromptOpen(false); } },
-  ], [saveCurrentTab, openFile, downloadCurrentTab, exportAll, importBackup, toggleDistractionFree, theme, toggleTheme, markdownPreview]);
+    { id: "settings", label: "Настройки", shortcut: "Ctrl+,", action: () => toggleSidePanel("settings") },
+  ], [saveCurrentTab, openFile, downloadCurrentTab, exportAll, importBackup, toggleDistractionFree, toggleSidePanel, theme, toggleTheme, markdownPreview]);
 
   useKeyboardShortcuts({
     onFind: () => setPanelMode("find"),
@@ -105,58 +108,30 @@ function App() {
         setDistractionFree(false);
       } else if (commandPaletteOpen || shortcutsOpen) {
         // handled by their own listeners
-      } else if (panelMode || presetsOpen || aiPromptOpen || settingsOpen) {
+      } else if (panelMode || sidePanel) {
         closePanel();
-        setPresetsOpen(false);
-        setAiPromptOpen(false);
-        setSettingsOpen(false);
+        setSidePanel(null);
       } else if (document.activeElement instanceof HTMLElement) {
         document.activeElement.blur();
       }
     },
     onSave: saveCurrentTab,
     onOpen: openFile,
-    onAIPrompt: () => {
-      setAiPromptOpen((v) => !v);
-      setPresetsOpen(false);
-    },
+    onAIPrompt: () => toggleSidePanel("ai"),
     onCommandPalette: () => setCommandPaletteOpen((v) => !v),
     onDistractionFree: toggleDistractionFree,
     onShortcutsHelp: () => setShortcutsOpen((v) => !v),
-    onToggleSidebar: () => {
-      setPresetsOpen((v) => !v);
-      setAiPromptOpen(false);
-    },
+    onToggleSidebar: () => toggleSidePanel("presets"),
     onToggleMarkdownPreview: () => setMarkdownPreview((v) => !v),
-    onSettings: () => {
-      setSettingsOpen((v) => !v);
-      setPresetsOpen(false);
-      setAiPromptOpen(false);
-    },
+    onSettings: () => toggleSidePanel("settings"),
   });
 
   return (
     <div className="flex flex-col h-full">
       {!distractionFree && (
         <TabBar
-          onPresetsToggle={() => {
-            setPresetsOpen((v) => !v);
-            setAiPromptOpen(false);
-            setSettingsOpen(false);
-          }}
-          presetsOpen={presetsOpen}
-          onAIPromptToggle={() => {
-            setAiPromptOpen((v) => !v);
-            setPresetsOpen(false);
-            setSettingsOpen(false);
-          }}
-          aiPromptOpen={aiPromptOpen}
-          onSettingsToggle={() => {
-            setSettingsOpen((v) => !v);
-            setPresetsOpen(false);
-            setAiPromptOpen(false);
-          }}
-          settingsOpen={settingsOpen}
+          sidePanel={sidePanel}
+          onSidePanelToggle={toggleSidePanel}
           onDownloadTab={downloadCurrentTab}
           onExportAll={exportAll}
           onImportBackup={importBackup}
@@ -177,9 +152,9 @@ function App() {
             <Editor highlights={highlights} activeHighlight={activeHighlight} textareaRef={textareaRef} markdownPreview={markdownPreview} fontSize={fontSize} wordWrap={wordWrap} />
           </div>
         </div>
-        {!distractionFree && presetsOpen && <PresetsPanel onClose={() => setPresetsOpen(false)} />}
-        {!distractionFree && aiPromptOpen && <AIPromptPanel onClose={() => setAiPromptOpen(false)} textareaRef={textareaRef} />}
-        {!distractionFree && settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} />}
+        {!distractionFree && sidePanel === "presets" && <PresetsPanel onClose={() => setSidePanel(null)} />}
+        {!distractionFree && sidePanel === "ai" && <AIPromptPanel onClose={() => setSidePanel(null)} textareaRef={textareaRef} />}
+        {!distractionFree && sidePanel === "settings" && <SettingsPanel onClose={() => setSidePanel(null)} />}
       </div>
       {!distractionFree && <StatusBar />}
 
