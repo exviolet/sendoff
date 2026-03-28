@@ -9,6 +9,7 @@ interface HighlightMatch {
 interface EditorProps {
   highlights?: HighlightMatch[];
   activeHighlight?: number;
+  textareaRef: React.RefObject<HTMLTextAreaElement | null>;
 }
 
 const ACCEPTED_EXTENSIONS = [".txt", ".md", ".markdown", ".text"];
@@ -17,26 +18,25 @@ function isAcceptedFile(file: File): boolean {
   return ACCEPTED_EXTENSIONS.some((ext) => file.name.toLowerCase().endsWith(ext));
 }
 
-export function Editor({ highlights = [], activeHighlight = -1 }: EditorProps) {
+export function Editor({ highlights = [], activeHighlight = -1, textareaRef }: EditorProps) {
   const activeTabId = useEditorStore((s) => s.activeTabId);
   const tab = useEditorStore((s) => s.tabs.find((t) => t.id === s.activeTabId));
   const updateContent = useEditorStore((s) => s.updateContent);
   const addTabFromFile = useEditorStore((s) => s.addTabFromFile);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const backdropRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const dragCounter = useRef(0);
 
   useEffect(() => {
     textareaRef.current?.focus();
-  }, [activeTabId]);
+  }, [activeTabId, textareaRef]);
 
   const syncScroll = useCallback(() => {
     if (textareaRef.current && backdropRef.current) {
       backdropRef.current.scrollTop = textareaRef.current.scrollTop;
       backdropRef.current.scrollLeft = textareaRef.current.scrollLeft;
     }
-  }, []);
+  }, [textareaRef]);
 
   const handleDragEnter = useCallback((e: React.DragEvent) => {
     e.preventDefault();

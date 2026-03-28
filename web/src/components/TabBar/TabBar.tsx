@@ -4,12 +4,14 @@ import { useEditorStore } from "../../store/editorStore";
 interface TabBarProps {
   onPresetsToggle: () => void;
   presetsOpen: boolean;
+  onAIPromptToggle: () => void;
+  aiPromptOpen: boolean;
   onDownloadTab: () => void;
   onExportAll: () => void;
   onImportBackup: () => void;
 }
 
-export function TabBar({ onPresetsToggle, presetsOpen, onDownloadTab, onExportAll, onImportBackup }: TabBarProps) {
+export function TabBar({ onPresetsToggle, presetsOpen, onAIPromptToggle, aiPromptOpen, onDownloadTab, onExportAll, onImportBackup }: TabBarProps) {
   const tabs = useEditorStore((s) => s.tabs);
   const activeTabId = useEditorStore((s) => s.activeTabId);
   const setActiveTab = useEditorStore((s) => s.setActiveTab);
@@ -207,6 +209,25 @@ export function TabBar({ onPresetsToggle, presetsOpen, onDownloadTab, onExportAl
         >
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
             <path d="M6 8V2M3.5 4.5L6 2l2.5 2.5M2 10h8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+
+        {/* AI Prompt button */}
+        <button
+          onClick={onAIPromptToggle}
+          className={`
+            flex items-center justify-center w-7 h-7 rounded-[4px] transition-colors duration-150
+            ${aiPromptOpen
+              ? "text-accent bg-accent/10"
+              : "text-text-muted hover:text-text hover:bg-surface-hover"
+            }
+          `}
+          aria-label="AI Prompt"
+          title="AI Prompt (Ctrl+K)"
+        >
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+            <path d="M8 2L3 8l5 6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M8 2l5 6-5 6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </button>
 

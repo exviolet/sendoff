@@ -1,5 +1,6 @@
 import { useEditorStore } from "../store/editorStore";
 import { usePresetsStore } from "../store/presetsStore";
+import { usePromptTemplatesStore } from "../store/promptTemplatesStore";
 
 export function useFileIO() {
   function saveCurrentTab() {
@@ -41,7 +42,8 @@ export function useFileIO() {
   function exportAll() {
     const { tabs } = useEditorStore.getState();
     const { presets } = usePresetsStore.getState();
-    const data = JSON.stringify({ tabs, presets }, null, 2);
+    const { templates: promptTemplates } = usePromptTemplatesStore.getState();
+    const data = JSON.stringify({ tabs, presets, promptTemplates }, null, 2);
     const blob = new Blob([data], { type: "application/json;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -71,6 +73,9 @@ export function useFileIO() {
           }
           if (Array.isArray(data.presets) && data.presets.length > 0) {
             usePresetsStore.getState().hydrate(data.presets);
+          }
+          if (Array.isArray(data.promptTemplates) && data.promptTemplates.length > 0) {
+            usePromptTemplatesStore.getState().hydrate(data.promptTemplates);
           }
         } catch {
           // invalid JSON — ignore

@@ -1,6 +1,7 @@
 import { openDB, type DBSchema } from "idb";
 import type { Tab } from "../store/editorStore";
 import type { ReplacePreset } from "../store/presetsStore";
+import type { PromptTemplate } from "./promptBuilder";
 
 interface RewriteBoxDB extends DBSchema {
   tabs: {
@@ -11,6 +12,10 @@ interface RewriteBoxDB extends DBSchema {
     key: string;
     value: ReplacePreset;
   };
+  promptTemplates: {
+    key: string;
+    value: PromptTemplate;
+  };
   meta: {
     key: string;
     value: string | number;
@@ -18,11 +23,12 @@ interface RewriteBoxDB extends DBSchema {
 }
 
 const DB_NAME = "rewritebox-db";
-const DB_VERSION = 1;
+const DB_VERSION = 3;
 
 function getDB() {
   return openDB<RewriteBoxDB>(DB_NAME, DB_VERSION, {
-    upgrade(db) {
+    upgrade(db, oldVersion, _newVersion, tx) {
+      // v1: tabs, presets, meta
       if (!db.objectStoreNames.contains("tabs")) {
         db.createObjectStore("tabs", { keyPath: "id" });
       }
@@ -32,6 +38,26 @@ function getDB() {
       if (!db.objectStoreNames.contains("meta")) {
         db.createObjectStore("meta");
       }
+
+      // v2: promptTemplates store
+      if (!db.objectStoreNames.contains("promptTemplates")) {
+        db.createObjectStore("promptTemplates", { keyPath: "id" });
+      }
+
+      // v3: add `order` field to existing promptTemplates
+      if (oldVersion >= 2 && oldVersion < 3) {
+        const store = tx.objectStore("promptTemplates");
+        let idx = 0;
+        void store.openCursor().then(function iterate(cursor): Promise<void> | undefined {
+          if (!cursor) return;
+          const value = cursor.value as unknown as { order?: number };
+          if (value.order === undefined) {
+            value.order = idx++;
+            cursor.update(value as unknown as PromptTemplate);
+          }
+          return cursor.continue().then(iterate);
+        });
+      }
     },
   });
 }
@@ -40,19 +66,21 @@ export async function loadSession() {
   const db = await getDB();
   const tabs = await db.getAll("tabs");
   const presets = await db.getAll("presets");
+  const promptTemplates = await db.getAll("promptTemplates");
   const activeTabId = (await db.get("meta", "activeTabId")) as string | undefined;
   const tabCounter = (await db.get("meta", "tabCounter")) as number | undefined;
-  return { tabs, presets, activeTabId: activeTabId ?? null, tabCounter: tabCounter ?? 0 };
+  return { tabs, presets, promptTemplates, activeTabId: activeTabId ?? null, tabCounter: tabCounter ?? 0 };
 }
 
 export async function saveSession(
   tabs: Tab[],
   activeTabId: string | null,
   tabCounter: number,
-  presets: ReplacePreset[]
+  presets: ReplacePreset[],
+  promptTemplates: PromptTemplate[],
 ) {
   const db = await getDB();
-  const tx = db.transaction(["tabs", "presets", "meta"], "readwrite");
+  const tx = db.transaction(["tabs", "presets", "promptTemplates", "meta"], "readwrite");
 
   // Clear and rewrite tabs
   const tabStore = tx.objectStore("tabs");
@@ -66,6 +94,13 @@ export async function saveSession(
   await presetStore.clear();
   for (const preset of presets) {
     await presetStore.put(preset);
+  }
+
+  // Clear and rewrite prompt templates
+  const templateStore = tx.objectStore("promptTemplates");
+  await templateStore.clear();
+  for (const tpl of promptTemplates) {
+    await templateStore.put(tpl);
   }
 
   // Meta

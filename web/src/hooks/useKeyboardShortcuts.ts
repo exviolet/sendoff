@@ -7,6 +7,7 @@ interface ShortcutCallbacks {
   onClosePanels?: () => void;
   onSave?: () => void;
   onOpen?: () => void;
+  onAIPrompt?: () => void;
 }
 
 export function useKeyboardShortcuts(callbacks?: ShortcutCallbacks) {
@@ -50,6 +51,12 @@ export function useKeyboardShortcuts(callbacks?: ShortcutCallbacks) {
       if (ctrl && code === "KeyH") {
         e.preventDefault();
         callbacks?.onFindReplace?.();
+        return;
+      }
+
+      if (ctrl && code === "KeyK") {
+        e.preventDefault();
+        callbacks?.onAIPrompt?.();
         return;
       }
 
