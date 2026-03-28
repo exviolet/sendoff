@@ -6,6 +6,7 @@ import { previewReplacePairs, type DiffEntry } from "../../lib/replaceEngine";
 import { useEditorStore } from "../../store/editorStore";
 import { PresetEditor } from "./PresetEditor";
 import { isTauri } from "../../lib/platform";
+import { toast } from "../../store/toastStore";
 
 function isValidPreset(data: unknown): data is { name: string; pairs: ReplacePair[] } {
   if (typeof data !== "object" || data === null) return false;
@@ -30,7 +31,10 @@ async function exportPreset(preset: ReplacePreset) {
       filters: [{ name: "JSON", extensions: ["json"] }],
       defaultPath: fileName,
     });
-    if (path) await writeTextFile(path, json);
+    if (path) {
+      await writeTextFile(path, json);
+      toast(`Пресет экспортирован: ${preset.name}`, "success");
+    }
     return;
   }
 
@@ -41,6 +45,7 @@ async function exportPreset(preset: ReplacePreset) {
   a.download = fileName;
   a.click();
   URL.revokeObjectURL(url);
+  toast(`Пресет экспортирован: ${preset.name}`, "success");
 }
 
 interface PresetsPanelProps {
@@ -83,6 +88,7 @@ export function PresetsPanel({ onClose }: PresetsPanelProps) {
       };
       addPreset(preset);
       setImportError(null);
+      toast(`Пресет импортирован: ${data.name}`, "success");
     }
 
     if (isTauri) {

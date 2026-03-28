@@ -1,6 +1,7 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useEditorStore } from "../../store/editorStore";
 import { usePromptTemplatesStore } from "../../store/promptTemplatesStore";
+import { toast } from "../../store/toastStore";
 import {
   assemblePrompt,
   hasInstructionPlaceholder,
@@ -27,14 +28,12 @@ export function AIPromptPanel({ onClose, textareaRef }: AIPromptPanelProps) {
   const [selectedId, setSelectedId] = useState(templates[0]?.id ?? "");
   const [instruction, setInstruction] = useState("");
   const [sourceMode, setSourceMode] = useState<"selection" | "full">("full");
-  const [toast, setToast] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [editorMode, setEditorMode] = useState<EditorMode>("main");
   const [editName, setEditName] = useState("");
   const [editTemplate, setEditTemplate] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectionRange, setSelectionRange] = useState<{ start: number; end: number } | null>(null);
-  const toastTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const selectedTemplate = templates.find((t) => t.id === selectedId);
   const needsInstruction = selectedTemplate
@@ -79,23 +78,13 @@ export function AIPromptPanel({ onClose, textareaRef }: AIPromptPanelProps) {
 
   const previewText = computePreview();
 
-  const showToast = useCallback((msg: string) => {
-    clearTimeout(toastTimer.current);
-    setToast(msg);
-    toastTimer.current = setTimeout(() => setToast(null), 2500);
-  }, []);
-
-  useEffect(() => {
-    return () => clearTimeout(toastTimer.current);
-  }, []);
-
   async function copyToClipboard(text: string, message: string) {
     try {
       await navigator.clipboard.writeText(text);
-      showToast(message);
+      toast(message, "success");
       setCopied(true);
     } catch {
-      showToast("Не удалось скопировать");
+      toast("Не удалось скопировать", "error");
     }
   }
 
@@ -367,12 +356,6 @@ export function AIPromptPanel({ onClose, textareaRef }: AIPromptPanelProps) {
         </div>
       </div>
 
-      {/* Toast */}
-      {toast && (
-        <div className="absolute bottom-3 left-3 right-3 bg-accent/20 text-accent text-[11px] text-center py-2 rounded animate-slide-down">
-          {toast}
-        </div>
-      )}
     </div>
   );
 }

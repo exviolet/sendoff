@@ -2,6 +2,7 @@ import { useEditorStore } from "../store/editorStore";
 import { usePresetsStore } from "../store/presetsStore";
 import { usePromptTemplatesStore } from "../store/promptTemplatesStore";
 import { isTauri } from "../lib/platform";
+import { toast } from "../store/toastStore";
 
 export function useFileIO() {
   function saveCurrentTab() {
@@ -18,13 +19,21 @@ export function useFileIO() {
     const ext = format === "md" ? ".md" : ".txt";
 
     if (isTauri) {
-      const { save } = await import("@tauri-apps/plugin-dialog");
-      const { writeTextFile } = await import("@tauri-apps/plugin-fs");
-      const path = await save({
-        filters: [{ name: "Text", extensions: [format === "md" ? "md" : "txt"] }],
-        defaultPath: `${baseName}${ext}`,
-      });
-      if (path) await writeTextFile(path, tab.content);
+      try {
+        const { save } = await import("@tauri-apps/plugin-dialog");
+        const { writeTextFile } = await import("@tauri-apps/plugin-fs");
+        const path = await save({
+          filters: [{ name: "Text", extensions: [format === "md" ? "md" : "txt"] }],
+          defaultPath: `${baseName}${ext}`,
+        });
+        if (path) {
+          await writeTextFile(path, tab.content);
+          toast(`Сохранено: ${baseName}${ext}`, "success");
+        }
+      } catch (err) {
+        console.error("[Tauri] Failed to save file:", err);
+        toast("Ошибка сохранения файла", "error");
+      }
       return;
     }
 
@@ -36,19 +45,26 @@ export function useFileIO() {
     a.download = `${baseName}${ext}`;
     a.click();
     URL.revokeObjectURL(url);
+    toast(`Сохранено: ${baseName}${ext}`, "success");
   }
 
   async function openFile() {
     if (isTauri) {
-      const { open } = await import("@tauri-apps/plugin-dialog");
-      const { readTextFile } = await import("@tauri-apps/plugin-fs");
-      const path = await open({
-        filters: [{ name: "Text", extensions: ["txt", "md", "markdown", "text"] }],
-      });
-      if (!path) return;
-      const content = await readTextFile(path);
-      const fileName = path.split(/[\\/]/).pop() ?? "Untitled";
-      useEditorStore.getState().addTabFromFile(fileName, content);
+      try {
+        const { open } = await import("@tauri-apps/plugin-dialog");
+        const { readTextFile } = await import("@tauri-apps/plugin-fs");
+        const path = await open({
+          filters: [{ name: "Text", extensions: ["txt", "md", "markdown", "text"] }],
+        });
+        if (!path) return;
+        const content = await readTextFile(path as string);
+        const fileName = (path as string).split(/[\\/]/).pop() ?? "Untitled";
+        useEditorStore.getState().addTabFromFile(fileName, content);
+        toast(`Открыт: ${fileName}`, "success");
+      } catch (err) {
+        console.error("[Tauri] Failed to read file:", err);
+        toast("Ошибка чтения файла", "error");
+      }
       return;
     }
 
@@ -62,6 +78,7 @@ export function useFileIO() {
       reader.onload = () => {
         const content = reader.result as string;
         useEditorStore.getState().addTabFromFile(file.name, content);
+        toast(`Открыт: ${file.name}`, "success");
       };
       reader.readAsText(file);
     };
@@ -75,13 +92,21 @@ export function useFileIO() {
     const data = JSON.stringify({ tabs, presets, promptTemplates }, null, 2);
 
     if (isTauri) {
-      const { save } = await import("@tauri-apps/plugin-dialog");
-      const { writeTextFile } = await import("@tauri-apps/plugin-fs");
-      const path = await save({
-        filters: [{ name: "JSON", extensions: ["json"] }],
-        defaultPath: "rewritebox-backup.json",
-      });
-      if (path) await writeTextFile(path, data);
+      try {
+        const { save } = await import("@tauri-apps/plugin-dialog");
+        const { writeTextFile } = await import("@tauri-apps/plugin-fs");
+        const path = await save({
+          filters: [{ name: "JSON", extensions: ["json"] }],
+          defaultPath: "rewritebox-backup.json",
+        });
+        if (path) {
+          await writeTextFile(path, data);
+          toast("Бэкап экспортирован", "success");
+        }
+      } catch (err) {
+        console.error("[Tauri] Failed to export:", err);
+        toast("Ошибка экспорта", "error");
+      }
       return;
     }
 
@@ -92,22 +117,25 @@ export function useFileIO() {
     a.download = "rewritebox-backup.json";
     a.click();
     URL.revokeObjectURL(url);
+    toast("Бэкап экспортирован", "success");
   }
 
   async function importBackup() {
     if (isTauri) {
-      const { open } = await import("@tauri-apps/plugin-dialog");
-      const { readTextFile } = await import("@tauri-apps/plugin-fs");
-      const path = await open({
-        filters: [{ name: "JSON", extensions: ["json"] }],
-      });
-      if (!path) return;
       try {
-        const raw = await readTextFile(path);
+        const { open } = await import("@tauri-apps/plugin-dialog");
+        const { readTextFile } = await import("@tauri-apps/plugin-fs");
+        const path = await open({
+          filters: [{ name: "JSON", extensions: ["json"] }],
+        });
+        if (!path) return;
+        const raw = await readTextFile(path as string);
         const data = JSON.parse(raw);
         hydrateFromBackup(data);
-      } catch {
-        // invalid JSON — ignore
+        toast("Бэкап импортирован", "success");
+      } catch (err) {
+        console.error("[Tauri] Failed to import backup:", err);
+        toast("Ошибка импорта бэкапа", "error");
       }
       return;
     }
@@ -123,8 +151,9 @@ export function useFileIO() {
         try {
           const data = JSON.parse(reader.result as string);
           hydrateFromBackup(data);
+          toast("Бэкап импортирован", "success");
         } catch {
-          // invalid JSON — ignore
+          toast("Неверный формат файла", "error");
         }
       };
       reader.readAsText(file);

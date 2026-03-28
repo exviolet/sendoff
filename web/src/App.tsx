@@ -14,6 +14,7 @@ import { useFileIO } from "./hooks/useFileIO";
 import { useEditorStore } from "./store/editorStore";
 import { useThemeStore } from "./store/themeStore";
 import { useSettingsStore } from "./store/settingsStore";
+import { ToastContainer } from "./components/Toast/Toast";
 
 type PanelMode = null | "find" | "findReplace";
 type SidePanel = null | "presets" | "ai" | "settings";
@@ -165,6 +166,7 @@ function App() {
         />
       )}
       {shortcutsOpen && <ShortcutsModal onClose={() => setShortcutsOpen(false)} />}
+      <ToastContainer />
     </div>
   );
 }
