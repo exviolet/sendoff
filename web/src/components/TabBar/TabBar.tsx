@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useEditorStore } from "../../store/editorStore";
+import type { Theme } from "../../store/themeStore";
 
 interface TabBarProps {
   onPresetsToggle: () => void;
@@ -9,9 +10,11 @@ interface TabBarProps {
   onDownloadTab: () => void;
   onExportAll: () => void;
   onImportBackup: () => void;
+  theme: Theme;
+  onThemeToggle: () => void;
 }
 
-export function TabBar({ onPresetsToggle, presetsOpen, onAIPromptToggle, aiPromptOpen, onDownloadTab, onExportAll, onImportBackup }: TabBarProps) {
+export function TabBar({ onPresetsToggle, presetsOpen, onAIPromptToggle, aiPromptOpen, onDownloadTab, onExportAll, onImportBackup, theme, onThemeToggle }: TabBarProps) {
   const tabs = useEditorStore((s) => s.tabs);
   const activeTabId = useEditorStore((s) => s.activeTabId);
   const setActiveTab = useEditorStore((s) => s.setActiveTab);
@@ -210,6 +213,25 @@ export function TabBar({ onPresetsToggle, presetsOpen, onAIPromptToggle, aiPromp
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
             <path d="M6 8V2M3.5 4.5L6 2l2.5 2.5M2 10h8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
+        </button>
+
+        {/* Theme toggle */}
+        <button
+          onClick={onThemeToggle}
+          className="flex items-center justify-center w-7 h-7 rounded-[4px] text-text-muted hover:text-text hover:bg-surface-hover transition-colors duration-150"
+          aria-label={theme === "dark" ? "Светлая тема" : "Тёмная тема"}
+          title={theme === "dark" ? "Светлая тема" : "Тёмная тема"}
+        >
+          {theme === "dark" ? (
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+              <circle cx="8" cy="8" r="3.5" stroke="currentColor" strokeWidth="1.3" />
+              <path d="M8 1.5v1.5M8 13v1.5M1.5 8H3M13 8h1.5M3.4 3.4l1.1 1.1M11.5 11.5l1.1 1.1M3.4 12.6l1.1-1.1M11.5 4.5l1.1-1.1" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+            </svg>
+          ) : (
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+              <path d="M13.5 9.5a5.5 5.5 0 0 1-7-7A5.5 5.5 0 1 0 13.5 9.5z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+            </svg>
+          )}
         </button>
 
         {/* AI Prompt button */}

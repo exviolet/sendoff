@@ -29,7 +29,7 @@ bun run preview       # Test production build locally
 | Build | Vite + Bun |
 | Styling | Tailwind CSS v4 (`@tailwindcss/vite` plugin) |
 | Editor | Native `<textarea>` + custom hooks (no Monaco/CodeMirror) |
-| State | Zustand (`useEditorStore`, `usePresetsStore`, `usePromptTemplatesStore`) |
+| State | Zustand (`useEditorStore`, `usePresetsStore`, `usePromptTemplatesStore`, `useThemeStore`) |
 | Persistence | IndexedDB via `idb` (`rewritebox-db` v3) |
 
 ## Architecture
@@ -38,6 +38,7 @@ bun run preview       # Test production build locally
 - `editorStore.ts` — tabs array, activeTabId, CRUD, reorderTab, undo/redo, markSaved, hydrate
 - `presetsStore.ts` — replace presets with apply action, hydrate
 - `promptTemplatesStore.ts` — AI prompt templates CRUD (with `order` field), hydrate with sorting
+- `themeStore.ts` — theme (`"dark"` | `"light"`), toggleTheme, persisted via IndexedDB meta
 
 ### Core Logic (`src/lib/`) — pure functions, no side effects
 - `replaceEngine.ts` — findMatches, replaceAll, applyReplacePairs, previewReplacePairs (regex support, unicode `u` flag)

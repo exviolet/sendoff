@@ -11,6 +11,7 @@ import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useSessionPersistence } from "./hooks/useSessionPersistence";
 import { useFileIO } from "./hooks/useFileIO";
 import { useEditorStore } from "./store/editorStore";
+import { useThemeStore } from "./store/themeStore";
 
 type PanelMode = null | "find" | "findReplace";
 
@@ -24,6 +25,14 @@ function App() {
   const [distractionFree, setDistractionFree] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+
+  const theme = useThemeStore((s) => s.theme);
+  const toggleTheme = useThemeStore((s) => s.toggleTheme);
+
+  // Sync data-theme attribute on <html>
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+  }, [theme]);
 
   useSessionPersistence();
   const { saveCurrentTab, downloadCurrentTab, openFile, exportAll, importBackup } = useFileIO();
@@ -75,7 +84,8 @@ function App() {
     { id: "import", label: "Импорт бэкапа", action: importBackup },
     { id: "distraction-free", label: "Distraction-free режим", shortcut: "Ctrl+Shift+F", action: toggleDistractionFree },
     { id: "shortcuts", label: "Клавиатурные сокращения", shortcut: "Ctrl+/", action: () => setShortcutsOpen(true) },
-  ], [saveCurrentTab, openFile, downloadCurrentTab, exportAll, importBackup, toggleDistractionFree]);
+    { id: "toggle-theme", label: theme === "dark" ? "Светлая тема" : "Тёмная тема", action: toggleTheme },
+  ], [saveCurrentTab, openFile, downloadCurrentTab, exportAll, importBackup, toggleDistractionFree, theme, toggleTheme]);
 
   useKeyboardShortcuts({
     onFind: () => setPanelMode("find"),
@@ -121,6 +131,8 @@ function App() {
           onDownloadTab={downloadCurrentTab}
           onExportAll={exportAll}
           onImportBackup={importBackup}
+          theme={theme}
+          onThemeToggle={toggleTheme}
         />
       )}
       {!distractionFree && panelMode && (

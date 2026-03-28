@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { useEditorStore } from "../store/editorStore";
 import { usePresetsStore } from "../store/presetsStore";
 import { usePromptTemplatesStore } from "../store/promptTemplatesStore";
+import { useThemeStore } from "../store/themeStore";
 import { loadSession, saveSession } from "../lib/db";
 
 export function useSessionPersistence() {
@@ -12,7 +13,7 @@ export function useSessionPersistence() {
     if (hasRestored.current) return;
     hasRestored.current = true;
 
-    loadSession().then(({ tabs, presets, promptTemplates, activeTabId, tabCounter }) => {
+    loadSession().then(({ tabs, presets, promptTemplates, activeTabId, tabCounter, theme }) => {
       if (tabs.length > 0) {
         useEditorStore.getState().hydrate(tabs, activeTabId, tabCounter);
       } else {
@@ -23,6 +24,9 @@ export function useSessionPersistence() {
       }
       if (promptTemplates.length > 0) {
         usePromptTemplatesStore.getState().hydrate(promptTemplates);
+      }
+      if (theme === "light" || theme === "dark") {
+        useThemeStore.getState().hydrate(theme);
       }
     });
   }, []);
@@ -49,11 +53,18 @@ export function useSessionPersistence() {
       timer = setTimeout(persist, 500);
     });
 
+    const unsubTheme = useThemeStore.subscribe(() => {
+      if (!useEditorStore.getState().isHydrated) return;
+      clearTimeout(timer);
+      timer = setTimeout(persist, 500);
+    });
+
     function persist() {
       const { tabs, activeTabId, tabCounter } = useEditorStore.getState();
       const { presets } = usePresetsStore.getState();
       const { templates } = usePromptTemplatesStore.getState();
-      saveSession(tabs, activeTabId, tabCounter, presets, templates);
+      const { theme } = useThemeStore.getState();
+      saveSession(tabs, activeTabId, tabCounter, presets, templates, theme);
     }
 
     return () => {
@@ -61,6 +72,7 @@ export function useSessionPersistence() {
       unsubEditor();
       unsubPresets();
       unsubTemplates();
+      unsubTheme();
     };
   }, []);
 }

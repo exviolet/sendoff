@@ -69,7 +69,8 @@ export async function loadSession() {
   const promptTemplates = await db.getAll("promptTemplates");
   const activeTabId = (await db.get("meta", "activeTabId")) as string | undefined;
   const tabCounter = (await db.get("meta", "tabCounter")) as number | undefined;
-  return { tabs, presets, promptTemplates, activeTabId: activeTabId ?? null, tabCounter: tabCounter ?? 0 };
+  const theme = (await db.get("meta", "theme")) as string | undefined;
+  return { tabs, presets, promptTemplates, activeTabId: activeTabId ?? null, tabCounter: tabCounter ?? 0, theme: theme ?? "dark" };
 }
 
 export async function saveSession(
@@ -78,6 +79,7 @@ export async function saveSession(
   tabCounter: number,
   presets: ReplacePreset[],
   promptTemplates: PromptTemplate[],
+  theme: string,
 ) {
   const db = await getDB();
   const tx = db.transaction(["tabs", "presets", "promptTemplates", "meta"], "readwrite");
@@ -107,6 +109,7 @@ export async function saveSession(
   const metaStore = tx.objectStore("meta");
   await metaStore.put(activeTabId ?? "", "activeTabId");
   await metaStore.put(tabCounter, "tabCounter");
+  await metaStore.put(theme, "theme");
 
   await tx.done;
 }
