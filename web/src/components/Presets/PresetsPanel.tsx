@@ -1,10 +1,33 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { usePresetsStore } from "../../store/presetsStore";
 import type { ReplacePreset } from "../../store/presetsStore";
 import type { ReplacePair } from "../../lib/replaceEngine";
 import { previewReplacePairs, type DiffEntry } from "../../lib/replaceEngine";
 import { useEditorStore } from "../../store/editorStore";
 import { PresetEditor } from "./PresetEditor";
+
+function isValidPreset(data: unknown): data is { name: string; pairs: ReplacePair[] } {
+  if (typeof data !== "object" || data === null) return false;
+  const obj = data as Record<string, unknown>;
+  if (typeof obj.name !== "string" || !obj.name.trim()) return false;
+  if (!Array.isArray(obj.pairs) || obj.pairs.length === 0) return false;
+  return obj.pairs.every((p: unknown) => {
+    if (typeof p !== "object" || p === null) return false;
+    const pair = p as Record<string, unknown>;
+    return typeof pair.from === "string" && typeof pair.to === "string";
+  });
+}
+
+function exportPreset(preset: ReplacePreset) {
+  const data = { name: preset.name, pairs: preset.pairs };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${preset.name.replace(/[^a-zA-Zа-яА-ЯёЁ0-9_-]/g, "_")}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 interface PresetsPanelProps {
   onClose: () => void;
@@ -24,6 +47,44 @@ export function PresetsPanel({ onClose }: PresetsPanelProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [previewPresetId, setPreviewPresetId] = useState<string | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const handleImportPreset = useCallback(() => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".json";
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const data: unknown = JSON.parse(reader.result as string);
+          if (!isValidPreset(data)) {
+            setImportError("Неверный формат пресета");
+            return;
+          }
+          const preset: ReplacePreset = {
+            id: crypto.randomUUID(),
+            name: data.name,
+            pairs: data.pairs.map((p) => ({
+              from: p.from,
+              to: p.to,
+              caseSensitive: p.caseSensitive ?? true,
+              wholeWord: p.wholeWord ?? false,
+            })),
+          };
+          addPreset(preset);
+          setImportError(null);
+        } catch {
+          setImportError("Ошибка чтения файла");
+        }
+      };
+      reader.readAsText(file);
+    };
+    input.click();
+  }, [addPreset]);
 
   const previewData = useMemo(() => {
     if (!previewPresetId || !tab) return null;
@@ -119,39 +180,72 @@ export function PresetsPanel({ onClose }: PresetsPanelProps) {
           ) : (
             <div
               key={preset.id}
-              className="group flex items-center gap-2 p-2 rounded-[4px] border border-border/50 hover:border-border hover:bg-surface-hover/30 transition-colors"
+              className={`rounded-[4px] border transition-colors ${
+                expandedId === preset.id
+                  ? "border-border bg-surface-hover/20"
+                  : "border-border/50 hover:border-border hover:bg-surface-hover/30"
+              }`}
             >
-              <div className="flex-1 min-w-0">
-                <div className="text-[11px] text-text truncate">{preset.name}</div>
-                <div className="text-[9px] text-text-muted">{preset.pairs.length} pairs</div>
+              {/* Compact row */}
+              <div
+                className="flex items-center gap-2 p-2 cursor-pointer"
+                onClick={() => setExpandedId(expandedId === preset.id ? null : preset.id)}
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="text-[11px] text-text truncate">{preset.name}</div>
+                  <div className="text-[9px] text-text-muted">{preset.pairs.length} pairs</div>
+                </div>
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleApply(preset.id); }}
+                  className="h-6 px-2 text-[10px] rounded-[3px] bg-accent/15 text-accent hover:bg-accent/25 transition-colors shrink-0"
+                >
+                  Apply
+                </button>
               </div>
 
-              <button
-                onClick={() => handleApply(preset.id)}
-                className="h-6 px-2 text-[10px] rounded-[3px] bg-accent/15 text-accent hover:bg-accent/25 transition-colors shrink-0"
-              >
-                Apply
-              </button>
-
-              <button
-                onClick={() => setEditingId(preset.id)}
-                className="flex items-center justify-center w-6 h-6 rounded-[3px] text-text-muted opacity-0 group-hover:opacity-100 hover:text-text hover:bg-surface-hover transition-all"
-                title="Edit"
-              >
-                <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                  <path d="M7.5 1.5l1 1-5.5 5.5H2V7L7.5 1.5z" stroke="currentColor" strokeWidth="1" strokeLinejoin="round" />
-                </svg>
-              </button>
-
-              <button
-                onClick={() => deletePreset(preset.id)}
-                className="flex items-center justify-center w-6 h-6 rounded-[3px] text-text-muted opacity-0 group-hover:opacity-100 hover:text-danger hover:bg-danger/10 transition-all"
-                title="Delete"
-              >
-                <svg width="8" height="8" viewBox="0 0 8 8">
-                  <path d="M1.5 1.5l5 5M6.5 1.5l-5 5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-                </svg>
-              </button>
+              {/* Expanded details */}
+              {expandedId === preset.id && (
+                <div className="px-2 pb-2 flex flex-col gap-1.5 animate-slide-down">
+                  <div className="max-h-24 overflow-y-auto space-y-0.5">
+                    {preset.pairs.map((pair, i) => (
+                      <div key={i} className="flex items-center gap-1.5 text-[10px]">
+                        <span className="text-text-muted truncate">{pair.from}</span>
+                        <span className="text-text-muted/50 shrink-0">→</span>
+                        <span className="text-text truncate">{pair.to}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-1 pt-1 border-t border-border/30">
+                    <button
+                      onClick={() => exportPreset(preset)}
+                      className="flex items-center justify-center w-6 h-6 rounded-[3px] text-text-muted hover:text-text hover:bg-surface-hover transition-colors"
+                      title="Export"
+                    >
+                      <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
+                        <path d="M6 2v6M3.5 5.5L6 8l2.5-2.5M2 10h8" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => { setEditingId(preset.id); setExpandedId(null); }}
+                      className="flex items-center justify-center w-6 h-6 rounded-[3px] text-text-muted hover:text-text hover:bg-surface-hover transition-colors"
+                      title="Edit"
+                    >
+                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                        <path d="M7.5 1.5l1 1-5.5 5.5H2V7L7.5 1.5z" stroke="currentColor" strokeWidth="1" strokeLinejoin="round" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => deletePreset(preset.id)}
+                      className="flex items-center justify-center w-6 h-6 rounded-[3px] text-text-muted hover:text-danger hover:bg-danger/10 transition-colors ml-auto"
+                      title="Delete"
+                    >
+                      <svg width="8" height="8" viewBox="0 0 8 8">
+                        <path d="M1.5 1.5l5 5M6.5 1.5l-5 5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )
         )}
@@ -166,13 +260,27 @@ export function PresetsPanel({ onClose }: PresetsPanelProps) {
 
       {/* Footer */}
       {!isCreating && (
-        <div className="p-3 border-t border-border">
-          <button
-            onClick={() => setIsCreating(true)}
-            className="w-full h-7 text-[10px] rounded-[4px] border border-dashed border-border text-text-muted hover:text-text hover:border-accent/30 transition-colors"
-          >
-            + New preset
-          </button>
+        <div className="p-3 border-t border-border flex flex-col gap-1.5">
+          {importError && (
+            <div className="px-2.5 py-1.5 bg-danger/10 border border-danger/20 rounded-[4px] text-[10px] text-danger">
+              {importError}
+            </div>
+          )}
+          <div className="flex gap-1.5">
+            <button
+              onClick={() => setIsCreating(true)}
+              className="flex-1 h-7 text-[10px] rounded-[4px] border border-dashed border-border text-text-muted hover:text-text hover:border-accent/30 transition-colors"
+            >
+              + New preset
+            </button>
+            <button
+              onClick={handleImportPreset}
+              className="h-7 px-3 text-[10px] rounded-[4px] border border-dashed border-border text-text-muted hover:text-text hover:border-accent/30 transition-colors"
+              title="Импорт пресета из .json"
+            >
+              Import
+            </button>
+          </div>
         </div>
       )}
     </div>
