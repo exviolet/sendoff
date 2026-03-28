@@ -40,7 +40,7 @@ bun run preview       # Test production build locally
 - `promptTemplatesStore.ts` — AI prompt templates CRUD (with `order` field), hydrate with sorting
 
 ### Core Logic (`src/lib/`) — pure functions, no side effects
-- `replaceEngine.ts` — findMatches, replaceAll, applyReplacePairs (regex support)
+- `replaceEngine.ts` — findMatches, replaceAll, applyReplacePairs, previewReplacePairs (regex support, unicode `u` flag)
 - `promptBuilder.ts` — `PromptTemplate` type, `assemblePrompt()`, `hasInstructionPlaceholder()`; uses `{{TEXT}}`/`{{INSTRUCTION}}` placeholders
 - `db.ts` — `idb` schema v3 (stores: `tabs`, `presets`, `promptTemplates`, `meta`); includes v2→v3 migration
 
@@ -56,7 +56,10 @@ Native `<textarea>` cannot highlight text. The highlight overlay works as:
 - Textarea sits on top with `background: transparent`
 
 ### Panel Architecture
-`App.tsx` manages panel state (find/replace, presets, AI prompt). Presets and AI Prompt panels are mutually exclusive (`absolute right-0`). `textareaRef` is lifted to `App` and passed via props to `Editor` and `AIPromptPanel`.
+`App.tsx` manages panel state (find/replace, presets, AI prompt, command palette, shortcuts modal, distraction-free mode). Presets and AI Prompt panels are mutually exclusive (`absolute right-0`). `textareaRef` is lifted to `App` and passed via props to `Editor` and `AIPromptPanel`.
+
+### Presets Panel (`src/components/Presets/`)
+Preset cards are expandable — click to reveal pairs list and action buttons (Export, Edit, Delete). Apply shows diff-preview before applying. Import/export via `.json` files with validation.
 
 ## Data Models
 
@@ -132,7 +135,7 @@ The project is built in phases — complete one fully before starting the next. 
 3. **Phase 3** ✅ — Replace Presets (core feature; default "Вы → Мы" preset)
 4. **Phase 4** ✅ — Session persistence (IndexedDB) + file export/import
 5. **Phase 5** ✅ — AI Prompt Builder (clipboard-based, no API calls)
-6. **Phase 6** — Polish: command palette, distraction-free mode, production build
+6. **Phase 6** ✅ — Polish: command palette, distraction-free mode, production build
 7. **Phase 7** (future) — Tauri v2 wrapper; zero frontend changes required
 
 ## Code Quality Rules
