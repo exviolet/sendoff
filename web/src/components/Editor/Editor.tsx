@@ -58,7 +58,7 @@ export function Editor({ highlights = [], activeHighlight = -1, textareaRef, mar
           }
           setIsDragging(false);
           dragCounter.current = 0;
-        } else if (event.payload.type === "cancel") {
+        } else {
           setIsDragging(false);
           dragCounter.current = 0;
         }
