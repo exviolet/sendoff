@@ -5,8 +5,8 @@
 Два отдельных репозитория:
 
 ```
-rewritebox          — browser SPA (текущий репо, деплой на Vercel/Pages)
-rewritebox-desktop  — Tauri v2 обёртка, web подключается как git submodule
+rewrite          — browser SPA (текущий репо, деплой на Vercel/Pages)
+rewrite-desktop  — Tauri v2 обёртка, web подключается как git submodule
 ```
 
 **Почему два репо:**
@@ -17,11 +17,11 @@ rewritebox-desktop  — Tauri v2 обёртка, web подключается к
 
 ---
 
-## Структура rewritebox-desktop
+## Структура rewrite-desktop
 
 ```
-rewritebox-desktop/
-├── web/                          # git submodule → rewritebox
+rewrite-desktop/
+├── web/                          # git submodule → rewrite
 ├── src-tauri/
 │   ├── src/
 │   │   └── lib.rs                # минимальный Tauri entry point
@@ -45,11 +45,11 @@ rewritebox-desktop/
 
 ```bash
 # Создать репо
-mkdir rewritebox-desktop && cd rewritebox-desktop
+mkdir rewrite-desktop && cd rewrite-desktop
 git init
 
 # Подключить web как submodule
-git submodule add git@github.com:<user>/rewritebox.git web
+git submodule add git@github.com:<user>/rewrite.git web
 
 # Инициализировать Tauri v2 в существующем проекте
 bun add -d @tauri-apps/cli
@@ -59,8 +59,8 @@ bun tauri init
 **tauri.conf.json** — ключевые настройки:
 - `devUrl`: `http://localhost:5173` (Vite dev server из web/)
 - `frontendDist`: `../web/dist` (production build)
-- `productName`: `RewriteBox`
-- `identifier`: `com.rewritebox.app`
+- `productName`: `Rewrite`
+- `identifier`: `com.rewrite.app`
 - Размер окна: `1200×800`, `minWidth: 800`, `minHeight: 500`
 
 **package.json** — скрипты:
@@ -164,7 +164,7 @@ bun tauri build  # собирает web + компилирует Rust → бин
 
 ## Что НЕ меняется
 
-- Frontend код в `rewritebox` — ноль изменений для Step 1–3
+- Frontend код в `rewrite` — ноль изменений для Step 1–3
 - IndexedDB persistence — работает в Tauri WebView
 - Все Zustand stores — без изменений
 - Все компоненты — без изменений

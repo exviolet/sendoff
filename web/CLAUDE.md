@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-RewriteBox is a fast, minimal browser-based personal text editor. The primary use case is pasting text and applying bulk replacements (e.g. converting formal "Вы/Ваш" tone to collaborative "Мы/Наш"). No backend, no API keys — everything runs client-side.
+Rewrite is a fast, minimal browser-based personal text editor. The primary use case is pasting text and applying bulk replacements (e.g. converting formal "Вы/Ваш" tone to collaborative "Мы/Наш"). No backend, no API keys — everything runs client-side.
 
 ## Commands
 
@@ -30,7 +30,7 @@ bun run preview       # Test production build locally
 | Styling | Tailwind CSS v4 (`@tailwindcss/vite` plugin) |
 | Editor | Native `<textarea>` + custom hooks (no Monaco/CodeMirror) |
 | State | Zustand (`useEditorStore`, `usePresetsStore`, `usePromptTemplatesStore`, `useThemeStore`) |
-| Persistence | IndexedDB via `idb` (`rewritebox-db` v3) |
+| Persistence | IndexedDB via `idb` (`rewrite-db` v3) |
 
 ## Architecture
 

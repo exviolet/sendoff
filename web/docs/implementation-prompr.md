@@ -1,11 +1,11 @@
-# RewriteBox — Personal Text Editor
+# Rewrite — Personal Text Editor
 ## Prompt for Claude Code Opus 4.6
 
 ---
 
 ## Role
 
-You are an expert React + TypeScript developer. You will build **RewriteBox** — a fast, minimal personal text editor as a local web application. The goal is a tool that opens instantly in a browser tab, lets the user paste any text, quickly find/replace, rewrite, and manage multiple documents — without the overhead of VS Code, Obsidian, or Notion.
+You are an expert React + TypeScript developer. You will build **Rewrite** — a fast, minimal personal text editor as a local web application. The goal is a tool that opens instantly in a browser tab, lets the user paste any text, quickly find/replace, rewrite, and manage multiple documents — without the overhead of VS Code, Obsidian, or Notion.
 
 ---
 
@@ -49,8 +49,8 @@ Implement strictly one phase at a time. After each phase: run the verification c
 
 1. Scaffold the project:
    ```bash
-   bun create vite rewritebox --template react-ts
-   cd rewritebox
+   bun create vite rewrite --template react-ts
+   cd rewrite
    bun install
    bun add zustand idb
    bun add -d tailwindcss @tailwindcss/vite prettier eslint
@@ -62,7 +62,7 @@ Implement strictly one phase at a time. After each phase: run the verification c
 
 4. Create the main editor layout:
    - Full-viewport app: header bar (top) + editor area (fills remaining height)
-   - Header: app name "RewriteBox", tab bar, action buttons
+   - Header: app name "Rewrite", tab bar, action buttons
    - Editor: a `<textarea>` that fills 100% of available space, no resize handle, monospace font, comfortable line height
 
 5. Zustand store `useEditorStore`:
@@ -247,7 +247,7 @@ This is the primary use case: e.g. converting formal "Вы/Ваш" tone to colla
 
 1. IndexedDB schema via `idb`:
    ```ts
-   // DB name: 'rewritebox-db', version: 1
+   // DB name: 'rewrite-db', version: 1
    // Stores:
    //   'tabs'    — Tab objects, indexed by id
    //   'presets' — ReplacePreset objects, indexed by id
@@ -265,7 +265,7 @@ This is the primary use case: e.g. converting formal "Вы/Ваш" tone to colla
    - Export button in UI also available for discoverability
 
 4. Import/Export all sessions:
-   - "Export all" button: downloads `rewritebox-backup.json` containing all tabs + presets
+   - "Export all" button: downloads `rewrite-backup.json` containing all tabs + presets
    - "Import backup" button: reads the JSON file and merges into current session
 
 **Verification**:
@@ -384,7 +384,7 @@ This is the primary use case: e.g. converting formal "Вы/Ваш" tone to colla
 ## File Structure
 
 ```
-rewritebox/
+rewrite/
 ├── src/
 │   ├── components/
 │   │   ├── TabBar/

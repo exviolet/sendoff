@@ -1,4 +1,4 @@
-# RewriteBox
+# Rewrite
 
 Fast, minimal browser-based text editor for bulk find & replace. Primary use case: converting text tone (e.g. formal "Вы/Ваш" to collaborative "Мы/Наш") using reusable presets.
 

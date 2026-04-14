@@ -97,7 +97,7 @@ export function useFileIO() {
         const { writeTextFile } = await import("@tauri-apps/plugin-fs");
         const path = await save({
           filters: [{ name: "JSON", extensions: ["json"] }],
-          defaultPath: "rewritebox-backup.json",
+          defaultPath: "rewrite-backup.json",
         });
         if (path) {
           await writeTextFile(path, data);
@@ -114,7 +114,7 @@ export function useFileIO() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "rewritebox-backup.json";
+    a.download = "rewrite-backup.json";
     a.click();
     URL.revokeObjectURL(url);
     toast("Бэкап экспортирован", "success");

@@ -3,7 +3,7 @@ import type { Tab } from "../store/editorStore";
 import type { ReplacePreset } from "../store/presetsStore";
 import type { PromptTemplate } from "./promptBuilder";
 
-interface RewriteBoxDB extends DBSchema {
+interface RewriteDB extends DBSchema {
   tabs: {
     key: string;
     value: Tab;
@@ -22,11 +22,11 @@ interface RewriteBoxDB extends DBSchema {
   };
 }
 
-const DB_NAME = "rewritebox-db";
+const DB_NAME = "rewrite-db";
 const DB_VERSION = 3;
 
 function getDB() {
-  return openDB<RewriteBoxDB>(DB_NAME, DB_VERSION, {
+  return openDB<RewriteDB>(DB_NAME, DB_VERSION, {
     upgrade(db, oldVersion, _newVersion, tx) {
       // v1: tabs, presets, meta
       if (!db.objectStoreNames.contains("tabs")) {
