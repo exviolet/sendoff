@@ -42,7 +42,7 @@ export function Editor({ highlights = [], activeHighlight = -1, textareaRef, mar
   const backdropRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const dragCounter = useRef(0);
-  const rafRef = useRef<number>();
+  const rafRef = useRef<number | undefined>(undefined);
   // Отслеживаем контент вне React — для определения внешних изменений
   const prevStoreContent = useRef("");
 
