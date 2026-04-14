@@ -25,12 +25,59 @@ function isAcceptedFile(file: File): boolean {
 
 export function Editor({ highlights = [], activeHighlight = -1, textareaRef, markdownPreview = false, fontSize = 13, wordWrap = true }: EditorProps) {
   const activeTabId = useEditorStore((s) => s.activeTabId);
-  const tab = useEditorStore((s) => s.tabs.find((t) => t.id === s.activeTabId));
   const updateContent = useEditorStore((s) => s.updateContent);
   const addTabFromFile = useEditorStore((s) => s.addTabFromFile);
+
+  // Контент нужен в рендере только для markdown preview и highlight backdrop.
+  // В обычном режиме возвращаем "" — Zustand не триггерит ре-рендер при вводе.
+  const renderContent = useEditorStore((s) =>
+    markdownPreview || highlights.length > 0
+      ? (s.tabs.find((t) => t.id === s.activeTabId)?.content ?? "")
+      : ""
+  );
+
+  // hasTab нужен только для null-guard — не подписываемся на content
+  const hasTab = useEditorStore((s) => s.tabs.some((t) => t.id === s.activeTabId));
+
   const backdropRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const dragCounter = useRef(0);
+  const rafRef = useRef<number>();
+  // Отслеживаем контент вне React — для определения внешних изменений
+  const prevStoreContent = useRef("");
+
+  // Инициализируем prevStoreContent при монтировании
+  useEffect(() => {
+    prevStoreContent.current = useEditorStore.getState().tabs.find((t) => t.id === activeTabId)?.content ?? "";
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // На смену таба — принудительно обновляем textarea
+  useEffect(() => {
+    const content = useEditorStore.getState().tabs.find((t) => t.id === activeTabId)?.content ?? "";
+    if (textareaRef.current) {
+      textareaRef.current.value = content;
+    }
+    prevStoreContent.current = content;
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+  }, [activeTabId, textareaRef]);
+
+  // Внешние изменения (undo/redo, preset apply) — обновляем textarea через subscribe,
+  // без React ре-рендера
+  useEffect(() => {
+    const unsub = useEditorStore.subscribe((state) => {
+      const content = state.tabs.find((t) => t.id === state.activeTabId)?.content ?? "";
+      if (content !== prevStoreContent.current) {
+        prevStoreContent.current = content;
+        if (textareaRef.current && textareaRef.current.value !== content) {
+          const { selectionStart, selectionEnd } = textareaRef.current;
+          textareaRef.current.value = content;
+          textareaRef.current.setSelectionRange(selectionStart, selectionEnd);
+        }
+      }
+    });
+    return unsub;
+  }, [textareaRef]);
 
   useEffect(() => {
     textareaRef.current?.focus();
@@ -114,31 +161,12 @@ export function Editor({ highlights = [], activeHighlight = -1, textareaRef, mar
     }
   }, [addTabFromFile]);
 
-  const markdownContent = tab?.content ?? "";
   const renderedMarkdown = useMemo(() => {
     if (!markdownPreview) return "";
-    return marked.parse(markdownContent, { async: false }) as string;
-  }, [markdownPreview, markdownContent]);
+    return marked.parse(renderContent, { async: false }) as string;
+  }, [markdownPreview, renderContent]);
 
-  if (!tab) return null;
-
-  function buildHighlightHTML(content: string, matches: HighlightMatch[], activeIdx: number): string {
-    if (matches.length === 0) return escapeHTML(content) + "\n";
-
-    let result = "";
-    let lastEnd = 0;
-
-    for (let i = 0; i < matches.length; i++) {
-      const m = matches[i];
-      result += escapeHTML(content.slice(lastEnd, m.index));
-      const cls = i === activeIdx ? "bg-accent/40 text-text" : "bg-accent/20 text-text";
-      result += `<mark class="${cls} rounded-[2px]">${escapeHTML(content.slice(m.index, m.index + m.length))}</mark>`;
-      lastEnd = m.index + m.length;
-    }
-
-    result += escapeHTML(content.slice(lastEnd));
-    return result + "\n";
-  }
+  if (!hasTab) return null;
 
   return (
     <div
@@ -167,15 +195,21 @@ export function Editor({ highlights = [], activeHighlight = -1, textareaRef, mar
                 overflowX: wordWrap ? "hidden" : "auto",
               }}
               dangerouslySetInnerHTML={{
-                __html: buildHighlightHTML(tab.content, highlights, activeHighlight),
+                __html: buildHighlightHTML(renderContent, highlights, activeHighlight),
               }}
             />
           )}
 
           <textarea
             ref={textareaRef}
-            value={tab.content}
-            onChange={(e) => updateContent(tab.id, e.target.value)}
+            defaultValue={useEditorStore.getState().tabs.find((t) => t.id === activeTabId)?.content ?? ""}
+            onChange={(e) => {
+              const value = e.target.value;
+              prevStoreContent.current = value;
+              const id = activeTabId;
+              if (rafRef.current) cancelAnimationFrame(rafRef.current);
+              rafRef.current = requestAnimationFrame(() => { if (id) updateContent(id, value); });
+            }}
             onScroll={syncScroll}
             placeholder="Start typing or paste text..."
             spellCheck={false}
@@ -214,6 +248,24 @@ export function Editor({ highlights = [], activeHighlight = -1, textareaRef, mar
       )}
     </div>
   );
+}
+
+function buildHighlightHTML(content: string, matches: HighlightMatch[], activeIdx: number): string {
+  if (matches.length === 0) return escapeHTML(content) + "\n";
+
+  let result = "";
+  let lastEnd = 0;
+
+  for (let i = 0; i < matches.length; i++) {
+    const m = matches[i];
+    result += escapeHTML(content.slice(lastEnd, m.index));
+    const cls = i === activeIdx ? "bg-accent/40 text-text" : "bg-accent/20 text-text";
+    result += `<mark class="${cls} rounded-[2px]">${escapeHTML(content.slice(m.index, m.index + m.length))}</mark>`;
+    lastEnd = m.index + m.length;
+  }
+
+  result += escapeHTML(content.slice(lastEnd));
+  return result + "\n";
 }
 
 function escapeHTML(s: string): string {

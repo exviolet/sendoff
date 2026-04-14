@@ -21,8 +21,8 @@ export function AIPromptPanel({ onClose, textareaRef }: AIPromptPanelProps) {
   const updateTemplate = usePromptTemplatesStore((s) => s.updateTemplate);
   const deleteTemplate = usePromptTemplatesStore((s) => s.deleteTemplate);
 
-  const tab = useEditorStore((s) =>
-    s.tabs.find((t) => t.id === s.activeTabId),
+  const tabContent = useEditorStore((s) =>
+    s.tabs.find((t) => t.id === s.activeTabId)?.content ?? "",
   );
 
   const [selectedId, setSelectedId] = useState(templates[0]?.id ?? "");
@@ -41,12 +41,12 @@ export function AIPromptPanel({ onClose, textareaRef }: AIPromptPanelProps) {
     : false;
 
   const getSourceText = useCallback((): string => {
-    if (!tab) return "";
+    if (!tabContent) return "";
     if (sourceMode === "selection" && selectionRange && selectionRange.start !== selectionRange.end) {
-      return tab.content.slice(selectionRange.start, selectionRange.end);
+      return tabContent.slice(selectionRange.start, selectionRange.end);
     }
-    return tab.content;
-  }, [tab, sourceMode, selectionRange]);
+    return tabContent;
+  }, [tabContent, sourceMode, selectionRange]);
 
   const computePreview = useCallback((): string => {
     if (!selectedTemplate) return "";
@@ -311,7 +311,7 @@ export function AIPromptPanel({ onClose, textareaRef }: AIPromptPanelProps) {
           <button
             onClick={() => copyToClipboard(getSourceText(), "Текст скопирован")
             }
-            disabled={!tab?.content}
+            disabled={!tabContent}
             className="w-full py-1.5 text-[11px] text-text-muted hover:text-text hover:bg-surface-hover rounded transition-colors disabled:opacity-40"
           >
             Скопировать только текст

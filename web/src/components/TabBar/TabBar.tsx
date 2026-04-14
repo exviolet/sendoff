@@ -15,8 +15,17 @@ interface TabBarProps {
   onThemeToggle: () => void;
 }
 
+function tabsMetaEqual(prev: ReturnType<typeof useEditorStore.getState>["tabs"], next: ReturnType<typeof useEditorStore.getState>["tabs"]) {
+  if (prev.length !== next.length) return false;
+  return prev.every((tab, i) =>
+    tab.id === next[i].id &&
+    tab.title === next[i].title &&
+    tab.isDirty === next[i].isDirty
+  );
+}
+
 export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAll, onImportBackup, theme, onThemeToggle }: TabBarProps) {
-  const tabs = useEditorStore((s) => s.tabs);
+  const tabs = useEditorStore((s) => s.tabs, tabsMetaEqual);
   const activeTabId = useEditorStore((s) => s.activeTabId);
   const setActiveTab = useEditorStore((s) => s.setActiveTab);
   const closeTab = useEditorStore((s) => s.closeTab);

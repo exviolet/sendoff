@@ -61,7 +61,7 @@ export function PresetsPanel({ onClose }: PresetsPanelProps) {
   const clearLastResult = usePresetsStore((s) => s.clearLastResult);
   const activeTabId = useEditorStore((s) => s.activeTabId);
   const updateContent = useEditorStore((s) => s.updateContent);
-  const tab = useEditorStore((s) => s.tabs.find((t) => t.id === s.activeTabId));
+  const tabContent = useEditorStore((s) => s.tabs.find((t) => t.id === s.activeTabId)?.content ?? "");
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
@@ -127,11 +127,11 @@ export function PresetsPanel({ onClose }: PresetsPanelProps) {
   }, [addPreset]);
 
   const previewData = useMemo(() => {
-    if (!previewPresetId || !tab) return null;
+    if (!previewPresetId || !tabContent) return null;
     const preset = presets.find((p) => p.id === previewPresetId);
     if (!preset) return null;
-    return previewReplacePairs(tab.content, preset.pairs);
-  }, [previewPresetId, tab, presets]);
+    return previewReplacePairs(tabContent, preset.pairs);
+  }, [previewPresetId, tabContent, presets]);
 
   useEffect(() => {
     if (lastApplyResult) {
