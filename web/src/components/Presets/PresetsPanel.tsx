@@ -67,7 +67,21 @@ export function PresetsPanel({ onClose }: PresetsPanelProps) {
   const [isCreating, setIsCreating] = useState(false);
   const [previewPresetId, setPreviewPresetId] = useState<string | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+
+  const toggleExpanded = useCallback((id: string) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const allExpanded = presets.length > 0 && presets.every((p) => expandedIds.has(p.id));
+  const toggleAll = useCallback(() => {
+    setExpandedIds(allExpanded ? new Set() : new Set(presets.map((p) => p.id)));
+  }, [allExpanded, presets]);
 
   const handleImportPreset = useCallback(async () => {
     function processPresetData(raw: string) {
@@ -178,14 +192,34 @@ export function PresetsPanel({ onClose }: PresetsPanelProps) {
       {/* Header */}
       <div className="flex items-center justify-between h-10 px-3 border-b border-border shrink-0">
         <span className="text-[11px] text-text-muted tracking-wide uppercase">Presets</span>
-        <button
-          onClick={onClose}
-          className="flex items-center justify-center w-6 h-6 rounded-[3px] text-text-muted hover:text-text hover:bg-surface-hover transition-colors"
-        >
-          <svg width="10" height="10" viewBox="0 0 10 10">
-            <path d="M2 2l6 6M8 2l-6 6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-          </svg>
-        </button>
+        <div className="flex items-center gap-0.5">
+          {presets.length > 0 && (
+            <button
+              onClick={toggleAll}
+              className="flex items-center justify-center w-6 h-6 rounded-[3px] text-text-muted hover:text-text hover:bg-surface-hover transition-colors"
+              title={allExpanded ? "Скрыть все" : "Раскрыть все"}
+              aria-label={allExpanded ? "Скрыть все пресеты" : "Раскрыть все пресеты"}
+            >
+              {allExpanded ? (
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                  <path d="M2 6l3-3 3 3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              ) : (
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                  <path d="M2 4l3 3 3-3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              )}
+            </button>
+          )}
+          <button
+            onClick={onClose}
+            className="flex items-center justify-center w-6 h-6 rounded-[3px] text-text-muted hover:text-text hover:bg-surface-hover transition-colors"
+          >
+            <svg width="10" height="10" viewBox="0 0 10 10">
+              <path d="M2 2l6 6M8 2l-6 6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+            </svg>
+          </button>
+        </div>
       </div>
 
       {/* Toast */}
@@ -221,7 +255,7 @@ export function PresetsPanel({ onClose }: PresetsPanelProps) {
             <div
               key={preset.id}
               className={`rounded-[4px] border transition-colors ${
-                expandedId === preset.id
+                expandedIds.has(preset.id)
                   ? "border-border bg-surface-hover/20"
                   : "border-border/50 hover:border-border hover:bg-surface-hover/30"
               }`}
@@ -229,7 +263,7 @@ export function PresetsPanel({ onClose }: PresetsPanelProps) {
               {/* Compact row */}
               <div
                 className="flex items-center gap-2 p-2 cursor-pointer"
-                onClick={() => setExpandedId(expandedId === preset.id ? null : preset.id)}
+                onClick={() => toggleExpanded(preset.id)}
               >
                 <div className="flex-1 min-w-0">
                   <div className="text-[11px] text-text truncate">{preset.name}</div>
@@ -244,7 +278,7 @@ export function PresetsPanel({ onClose }: PresetsPanelProps) {
               </div>
 
               {/* Expanded details */}
-              {expandedId === preset.id && (
+              {expandedIds.has(preset.id) && (
                 <div className="px-2 pb-2 flex flex-col gap-1.5 animate-slide-down">
                   <div className="max-h-24 overflow-y-auto space-y-0.5">
                     {preset.pairs.map((pair, i) => (
@@ -266,7 +300,14 @@ export function PresetsPanel({ onClose }: PresetsPanelProps) {
                       </svg>
                     </button>
                     <button
-                      onClick={() => { setEditingId(preset.id); setExpandedId(null); }}
+                      onClick={() => {
+                        setEditingId(preset.id);
+                        setExpandedIds((prev) => {
+                          const next = new Set(prev);
+                          next.delete(preset.id);
+                          return next;
+                        });
+                      }}
                       className="flex items-center justify-center w-6 h-6 rounded-[3px] text-text-muted hover:text-text hover:bg-surface-hover transition-colors"
                       title="Edit"
                     >

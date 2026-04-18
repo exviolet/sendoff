@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useEditorStore } from "../../store/editorStore";
 import type { Theme } from "../../store/themeStore";
 import { isTauri } from "../../lib/platform";
+import { toast } from "../../store/toastStore";
 
 type SidePanel = null | "presets" | "ai" | "settings";
 
@@ -32,12 +33,33 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
   const createTab = useEditorStore((s) => s.createTab);
   const renameTab = useEditorStore((s) => s.renameTab);
   const reorderTab = useEditorStore((s) => s.reorderTab);
+  const closeSavedTabs = useEditorStore((s) => s.closeSavedTabs);
+  const closeOtherTabs = useEditorStore((s) => s.closeOtherTabs);
+  const closeTabsToRight = useEditorStore((s) => s.closeTabsToRight);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [ctxMenu, setCtxMenu] = useState<{ id: string; x: number; y: number } | null>(null);
   const dragIndexRef = useRef<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!ctxMenu) return;
+    function handleClick() { setCtxMenu(null); }
+    function handleKey(e: KeyboardEvent) { if (e.key === "Escape") setCtxMenu(null); }
+    document.addEventListener("mousedown", handleClick);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      document.removeEventListener("keydown", handleKey);
+    };
+  }, [ctxMenu]);
+
+  function reportClosed(n: number) {
+    if (n === 0) toast("Нечего закрывать (несохранённые не трогаются)", "info");
+    else toast(`Закрыто: ${n}`, "success");
+  }
 
   useEffect(() => {
     if (editingId && inputRef.current) {
@@ -100,7 +122,16 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
       </div>
 
       {/* Tab strip */}
-      <nav className="flex items-center gap-px flex-1 overflow-x-auto min-w-0 pr-1" role="tablist">
+      <nav
+        className="no-scrollbar flex items-center gap-px flex-1 overflow-x-auto min-w-0 pr-1"
+        role="tablist"
+        onWheel={(e) => {
+          if (e.deltaY === 0 || e.shiftKey) return;
+          const el = e.currentTarget;
+          if (el.scrollWidth <= el.clientWidth) return;
+          el.scrollLeft += e.deltaY;
+        }}
+      >
         {tabs.map((tab, index) => {
           const isActive = tab.id === activeTabId;
           const isEditing = tab.id === editingId;
@@ -114,6 +145,16 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
               draggable={!isEditing}
               onClick={() => setActiveTab(tab.id)}
               onDoubleClick={() => startRename(tab.id, tab.title)}
+              onAuxClick={(e) => {
+                if (e.button === 1) {
+                  e.preventDefault();
+                  closeTab(tab.id);
+                }
+              }}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                setCtxMenu({ id: tab.id, x: e.clientX, y: e.clientY });
+              }}
               onDragStart={(e) => handleTabDragStart(e, index)}
               onDragEnd={handleTabDragEnd}
               onDragOver={(e) => handleTabDragOver(e, index)}
@@ -234,21 +275,26 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
           </svg>
         </button>
 
-        {/* Theme toggle */}
+        {/* Theme toggle: dark → light → system → dark */}
         <button
           onClick={onThemeToggle}
           className="flex items-center justify-center w-7 h-7 rounded-[4px] text-text-muted hover:text-text hover:bg-surface-hover transition-colors duration-150"
-          aria-label={theme === "dark" ? "Светлая тема" : "Тёмная тема"}
-          title={theme === "dark" ? "Светлая тема" : "Тёмная тема"}
+          aria-label={`Тема: ${theme === "dark" ? "тёмная" : theme === "light" ? "светлая" : "системная"}`}
+          title={`Тема: ${theme === "dark" ? "тёмная" : theme === "light" ? "светлая" : "системная"} → ${theme === "dark" ? "светлая" : theme === "light" ? "системная" : "тёмная"}`}
         >
-          {theme === "dark" ? (
+          {theme === "light" ? (
             <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
               <circle cx="8" cy="8" r="3.5" stroke="currentColor" strokeWidth="1.3" />
               <path d="M8 1.5v1.5M8 13v1.5M1.5 8H3M13 8h1.5M3.4 3.4l1.1 1.1M11.5 11.5l1.1 1.1M3.4 12.6l1.1-1.1M11.5 4.5l1.1-1.1" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
             </svg>
-          ) : (
+          ) : theme === "dark" ? (
             <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
               <path d="M13.5 9.5a5.5 5.5 0 0 1-7-7A5.5 5.5 0 1 0 13.5 9.5z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+            </svg>
+          ) : (
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+              <rect x="2" y="3" width="12" height="8" rx="1" stroke="currentColor" strokeWidth="1.3" />
+              <path d="M6 13.5h4M8 11v2.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
             </svg>
           )}
         </button>
@@ -292,7 +338,56 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
 
         {isTauri && <WindowControls />}
       </div>
+      {ctxMenu && (
+        <TabContextMenu
+          x={ctxMenu.x}
+          y={ctxMenu.y}
+          onClose={() => setCtxMenu(null)}
+          onCloseTab={() => closeTab(ctxMenu.id)}
+          onCloseOthers={() => reportClosed(closeOtherTabs(ctxMenu.id))}
+          onCloseRight={() => reportClosed(closeTabsToRight(ctxMenu.id))}
+          onCloseSaved={() => reportClosed(closeSavedTabs())}
+        />
+      )}
     </header>
+  );
+}
+
+function TabContextMenu({
+  x, y, onClose, onCloseTab, onCloseOthers, onCloseRight, onCloseSaved,
+}: {
+  x: number; y: number;
+  onClose: () => void;
+  onCloseTab: () => void;
+  onCloseOthers: () => void;
+  onCloseRight: () => void;
+  onCloseSaved: () => void;
+}) {
+  const items = [
+    { label: "Закрыть", action: onCloseTab, shortcut: "Ctrl+W" },
+    { label: "Закрыть остальные", action: onCloseOthers },
+    { label: "Закрыть справа", action: onCloseRight },
+    { label: "Закрыть все сохранённые", action: onCloseSaved },
+  ];
+  return (
+    <div
+      className="fixed z-50 min-w-[200px] bg-surface border border-border rounded-[6px] shadow-lg overflow-hidden animate-slide-down"
+      style={{ left: x, top: y }}
+      onMouseDown={(e) => e.stopPropagation()}
+    >
+      {items.map((it) => (
+        <button
+          key={it.label}
+          onClick={() => { it.action(); onClose(); }}
+          className="flex items-center justify-between w-full px-3 py-1.5 text-[11px] tracking-wide text-text-muted hover:text-text hover:bg-surface-hover transition-colors whitespace-nowrap"
+        >
+          <span>{it.label}</span>
+          {it.shortcut && (
+            <kbd className="text-[10px] text-text-muted/60 font-mono ml-4">{it.shortcut}</kbd>
+          )}
+        </button>
+      ))}
+    </div>
   );
 }
 

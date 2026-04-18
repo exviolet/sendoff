@@ -15,8 +15,14 @@ interface EditorStore {
   tabCounter: number;
   isHydrated: boolean;
   closedTabs: Tab[];
+  pendingClose: { id: string; title: string } | null;
   createTab: () => void;
   closeTab: (id: string) => void;
+  confirmPendingClose: () => void;
+  cancelPendingClose: () => void;
+  closeSavedTabs: () => number;
+  closeOtherTabs: (keepId: string) => number;
+  closeTabsToRight: (id: string) => number;
   reopenTab: () => void;
   setActiveTab: (id: string) => void;
   updateContent: (id: string, content: string) => void;
@@ -95,34 +101,13 @@ const initialTab = makeTab(1);
 
 const MAX_CLOSED_TABS = 20;
 
-export const useEditorStore = create<EditorStore>((set, get) => ({
-  tabs: [initialTab],
-  activeTabId: initialTab.id,
-  tabCounter: 1,
-  isHydrated: false,
-  closedTabs: [],
-
-  createTab: () => {
-    const next = get().tabCounter + 1;
-    const tab = makeTab(next);
-    set((s) => ({
-      tabs: [...s.tabs, tab],
-      activeTabId: tab.id,
-      tabCounter: next,
-    }));
-  },
-
-  closeTab: (id) => {
+export const useEditorStore = create<EditorStore>((set, get) => {
+  function performClose(id: string) {
     const { tabs, activeTabId, closedTabs } = get();
     const tab = tabs.find((t) => t.id === id);
-    if (tab?.isDirty && !confirm(`Close "${tab.title}" without saving?`)) {
-      return;
-    }
-
     const newClosedTabs = tab
       ? [...closedTabs, tab].slice(-MAX_CLOSED_TABS)
       : closedTabs;
-
     const remaining = tabs.filter((t) => t.id !== id);
 
     if (remaining.length === 0) {
@@ -140,6 +125,86 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     }
 
     set({ tabs: remaining, activeTabId: newActiveId, closedTabs: newClosedTabs });
+  }
+
+  function performCloseMany(ids: string[]) {
+    if (ids.length === 0) return 0;
+    const toClose = new Set(ids);
+    const { tabs, activeTabId, closedTabs, tabCounter } = get();
+    const closing = tabs.filter((t) => toClose.has(t.id) && !t.isDirty);
+    if (closing.length === 0) return 0;
+    const closingIds = new Set(closing.map((t) => t.id));
+    const newClosedTabs = [...closedTabs, ...closing].slice(-MAX_CLOSED_TABS);
+    const remaining = tabs.filter((t) => !closingIds.has(t.id));
+
+    if (remaining.length === 0) {
+      const next = tabCounter + 1;
+      const fresh = makeTab(next);
+      set({ tabs: [fresh], activeTabId: fresh.id, tabCounter: next, closedTabs: newClosedTabs });
+      return closing.length;
+    }
+
+    let newActiveId = activeTabId;
+    if (activeTabId && closingIds.has(activeTabId)) {
+      const closedIndex = tabs.findIndex((t) => t.id === activeTabId);
+      let pick = remaining[0].id;
+      for (let i = closedIndex; i < tabs.length; i++) {
+        if (!closingIds.has(tabs[i].id)) { pick = tabs[i].id; break; }
+      }
+      newActiveId = pick;
+    }
+
+    set({ tabs: remaining, activeTabId: newActiveId, closedTabs: newClosedTabs });
+    return closing.length;
+  }
+
+  return {
+  tabs: [initialTab],
+  activeTabId: initialTab.id,
+  tabCounter: 1,
+  isHydrated: false,
+  closedTabs: [],
+  pendingClose: null,
+
+  createTab: () => {
+    const next = get().tabCounter + 1;
+    const tab = makeTab(next);
+    set((s) => ({
+      tabs: [...s.tabs, tab],
+      activeTabId: tab.id,
+      tabCounter: next,
+    }));
+  },
+
+  closeTab: (id) => {
+    const { tabs } = get();
+    const tab = tabs.find((t) => t.id === id);
+    if (!tab) return;
+    if (tab.isDirty) {
+      set({ pendingClose: { id: tab.id, title: tab.title } });
+      return;
+    }
+    performClose(id);
+  },
+
+  confirmPendingClose: () => {
+    const { pendingClose } = get();
+    if (!pendingClose) return;
+    set({ pendingClose: null });
+    performClose(pendingClose.id);
+  },
+
+  cancelPendingClose: () => set({ pendingClose: null }),
+
+  closeSavedTabs: () => performCloseMany(get().tabs.filter((t) => !t.isDirty).map((t) => t.id)),
+
+  closeOtherTabs: (keepId) => performCloseMany(get().tabs.filter((t) => t.id !== keepId).map((t) => t.id)),
+
+  closeTabsToRight: (id) => {
+    const tabs = get().tabs;
+    const idx = tabs.findIndex((t) => t.id === id);
+    if (idx < 0) return 0;
+    return performCloseMany(tabs.slice(idx + 1).map((t) => t.id));
   },
 
   reopenTab: () => {
@@ -239,4 +304,5 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
 
   hydrate: (tabs, activeTabId, tabCounter) =>
     set({ tabs, activeTabId, tabCounter, isHydrated: true }),
-}));
+  };
+});

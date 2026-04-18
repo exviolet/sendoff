@@ -15,6 +15,8 @@ import { useEditorStore } from "./store/editorStore";
 import { useThemeStore } from "./store/themeStore";
 import { useSettingsStore } from "./store/settingsStore";
 import { ToastContainer } from "./components/Toast/Toast";
+import { ConfirmDialog } from "./components/ConfirmDialog/ConfirmDialog";
+import { toast } from "./store/toastStore";
 
 type PanelMode = null | "find" | "findReplace";
 type SidePanel = null | "presets" | "ai" | "settings";
@@ -31,15 +33,21 @@ function App() {
   const [markdownPreview, setMarkdownPreview] = useState(false);
 
   const theme = useThemeStore((s) => s.theme);
+  const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
   const toggleTheme = useThemeStore((s) => s.toggleTheme);
+  const setTheme = useThemeStore((s) => s.setTheme);
+
+  const pendingClose = useEditorStore((s) => s.pendingClose);
+  const confirmPendingClose = useEditorStore((s) => s.confirmPendingClose);
+  const cancelPendingClose = useEditorStore((s) => s.cancelPendingClose);
 
   const fontSize = useSettingsStore((s) => s.fontSize);
   const wordWrap = useSettingsStore((s) => s.wordWrap);
 
   // Sync data-theme attribute on <html>
   useEffect(() => {
-    document.documentElement.setAttribute("data-theme", theme);
-  }, [theme]);
+    document.documentElement.setAttribute("data-theme", resolvedTheme);
+  }, [resolvedTheme]);
 
   useSessionPersistence();
   const { saveCurrentTab, downloadCurrentTab, openFile, exportAll, importBackup } = useFileIO();
@@ -78,11 +86,35 @@ function App() {
     setDistractionFree((v) => !v);
   }, []);
 
+  const focusEditor = useCallback(() => {
+    setPanelMode(null);
+    setSidePanel(null);
+    setCommandPaletteOpen(false);
+    setShortcutsOpen(false);
+    textareaRef.current?.focus();
+  }, []);
+
   const paletteCommands: Command[] = useMemo(() => [
     { id: "new-tab", label: "Новый таб", shortcut: "Ctrl+N", action: () => useEditorStore.getState().createTab() },
     { id: "close-tab", label: "Закрыть таб", shortcut: "Ctrl+W", action: () => {
       const { activeTabId, closeTab } = useEditorStore.getState();
       if (activeTabId) closeTab(activeTabId);
+    }},
+    { id: "close-saved-tabs", label: "Закрыть все сохранённые табы", action: () => {
+      const n = useEditorStore.getState().closeSavedTabs();
+      toast(n === 0 ? "Нечего закрывать" : `Закрыто: ${n}`, n === 0 ? "info" : "success");
+    }},
+    { id: "close-other-tabs", label: "Закрыть остальные табы", action: () => {
+      const { activeTabId, closeOtherTabs } = useEditorStore.getState();
+      if (!activeTabId) return;
+      const n = closeOtherTabs(activeTabId);
+      toast(n === 0 ? "Нечего закрывать" : `Закрыто: ${n}`, n === 0 ? "info" : "success");
+    }},
+    { id: "close-tabs-to-right", label: "Закрыть табы справа", action: () => {
+      const { activeTabId, closeTabsToRight } = useEditorStore.getState();
+      if (!activeTabId) return;
+      const n = closeTabsToRight(activeTabId);
+      toast(n === 0 ? "Нечего закрывать" : `Закрыто: ${n}`, n === 0 ? "info" : "success");
     }},
     { id: "reopen-tab", label: "Восстановить закрытый таб", shortcut: "Ctrl+Shift+T", action: () => useEditorStore.getState().reopenTab() },
     { id: "find", label: "Найти", shortcut: "Ctrl+F", action: () => setPanelMode("find") },
@@ -96,11 +128,14 @@ function App() {
     { id: "import", label: "Импорт бэкапа", action: importBackup },
     { id: "distraction-free", label: "Distraction-free режим", shortcut: "Ctrl+Shift+F", action: toggleDistractionFree },
     { id: "shortcuts", label: "Клавиатурные сокращения", shortcut: "Ctrl+/", action: () => setShortcutsOpen(true) },
-    { id: "toggle-theme", label: theme === "dark" ? "Светлая тема" : "Тёмная тема", action: toggleTheme },
+    { id: "theme-dark", label: "Тема: Тёмная", action: () => setTheme("dark") },
+    { id: "theme-light", label: "Тема: Светлая", action: () => setTheme("light") },
+    { id: "theme-system", label: "Тема: Системная", action: () => setTheme("system") },
     { id: "toggle-sidebar", label: "Пресеты (sidebar)", shortcut: "Ctrl+.", action: () => toggleSidePanel("presets") },
     { id: "toggle-md-preview", label: markdownPreview ? "Редактор" : "Markdown превью", shortcut: "Ctrl+M", action: () => setMarkdownPreview((v) => !v) },
     { id: "settings", label: "Настройки", shortcut: "Ctrl+,", action: () => toggleSidePanel("settings") },
-  ], [saveCurrentTab, openFile, downloadCurrentTab, exportAll, importBackup, toggleDistractionFree, toggleSidePanel, theme, toggleTheme, markdownPreview]);
+    { id: "focus-editor", label: "Фокус в редактор", shortcut: "Ctrl+E", action: focusEditor },
+  ], [saveCurrentTab, openFile, downloadCurrentTab, exportAll, importBackup, toggleDistractionFree, toggleSidePanel, setTheme, markdownPreview, focusEditor]);
 
   useKeyboardShortcuts({
     onFind: () => setPanelMode("find"),
@@ -126,6 +161,7 @@ function App() {
     onToggleSidebar: () => toggleSidePanel("presets"),
     onToggleMarkdownPreview: () => setMarkdownPreview((v) => !v),
     onSettings: () => toggleSidePanel("settings"),
+    onFocusEditor: focusEditor,
   });
 
   return (
@@ -167,6 +203,17 @@ function App() {
         />
       )}
       {shortcutsOpen && <ShortcutsModal onClose={() => setShortcutsOpen(false)} />}
+      {pendingClose && (
+        <ConfirmDialog
+          title="Закрыть вкладку без сохранения?"
+          message={`Несохранённые изменения в «${pendingClose.title}» будут потеряны.`}
+          confirmLabel="Закрыть"
+          cancelLabel="Отмена"
+          danger
+          onConfirm={confirmPendingClose}
+          onCancel={cancelPendingClose}
+        />
+      )}
       <ToastContainer />
     </div>
   );

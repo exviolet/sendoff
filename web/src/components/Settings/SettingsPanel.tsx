@@ -12,7 +12,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
   const setWordWrap = useSettingsStore((s) => s.setWordWrap);
 
   const theme = useThemeStore((s) => s.theme);
-  const toggleTheme = useThemeStore((s) => s.toggleTheme);
+  const setTheme = useThemeStore((s) => s.setTheme);
 
   return (
     <aside className="absolute right-0 top-0 bottom-0 w-72 bg-surface border-l border-border z-30 flex flex-col animate-slide-in-right">
@@ -103,39 +103,40 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
           <label className="text-[10px] uppercase tracking-widest text-text-muted/60">
             Тема
           </label>
-          <button
-            onClick={toggleTheme}
-            className="flex items-center justify-between w-full px-3 py-2 rounded-[6px] border border-border hover:bg-surface-hover transition-colors"
-          >
-            <div className="flex items-center gap-2">
-              {theme === "dark" ? (
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" className="text-text-muted">
-                  <path d="M13.5 9.5a5.5 5.5 0 0 1-7-7A5.5 5.5 0 1 0 13.5 9.5z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
-                </svg>
-              ) : (
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" className="text-text-muted">
-                  <circle cx="8" cy="8" r="3.5" stroke="currentColor" strokeWidth="1.3" />
-                  <path d="M8 1.5v1.5M8 13v1.5M1.5 8H3M13 8h1.5M3.4 3.4l1.1 1.1M11.5 11.5l1.1 1.1M3.4 12.6l1.1-1.1M11.5 4.5l1.1-1.1" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-                </svg>
-              )}
-              <span className="text-[12px] text-text">
-                {theme === "dark" ? "Тёмная" : "Светлая"}
-              </span>
-            </div>
-            <div
-              className={`
-                relative w-8 h-[18px] rounded-full transition-colors duration-200
-                ${theme === "light" ? "bg-accent" : "bg-border"}
-              `}
-            >
-              <div
+          <div className="grid grid-cols-3 gap-1 p-1 rounded-[6px] border border-border">
+            {(["dark", "light", "system"] as const).map((t) => (
+              <button
+                key={t}
+                onClick={() => setTheme(t)}
                 className={`
-                  absolute top-[2px] w-[14px] h-[14px] rounded-full bg-white shadow-sm transition-transform duration-200
-                  ${theme === "light" ? "translate-x-[16px]" : "translate-x-[2px]"}
+                  flex items-center justify-center gap-1.5 h-7 rounded-[4px] text-[11px] transition-colors
+                  ${theme === t
+                    ? "bg-accent/15 text-accent"
+                    : "text-text-muted hover:text-text hover:bg-surface-hover"
+                  }
                 `}
-              />
-            </div>
-          </button>
+              >
+                {t === "dark" && (
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                    <path d="M13.5 9.5a5.5 5.5 0 0 1-7-7A5.5 5.5 0 1 0 13.5 9.5z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+                  </svg>
+                )}
+                {t === "light" && (
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                    <circle cx="8" cy="8" r="3.5" stroke="currentColor" strokeWidth="1.3" />
+                    <path d="M8 1.5v1.5M8 13v1.5M1.5 8H3M13 8h1.5M3.4 3.4l1.1 1.1M11.5 11.5l1.1 1.1M3.4 12.6l1.1-1.1M11.5 4.5l1.1-1.1" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+                  </svg>
+                )}
+                {t === "system" && (
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                    <rect x="2" y="3" width="12" height="8" rx="1" stroke="currentColor" strokeWidth="1.3" />
+                    <path d="M6 13.5h4M8 11v2.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+                  </svg>
+                )}
+                <span>{t === "dark" ? "Тёмная" : t === "light" ? "Светлая" : "Система"}</span>
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Reset */}

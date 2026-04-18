@@ -26,7 +26,7 @@ export function useSessionPersistence() {
       if (promptTemplates.length > 0) {
         usePromptTemplatesStore.getState().hydrate(promptTemplates);
       }
-      if (theme === "light" || theme === "dark") {
+      if (theme === "light" || theme === "dark" || theme === "system") {
         useThemeStore.getState().hydrate(theme);
       }
       useSettingsStore.getState().hydrate({ fontSize, wordWrap });

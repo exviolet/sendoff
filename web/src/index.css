@@ -56,6 +56,14 @@ textarea {
   background: color-mix(in srgb, var(--color-accent) 40%, transparent);
 }
 
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 @keyframes slide-down {
   from {
     opacity: 0;

@@ -29,6 +29,7 @@ const SHORTCUT_GROUPS = [
       { keys: "Ctrl+M", action: "Markdown превью" },
       { keys: "Ctrl+P", action: "Command Palette" },
       { keys: "Ctrl+Shift+F", action: "Distraction-free режим" },
+      { keys: "Ctrl+E", action: "Фокус в редактор" },
       { keys: "Escape", action: "Закрыть панели" },
     ],
   },

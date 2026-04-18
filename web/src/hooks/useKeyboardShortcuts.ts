@@ -14,6 +14,7 @@ interface ShortcutCallbacks {
   onToggleSidebar?: () => void;
   onToggleMarkdownPreview?: () => void;
   onSettings?: () => void;
+  onFocusEditor?: () => void;
 }
 
 export function useKeyboardShortcuts(callbacks?: ShortcutCallbacks) {
@@ -106,6 +107,12 @@ export function useKeyboardShortcuts(callbacks?: ShortcutCallbacks) {
       if (ctrl && code === "KeyM") {
         e.preventDefault();
         callbacks?.onToggleMarkdownPreview?.();
+        return;
+      }
+
+      if (ctrl && code === "KeyE") {
+        e.preventDefault();
+        callbacks?.onFocusEditor?.();
         return;
       }
 
