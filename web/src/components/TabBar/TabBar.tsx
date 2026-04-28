@@ -14,6 +14,7 @@ interface TabBarProps {
   onImportBackup: () => void;
   theme: Theme;
   onThemeToggle: () => void;
+  onCleanupEmptyTabs: () => void;
 }
 
 function tabsMetaEqual(prev: ReturnType<typeof useEditorStore.getState>["tabs"], next: ReturnType<typeof useEditorStore.getState>["tabs"]) {
@@ -25,7 +26,7 @@ function tabsMetaEqual(prev: ReturnType<typeof useEditorStore.getState>["tabs"],
   );
 }
 
-export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAll, onImportBackup, theme, onThemeToggle }: TabBarProps) {
+export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAll, onImportBackup, theme, onThemeToggle, onCleanupEmptyTabs }: TabBarProps) {
   const tabs = useEditorStore((s) => s.tabs, tabsMetaEqual);
   const activeTabId = useEditorStore((s) => s.activeTabId);
   const setActiveTab = useEditorStore((s) => s.setActiveTab);
@@ -347,6 +348,7 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
           onCloseOthers={() => reportClosed(closeOtherTabs(ctxMenu.id))}
           onCloseRight={() => reportClosed(closeTabsToRight(ctxMenu.id))}
           onCloseSaved={() => reportClosed(closeSavedTabs())}
+          onCleanupEmpty={onCleanupEmptyTabs}
         />
       )}
     </header>
@@ -354,7 +356,7 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
 }
 
 function TabContextMenu({
-  x, y, onClose, onCloseTab, onCloseOthers, onCloseRight, onCloseSaved,
+  x, y, onClose, onCloseTab, onCloseOthers, onCloseRight, onCloseSaved, onCleanupEmpty,
 }: {
   x: number; y: number;
   onClose: () => void;
@@ -362,12 +364,14 @@ function TabContextMenu({
   onCloseOthers: () => void;
   onCloseRight: () => void;
   onCloseSaved: () => void;
+  onCleanupEmpty: () => void;
 }) {
   const items = [
     { label: "Закрыть", action: onCloseTab, shortcut: "Ctrl+W" },
     { label: "Закрыть остальные", action: onCloseOthers },
     { label: "Закрыть справа", action: onCloseRight },
     { label: "Закрыть все сохранённые", action: onCloseSaved },
+    { label: "Закрыть пустые", action: onCleanupEmpty },
   ];
   return (
     <div
