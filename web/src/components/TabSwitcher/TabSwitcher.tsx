@@ -148,7 +148,9 @@ function makePreviewContext(tab: Tab, result: TabResult | undefined, query: stri
 export function TabSwitcher({ onClose }: TabSwitcherProps) {
   const tabs = useEditorStore((s) => s.tabs);
   const activeTabId = useEditorStore((s) => s.activeTabId);
+  const pendingClose = useEditorStore((s) => s.pendingClose);
   const setActiveTab = useEditorStore((s) => s.setActiveTab);
+  const closeTab = useEditorStore((s) => s.closeTab);
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -189,8 +191,19 @@ export function TabSwitcher({ onClose }: TabSwitcherProps) {
     if (item) selectResult(item.tab.id);
   }, [results, selectedIndex, selectResult]);
 
+  const closeSelected = useCallback(() => {
+    const item = results[selectedIndex];
+    if (!item) return;
+
+    const nextIndex = Math.min(selectedIndex, Math.max(0, results.length - 2));
+    closeTab(item.tab.id);
+    setSelectedIndex(nextIndex);
+  }, [closeTab, results, selectedIndex]);
+
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
+      if (pendingClose) return;
+
       if (e.key === "Escape") {
         e.preventDefault();
         e.stopPropagation();
@@ -210,6 +223,13 @@ export function TabSwitcher({ onClose }: TabSwitcherProps) {
         return;
       }
 
+      if ((e.ctrlKey || e.metaKey) && (e.key === "Delete" || e.key === "Backspace")) {
+        e.preventDefault();
+        e.stopPropagation();
+        closeSelected();
+        return;
+      }
+
       if (e.key === "Enter") {
         e.preventDefault();
         executeSelected();
@@ -218,7 +238,7 @@ export function TabSwitcher({ onClose }: TabSwitcherProps) {
 
     document.addEventListener("keydown", handleKeyDown, true);
     return () => document.removeEventListener("keydown", handleKeyDown, true);
-  }, [executeSelected, onClose, results.length]);
+  }, [closeSelected, executeSelected, onClose, pendingClose, results.length]);
 
   useEffect(() => {
     const list = listRef.current;
@@ -297,6 +317,14 @@ export function TabSwitcher({ onClose }: TabSwitcherProps) {
                     <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${selectedResult.tab.isDirty ? "bg-dirty" : selectedResult.tab.id === activeTabId ? "bg-accent" : "bg-border"}`} />
                     <h2 className="truncate text-sm font-medium text-text">{selectedResult.tab.title}</h2>
                     <span className="ml-auto text-[10px] text-text-muted/50 tabular-nums shrink-0">#{selectedResult.index + 1}</span>
+                    <button
+                      type="button"
+                      onClick={closeSelected}
+                      className="h-6 px-2 rounded-[3px] border border-danger/20 bg-danger/10 text-[10px] text-danger hover:bg-danger/20 transition-colors shrink-0"
+                      title="Закрыть выбранный таб"
+                    >
+                      Закрыть
+                    </button>
                   </div>
                   <div className="mt-1 flex items-center gap-2 text-[10px] text-text-muted/50">
                     {selectedResult.tab.id === activeTabId && <span className="text-accent">активный</span>}
@@ -332,6 +360,7 @@ export function TabSwitcher({ onClose }: TabSwitcherProps) {
         <div className="flex items-center gap-3 px-4 py-2 border-t border-border text-[10px] text-text-muted/50">
           <span>↑↓ навигация</span>
           <span>↵ открыть</span>
+          <span>Ctrl+Del закрыть</span>
           <span>Esc закрыть</span>
         </div>
       </div>
