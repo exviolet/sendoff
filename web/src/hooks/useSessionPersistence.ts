@@ -4,6 +4,7 @@ import { usePresetsStore } from "../store/presetsStore";
 import { usePromptTemplatesStore } from "../store/promptTemplatesStore";
 import { useThemeStore } from "../store/themeStore";
 import { useSettingsStore } from "../store/settingsStore";
+import { useReferenceStore } from "../store/referenceStore";
 import { loadSession, saveSession } from "../lib/db";
 
 export function useSessionPersistence() {
@@ -14,7 +15,7 @@ export function useSessionPersistence() {
     if (hasRestored.current) return;
     hasRestored.current = true;
 
-    loadSession().then(({ tabs, presets, promptTemplates, activeTabId, tabCounter, theme, fontSize, wordWrap, tmuxTargetMode, tmuxTargetPane, tmuxAutoSubmit }) => {
+    loadSession().then(({ tabs, presets, promptTemplates, activeTabId, tabCounter, theme, fontSize, wordWrap, tmuxTargetMode, tmuxTargetPane, tmuxAutoSubmit, referenceText }) => {
       if (tabs.length > 0) {
         useEditorStore.getState().hydrate(tabs, activeTabId, tabCounter);
       } else {
@@ -30,6 +31,7 @@ export function useSessionPersistence() {
         useThemeStore.getState().hydrate(theme);
       }
       useSettingsStore.getState().hydrate({ fontSize, wordWrap, tmuxTargetMode, tmuxTargetPane, tmuxAutoSubmit });
+      useReferenceStore.getState().hydrate(referenceText);
     });
   }, []);
 
@@ -67,13 +69,20 @@ export function useSessionPersistence() {
       timer = setTimeout(persist, 500);
     });
 
+    const unsubReference = useReferenceStore.subscribe(() => {
+      if (!useEditorStore.getState().isHydrated) return;
+      clearTimeout(timer);
+      timer = setTimeout(persist, 500);
+    });
+
     function persist() {
       const { tabs, activeTabId, tabCounter } = useEditorStore.getState();
       const { presets } = usePresetsStore.getState();
       const { templates } = usePromptTemplatesStore.getState();
       const { theme } = useThemeStore.getState();
       const { fontSize, wordWrap, tmuxTargetMode, tmuxTargetPane, tmuxAutoSubmit } = useSettingsStore.getState();
-      saveSession(tabs, activeTabId, tabCounter, presets, templates, theme, fontSize, wordWrap, tmuxTargetMode, tmuxTargetPane, tmuxAutoSubmit);
+      const { text: referenceText } = useReferenceStore.getState();
+      saveSession(tabs, activeTabId, tabCounter, presets, templates, theme, fontSize, wordWrap, tmuxTargetMode, tmuxTargetPane, tmuxAutoSubmit, referenceText);
     }
 
     return () => {
@@ -83,6 +92,7 @@ export function useSessionPersistence() {
       unsubTemplates();
       unsubTheme();
       unsubSettings();
+      unsubReference();
     };
   }, []);
 }
