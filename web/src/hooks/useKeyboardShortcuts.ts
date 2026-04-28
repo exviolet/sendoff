@@ -17,6 +17,7 @@ interface ShortcutCallbacks {
   onFocusEditor?: () => void;
   onTmuxSend?: () => void;
   onTabSwitcher?: () => void;
+  onReferencePanel?: () => void;
 }
 
 export function useKeyboardShortcuts(callbacks?: ShortcutCallbacks) {
@@ -34,6 +35,12 @@ export function useKeyboardShortcuts(callbacks?: ShortcutCallbacks) {
       if (ctrl && !e.shiftKey && code === "KeyT") {
         e.preventDefault();
         callbacks?.onTabSwitcher?.();
+        return;
+      }
+
+      if (ctrl && !e.shiftKey && code === "KeyR") {
+        e.preventDefault();
+        callbacks?.onReferencePanel?.();
         return;
       }
 

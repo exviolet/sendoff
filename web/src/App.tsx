@@ -4,6 +4,7 @@ import { Editor } from "./components/Editor/Editor";
 import { FindReplacePanel } from "./components/FindReplace/FindReplacePanel";
 import { PresetsPanel } from "./components/Presets/PresetsPanel";
 import { AIPromptPanel } from "./components/AIPrompt/AIPromptPanel";
+import { ReferencePanel } from "./components/ReferencePanel/ReferencePanel";
 import { StatusBar } from "./components/StatusBar/StatusBar";
 import { CommandPalette, type Command } from "./components/CommandPalette/CommandPalette";
 import { ShortcutsModal } from "./components/ShortcutsModal/ShortcutsModal";
@@ -21,7 +22,7 @@ import { ConfirmDialog } from "./components/ConfirmDialog/ConfirmDialog";
 import { toast } from "./store/toastStore";
 
 type PanelMode = null | "find" | "findReplace";
-type SidePanel = null | "presets" | "ai" | "settings";
+type SidePanel = null | "presets" | "ai" | "settings" | "reference";
 
 function App() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -156,6 +157,7 @@ function App() {
     { id: "find", label: "Найти", shortcut: "Ctrl+F", action: () => setPanelMode("find") },
     { id: "find-replace", label: "Найти и заменить", shortcut: "Ctrl+H", action: () => setPanelMode("findReplace") },
     { id: "presets", label: "Пресеты замены", action: () => setSidePanel("presets") },
+    { id: "reference", label: "Reference panel", shortcut: "Ctrl+R", action: () => toggleSidePanel("reference") },
     { id: "ai-prompt", label: "AI Prompt", shortcut: "Ctrl+K", action: () => setSidePanel("ai") },
     { id: "tmux-send", label: "Отправить в tmux", shortcut: "Ctrl+Enter", action: handleTmuxSend },
     { id: "save", label: "Сохранить как .txt", shortcut: "Ctrl+S", action: saveCurrentTab },
@@ -201,6 +203,7 @@ function App() {
     onFocusEditor: focusEditor,
     onTmuxSend: handleTmuxSend,
     onTabSwitcher: () => setTabSwitcherOpen((v) => !v),
+    onReferencePanel: () => toggleSidePanel("reference"),
   });
 
   return (
@@ -226,11 +229,12 @@ function App() {
       )}
       <div className="flex-1 min-h-0 relative">
         <div className={distractionFree ? "h-full flex justify-center" : "h-full"}>
-          <div className={distractionFree ? "w-full max-w-[780px]" : "w-full h-full"}>
+          <div className={distractionFree ? "w-full max-w-[780px]" : `w-full h-full ${sidePanel === "reference" ? "pr-80" : ""}`}>
             <Editor highlights={highlights} activeHighlight={activeHighlight} textareaRef={textareaRef} markdownPreview={markdownPreview} fontSize={fontSize} wordWrap={wordWrap} />
           </div>
         </div>
         {!distractionFree && sidePanel === "presets" && <PresetsPanel onClose={() => setSidePanel(null)} />}
+        {!distractionFree && sidePanel === "reference" && <ReferencePanel onClose={() => setSidePanel(null)} textareaRef={textareaRef} />}
         {!distractionFree && sidePanel === "ai" && <AIPromptPanel onClose={() => setSidePanel(null)} textareaRef={textareaRef} />}
         {!distractionFree && sidePanel === "settings" && <SettingsPanel onClose={() => setSidePanel(null)} />}
       </div>

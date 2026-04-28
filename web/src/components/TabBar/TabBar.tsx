@@ -4,7 +4,7 @@ import type { Theme } from "../../store/themeStore";
 import { isTauri } from "../../lib/platform";
 import { toast } from "../../store/toastStore";
 
-type SidePanel = null | "presets" | "ai" | "settings";
+type SidePanel = null | "presets" | "ai" | "settings" | "reference";
 
 interface TabBarProps {
   sidePanel: SidePanel;
@@ -298,6 +298,25 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
               <path d="M6 13.5h4M8 11v2.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
             </svg>
           )}
+        </button>
+
+        {/* Reference button */}
+        <button
+          onClick={() => onSidePanelToggle("reference")}
+          className={`
+            flex items-center justify-center w-7 h-7 rounded-[4px] transition-colors duration-150
+            ${sidePanel === "reference"
+              ? "text-accent bg-accent/10"
+              : "text-text-muted hover:text-text hover:bg-surface-hover"
+            }
+          `}
+          aria-label="Reference"
+          title="Reference (Ctrl+R)"
+        >
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+            <path d="M4 2.5h7.5A1.5 1.5 0 0 1 13 4v9.5l-3-1.7-3 1.7V4A1.5 1.5 0 0 0 5.5 2.5H4z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+            <path d="M4 2.5A1.5 1.5 0 0 0 2.5 4v8.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+          </svg>
         </button>
 
         {/* AI Prompt button */}
