@@ -15,6 +15,7 @@ interface ShortcutCallbacks {
   onToggleMarkdownPreview?: () => void;
   onSettings?: () => void;
   onFocusEditor?: () => void;
+  onTmuxSend?: () => void;
 }
 
 export function useKeyboardShortcuts(callbacks?: ShortcutCallbacks) {
@@ -22,6 +23,12 @@ export function useKeyboardShortcuts(callbacks?: ShortcutCallbacks) {
     function handleKeyDown(e: KeyboardEvent) {
       const ctrl = e.ctrlKey || e.metaKey;
       const code = e.code;
+
+      if (ctrl && code === "Enter") {
+        e.preventDefault();
+        callbacks?.onTmuxSend?.();
+        return;
+      }
 
       if (ctrl && code === "KeyN") {
         e.preventDefault();

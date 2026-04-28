@@ -11,6 +11,7 @@ import { SettingsPanel } from "./components/Settings/SettingsPanel";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useSessionPersistence } from "./hooks/useSessionPersistence";
 import { useFileIO } from "./hooks/useFileIO";
+import { useTmuxSend } from "./hooks/useTmuxSend";
 import { useEditorStore } from "./store/editorStore";
 import { useThemeStore } from "./store/themeStore";
 import { useSettingsStore } from "./store/settingsStore";
@@ -43,6 +44,9 @@ function App() {
 
   const fontSize = useSettingsStore((s) => s.fontSize);
   const wordWrap = useSettingsStore((s) => s.wordWrap);
+  const tmuxTargetMode = useSettingsStore((s) => s.tmuxTargetMode);
+  const tmuxTargetPane = useSettingsStore((s) => s.tmuxTargetPane);
+  const tmuxAutoSubmit = useSettingsStore((s) => s.tmuxAutoSubmit);
 
   // Sync data-theme attribute on <html>
   useEffect(() => {
@@ -51,6 +55,7 @@ function App() {
 
   useSessionPersistence();
   const { saveCurrentTab, downloadCurrentTab, openFile, exportAll, importBackup } = useFileIO();
+  const sendToTmux = useTmuxSend();
 
   // Warn on browser close if dirty tabs exist
   useEffect(() => {
@@ -94,6 +99,27 @@ function App() {
     textareaRef.current?.focus();
   }, []);
 
+  const handleTmuxSend = useCallback(() => {
+    const { tabs, activeTabId } = useEditorStore.getState();
+    const tab = tabs.find((t) => t.id === activeTabId);
+    if (!tab) return;
+
+    const textarea = textareaRef.current;
+    const hasSelection = textarea && textarea.selectionStart !== textarea.selectionEnd;
+    const text = textarea
+      ? hasSelection
+        ? textarea.value.slice(textarea.selectionStart, textarea.selectionEnd)
+        : textarea.value
+      : tab.content;
+
+    void sendToTmux(text, {
+      target: tmuxTargetMode === "pane"
+        ? { mode: "pane", pane: tmuxTargetPane }
+        : { mode: "active" },
+      submit: tmuxAutoSubmit,
+    });
+  }, [sendToTmux, tmuxAutoSubmit, tmuxTargetMode, tmuxTargetPane]);
+
   const paletteCommands: Command[] = useMemo(() => [
     { id: "new-tab", label: "Новый таб", shortcut: "Ctrl+N", action: () => useEditorStore.getState().createTab() },
     { id: "close-tab", label: "Закрыть таб", shortcut: "Ctrl+W", action: () => {
@@ -121,6 +147,7 @@ function App() {
     { id: "find-replace", label: "Найти и заменить", shortcut: "Ctrl+H", action: () => setPanelMode("findReplace") },
     { id: "presets", label: "Пресеты замены", action: () => setSidePanel("presets") },
     { id: "ai-prompt", label: "AI Prompt", shortcut: "Ctrl+K", action: () => setSidePanel("ai") },
+    { id: "tmux-send", label: "Отправить в tmux", shortcut: "Ctrl+Enter", action: handleTmuxSend },
     { id: "save", label: "Сохранить как .txt", shortcut: "Ctrl+S", action: saveCurrentTab },
     { id: "open", label: "Открыть файл", shortcut: "Ctrl+O", action: openFile },
     { id: "download", label: "Скачать таб", action: downloadCurrentTab },
@@ -135,7 +162,7 @@ function App() {
     { id: "toggle-md-preview", label: markdownPreview ? "Редактор" : "Markdown превью", shortcut: "Ctrl+M", action: () => setMarkdownPreview((v) => !v) },
     { id: "settings", label: "Настройки", shortcut: "Ctrl+,", action: () => toggleSidePanel("settings") },
     { id: "focus-editor", label: "Фокус в редактор", shortcut: "Ctrl+E", action: focusEditor },
-  ], [saveCurrentTab, openFile, downloadCurrentTab, exportAll, importBackup, toggleDistractionFree, toggleSidePanel, setTheme, markdownPreview, focusEditor]);
+  ], [saveCurrentTab, openFile, downloadCurrentTab, exportAll, importBackup, toggleDistractionFree, toggleSidePanel, setTheme, markdownPreview, focusEditor, handleTmuxSend]);
 
   useKeyboardShortcuts({
     onFind: () => setPanelMode("find"),
@@ -162,6 +189,7 @@ function App() {
     onToggleMarkdownPreview: () => setMarkdownPreview((v) => !v),
     onSettings: () => toggleSidePanel("settings"),
     onFocusEditor: focusEditor,
+    onTmuxSend: handleTmuxSend,
   });
 
   return (

@@ -8,8 +8,14 @@ interface SettingsPanelProps {
 export function SettingsPanel({ onClose }: SettingsPanelProps) {
   const fontSize = useSettingsStore((s) => s.fontSize);
   const wordWrap = useSettingsStore((s) => s.wordWrap);
+  const tmuxTargetMode = useSettingsStore((s) => s.tmuxTargetMode);
+  const tmuxTargetPane = useSettingsStore((s) => s.tmuxTargetPane);
+  const tmuxAutoSubmit = useSettingsStore((s) => s.tmuxAutoSubmit);
   const setFontSize = useSettingsStore((s) => s.setFontSize);
   const setWordWrap = useSettingsStore((s) => s.setWordWrap);
+  const setTmuxTargetMode = useSettingsStore((s) => s.setTmuxTargetMode);
+  const setTmuxTargetPane = useSettingsStore((s) => s.setTmuxTargetPane);
+  const setTmuxAutoSubmit = useSettingsStore((s) => s.setTmuxAutoSubmit);
 
   const theme = useThemeStore((s) => s.theme);
   const setTheme = useThemeStore((s) => s.setTheme);
@@ -139,12 +145,76 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
           </div>
         </div>
 
+        {/* tmux */}
+        <div className="space-y-3 pt-2 border-t border-border">
+          <label className="text-[10px] uppercase tracking-widest text-text-muted/60">
+            tmux integration
+          </label>
+
+          <div className="space-y-1.5">
+            <span className="text-[11px] text-text-muted">Target pane</span>
+            <div className="grid grid-cols-2 gap-1 p-1 rounded-[6px] border border-border">
+              {(["active", "pane"] as const).map((mode) => (
+                <button
+                  key={mode}
+                  onClick={() => setTmuxTargetMode(mode)}
+                  className={`
+                    flex items-center justify-center h-7 rounded-[4px] text-[11px] transition-colors
+                    ${tmuxTargetMode === mode
+                      ? "bg-accent/15 text-accent"
+                      : "text-text-muted hover:text-text hover:bg-surface-hover"
+                    }
+                  `}
+                >
+                  {mode === "active" ? "Активная" : "Pane id"}
+                </button>
+              ))}
+            </div>
+            {tmuxTargetMode === "pane" && (
+              <input
+                value={tmuxTargetPane}
+                onChange={(e) => setTmuxTargetPane(e.target.value)}
+                placeholder="%0 или 0.1"
+                className="w-full h-8 px-2 rounded-[4px] border border-border bg-bg text-[12px] text-text placeholder:text-text-muted/40 outline-none focus:border-accent/60"
+              />
+            )}
+            <p className="text-[10px] leading-relaxed text-text-muted/60">
+              Активная использует tmux display-message. Для явной цели укажите pane id.
+            </p>
+          </div>
+
+          <button
+            onClick={() => setTmuxAutoSubmit(!tmuxAutoSubmit)}
+            className="flex items-center justify-between w-full px-3 py-2 rounded-[6px] border border-border hover:bg-surface-hover transition-colors"
+          >
+            <span className="text-[12px] text-text">
+              Auto-submit
+            </span>
+            <div
+              className={`
+                relative w-8 h-[18px] rounded-full transition-colors duration-200
+                ${tmuxAutoSubmit ? "bg-accent" : "bg-border"}
+              `}
+            >
+              <div
+                className={`
+                  absolute top-[2px] w-[14px] h-[14px] rounded-full bg-white shadow-sm transition-transform duration-200
+                  ${tmuxAutoSubmit ? "translate-x-[16px]" : "translate-x-[2px]"}
+                `}
+              />
+            </div>
+          </button>
+        </div>
+
         {/* Reset */}
         <div className="pt-2 border-t border-border">
           <button
             onClick={() => {
               setFontSize(13);
               setWordWrap(true);
+              setTmuxTargetMode("active");
+              setTmuxTargetPane("");
+              setTmuxAutoSubmit(true);
             }}
             className="text-[11px] text-text-muted hover:text-accent transition-colors"
           >

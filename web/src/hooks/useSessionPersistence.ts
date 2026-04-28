@@ -14,7 +14,7 @@ export function useSessionPersistence() {
     if (hasRestored.current) return;
     hasRestored.current = true;
 
-    loadSession().then(({ tabs, presets, promptTemplates, activeTabId, tabCounter, theme, fontSize, wordWrap }) => {
+    loadSession().then(({ tabs, presets, promptTemplates, activeTabId, tabCounter, theme, fontSize, wordWrap, tmuxTargetMode, tmuxTargetPane, tmuxAutoSubmit }) => {
       if (tabs.length > 0) {
         useEditorStore.getState().hydrate(tabs, activeTabId, tabCounter);
       } else {
@@ -29,7 +29,7 @@ export function useSessionPersistence() {
       if (theme === "light" || theme === "dark" || theme === "system") {
         useThemeStore.getState().hydrate(theme);
       }
-      useSettingsStore.getState().hydrate({ fontSize, wordWrap });
+      useSettingsStore.getState().hydrate({ fontSize, wordWrap, tmuxTargetMode, tmuxTargetPane, tmuxAutoSubmit });
     });
   }, []);
 
@@ -72,8 +72,8 @@ export function useSessionPersistence() {
       const { presets } = usePresetsStore.getState();
       const { templates } = usePromptTemplatesStore.getState();
       const { theme } = useThemeStore.getState();
-      const { fontSize, wordWrap } = useSettingsStore.getState();
-      saveSession(tabs, activeTabId, tabCounter, presets, templates, theme, fontSize, wordWrap);
+      const { fontSize, wordWrap, tmuxTargetMode, tmuxTargetPane, tmuxAutoSubmit } = useSettingsStore.getState();
+      saveSession(tabs, activeTabId, tabCounter, presets, templates, theme, fontSize, wordWrap, tmuxTargetMode, tmuxTargetPane, tmuxAutoSubmit);
     }
 
     return () => {

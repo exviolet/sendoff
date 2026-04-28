@@ -72,6 +72,9 @@ export async function loadSession() {
   const theme = (await db.get("meta", "theme")) as string | undefined;
   const fontSize = (await db.get("meta", "fontSize")) as number | undefined;
   const wordWrap = (await db.get("meta", "wordWrap")) as boolean | undefined;
+  const tmuxTargetMode = (await db.get("meta", "tmuxTargetMode")) as string | undefined;
+  const tmuxTargetPane = (await db.get("meta", "tmuxTargetPane")) as string | undefined;
+  const tmuxAutoSubmit = (await db.get("meta", "tmuxAutoSubmit")) as boolean | undefined;
   return {
     tabs, presets, promptTemplates,
     activeTabId: activeTabId ?? null,
@@ -79,6 +82,9 @@ export async function loadSession() {
     theme: theme ?? "dark",
     fontSize: fontSize ?? 13,
     wordWrap: wordWrap ?? true,
+    tmuxTargetMode: tmuxTargetMode === "pane" ? "pane" as const : "active" as const,
+    tmuxTargetPane: tmuxTargetPane ?? "",
+    tmuxAutoSubmit: tmuxAutoSubmit ?? true,
   };
 }
 
@@ -91,6 +97,9 @@ export async function saveSession(
   theme: string,
   fontSize: number,
   wordWrap: boolean,
+  tmuxTargetMode: string,
+  tmuxTargetPane: string,
+  tmuxAutoSubmit: boolean,
 ) {
   const db = await getDB();
   const tx = db.transaction(["tabs", "presets", "promptTemplates", "meta"], "readwrite");
@@ -123,6 +132,9 @@ export async function saveSession(
   await metaStore.put(theme, "theme");
   await metaStore.put(fontSize, "fontSize");
   await metaStore.put(wordWrap, "wordWrap");
+  await metaStore.put(tmuxTargetMode, "tmuxTargetMode");
+  await metaStore.put(tmuxTargetPane, "tmuxTargetPane");
+  await metaStore.put(tmuxAutoSubmit, "tmuxAutoSubmit");
 
   await tx.done;
 }
