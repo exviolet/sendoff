@@ -7,6 +7,7 @@ export interface Tab {
   isDirty: boolean;
   createdAt: number;
   updatedAt: number;
+  titleSource?: "auto" | "manual" | "file";
 }
 
 interface EditorStore {
@@ -23,6 +24,7 @@ interface EditorStore {
   closeSavedTabs: () => number;
   closeOtherTabs: (keepId: string) => number;
   closeTabsToRight: (id: string) => number;
+  cleanupEmptyTabs: () => number;
   reopenTab: () => void;
   setActiveTab: (id: string) => void;
   updateContent: (id: string, content: string) => void;
@@ -38,6 +40,8 @@ interface EditorStore {
 // Undo/redo stacks per tab (kept outside Zustand to avoid re-renders)
 const MAX_HISTORY = 100;
 const DEBOUNCE_MS = 500;
+const AUTO_TITLE_MAX_LENGTH = 48;
+const UNTITLED_RE = /^Untitled \d+$/;
 const undoStacks = new Map<string, string[]>();
 const redoStacks = new Map<string, string[]>();
 const lastPushTime = new Map<string, number>();
@@ -94,12 +98,44 @@ function makeTab(n: number): Tab {
     isDirty: false,
     createdAt: Date.now(),
     updatedAt: Date.now(),
+    titleSource: "auto",
   };
 }
 
 const initialTab = makeTab(1);
 
 const MAX_CLOSED_TABS = 20;
+
+function firstContentLine(content: string) {
+  return content
+    .split(/\r?\n/)
+    .map((line) => line.trim().replace(/\s+/g, " "))
+    .find(Boolean) ?? "";
+}
+
+function makeAutoTitle(content: string, fallback: string) {
+  const line = firstContentLine(content);
+  if (!line) return fallback;
+  return line.length > AUTO_TITLE_MAX_LENGTH
+    ? `${line.slice(0, AUTO_TITLE_MAX_LENGTH - 3)}...`
+    : line;
+}
+
+function normalizeTab(tab: Tab) {
+  const titleSource = tab.titleSource ?? (UNTITLED_RE.test(tab.title) ? "auto" : "manual");
+  const title = titleSource === "auto"
+    ? makeAutoTitle(tab.content, tab.title)
+    : tab.title;
+  return { ...tab, title, titleSource };
+}
+
+function isAutoTitled(tab: Tab) {
+  return tab.titleSource === "auto" || (tab.titleSource === undefined && UNTITLED_RE.test(tab.title));
+}
+
+function canCleanupTab(tab: Tab) {
+  return tab.content.trim() === "" && !tab.isDirty && isAutoTitled(tab);
+}
 
 export const useEditorStore = create<EditorStore>((set, get) => {
   function performClose(id: string) {
@@ -207,6 +243,33 @@ export const useEditorStore = create<EditorStore>((set, get) => {
     return performCloseMany(tabs.slice(idx + 1).map((t) => t.id));
   },
 
+  cleanupEmptyTabs: () => {
+    const { tabs, activeTabId, closedTabs } = get();
+    if (tabs.length <= 1) return 0;
+
+    const cleanupIds = new Set(tabs.filter(canCleanupTab).map((t) => t.id));
+    if (cleanupIds.size === 0) return 0;
+    if (cleanupIds.size === tabs.length) {
+      cleanupIds.delete(activeTabId ?? tabs[0].id);
+    }
+    if (cleanupIds.size === 0) return 0;
+
+    const closing = tabs.filter((t) => cleanupIds.has(t.id));
+    const remaining = tabs.filter((t) => !cleanupIds.has(t.id));
+    const newClosedTabs = [...closedTabs, ...closing].slice(-MAX_CLOSED_TABS);
+
+    let newActiveId = activeTabId;
+    if (activeTabId && cleanupIds.has(activeTabId)) {
+      const activeIndex = tabs.findIndex((t) => t.id === activeTabId);
+      const right = tabs.slice(activeIndex + 1).find((t) => !cleanupIds.has(t.id));
+      const left = [...tabs.slice(0, activeIndex)].reverse().find((t) => !cleanupIds.has(t.id));
+      newActiveId = right?.id ?? left?.id ?? remaining[0]?.id ?? null;
+    }
+
+    set({ tabs: remaining, activeTabId: newActiveId, closedTabs: newClosedTabs });
+    return cleanupIds.size;
+  },
+
   reopenTab: () => {
     const { closedTabs } = get();
     if (closedTabs.length === 0) return;
@@ -226,7 +289,14 @@ export const useEditorStore = create<EditorStore>((set, get) => {
     set((s) => ({
       tabs: s.tabs.map((t) =>
         t.id === id
-          ? { ...t, content, isDirty: true, updatedAt: Date.now() }
+          ? {
+              ...t,
+              content,
+              title: isAutoTitled(t) ? makeAutoTitle(content, t.title) : t.title,
+              titleSource: isAutoTitled(t) ? "auto" : t.titleSource,
+              isDirty: true,
+              updatedAt: Date.now(),
+            }
           : t
       ),
     }));
@@ -235,7 +305,7 @@ export const useEditorStore = create<EditorStore>((set, get) => {
   renameTab: (id, title) =>
     set((s) => ({
       tabs: s.tabs.map((t) =>
-        t.id === id ? { ...t, title, updatedAt: Date.now() } : t
+        t.id === id ? { ...t, title, titleSource: "manual", updatedAt: Date.now() } : t
       ),
     })),
 
@@ -294,6 +364,7 @@ export const useEditorStore = create<EditorStore>((set, get) => {
       isDirty: false,
       createdAt: Date.now(),
       updatedAt: Date.now(),
+      titleSource: "file",
     };
     set((s) => ({
       tabs: [...s.tabs, tab],
@@ -303,6 +374,6 @@ export const useEditorStore = create<EditorStore>((set, get) => {
   },
 
   hydrate: (tabs, activeTabId, tabCounter) =>
-    set({ tabs, activeTabId, tabCounter, isHydrated: true }),
+    set({ tabs: tabs.map(normalizeTab), activeTabId, tabCounter, isHydrated: true }),
   };
 });

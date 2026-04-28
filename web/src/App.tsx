@@ -8,6 +8,7 @@ import { StatusBar } from "./components/StatusBar/StatusBar";
 import { CommandPalette, type Command } from "./components/CommandPalette/CommandPalette";
 import { ShortcutsModal } from "./components/ShortcutsModal/ShortcutsModal";
 import { SettingsPanel } from "./components/Settings/SettingsPanel";
+import { TabSwitcher } from "./components/TabSwitcher/TabSwitcher";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useSessionPersistence } from "./hooks/useSessionPersistence";
 import { useFileIO } from "./hooks/useFileIO";
@@ -30,6 +31,7 @@ function App() {
   const [activeHighlight, setActiveHighlight] = useState(0);
   const [distractionFree, setDistractionFree] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [tabSwitcherOpen, setTabSwitcherOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [markdownPreview, setMarkdownPreview] = useState(false);
 
@@ -95,8 +97,14 @@ function App() {
     setPanelMode(null);
     setSidePanel(null);
     setCommandPaletteOpen(false);
+    setTabSwitcherOpen(false);
     setShortcutsOpen(false);
     textareaRef.current?.focus();
+  }, []);
+
+  const cleanupEmptyTabs = useCallback(() => {
+    const n = useEditorStore.getState().cleanupEmptyTabs();
+    toast(n === 0 ? "Пустых табов нет" : `Закрыто пустых табов: ${n}`, n === 0 ? "info" : "success");
   }, []);
 
   const handleTmuxSend = useCallback(() => {
@@ -142,7 +150,9 @@ function App() {
       const n = closeTabsToRight(activeTabId);
       toast(n === 0 ? "Нечего закрывать" : `Закрыто: ${n}`, n === 0 ? "info" : "success");
     }},
+    { id: "cleanup-empty-tabs", label: "Очистить пустые табы", action: cleanupEmptyTabs },
     { id: "reopen-tab", label: "Восстановить закрытый таб", shortcut: "Ctrl+Shift+T", action: () => useEditorStore.getState().reopenTab() },
+    { id: "tab-switcher", label: "Найти таб", shortcut: "Ctrl+T", action: () => setTabSwitcherOpen(true) },
     { id: "find", label: "Найти", shortcut: "Ctrl+F", action: () => setPanelMode("find") },
     { id: "find-replace", label: "Найти и заменить", shortcut: "Ctrl+H", action: () => setPanelMode("findReplace") },
     { id: "presets", label: "Пресеты замены", action: () => setSidePanel("presets") },
@@ -162,7 +172,7 @@ function App() {
     { id: "toggle-md-preview", label: markdownPreview ? "Редактор" : "Markdown превью", shortcut: "Ctrl+M", action: () => setMarkdownPreview((v) => !v) },
     { id: "settings", label: "Настройки", shortcut: "Ctrl+,", action: () => toggleSidePanel("settings") },
     { id: "focus-editor", label: "Фокус в редактор", shortcut: "Ctrl+E", action: focusEditor },
-  ], [saveCurrentTab, openFile, downloadCurrentTab, exportAll, importBackup, toggleDistractionFree, toggleSidePanel, setTheme, markdownPreview, focusEditor, handleTmuxSend]);
+  ], [saveCurrentTab, openFile, downloadCurrentTab, exportAll, importBackup, toggleDistractionFree, toggleSidePanel, setTheme, markdownPreview, focusEditor, handleTmuxSend, cleanupEmptyTabs]);
 
   useKeyboardShortcuts({
     onFind: () => setPanelMode("find"),
@@ -170,7 +180,7 @@ function App() {
     onClosePanels: () => {
       if (distractionFree) {
         setDistractionFree(false);
-      } else if (commandPaletteOpen || shortcutsOpen) {
+      } else if (commandPaletteOpen || shortcutsOpen || tabSwitcherOpen) {
         // handled by their own listeners
       } else if (panelMode || sidePanel) {
         closePanel();
@@ -190,6 +200,7 @@ function App() {
     onSettings: () => toggleSidePanel("settings"),
     onFocusEditor: focusEditor,
     onTmuxSend: handleTmuxSend,
+    onTabSwitcher: () => setTabSwitcherOpen((v) => !v),
   });
 
   return (
@@ -203,6 +214,7 @@ function App() {
           onImportBackup={importBackup}
           theme={theme}
           onThemeToggle={toggleTheme}
+          onCleanupEmptyTabs={cleanupEmptyTabs}
         />
       )}
       {!distractionFree && panelMode && (
@@ -228,6 +240,11 @@ function App() {
         <CommandPalette
           commands={paletteCommands}
           onClose={() => setCommandPaletteOpen(false)}
+        />
+      )}
+      {tabSwitcherOpen && (
+        <TabSwitcher
+          onClose={() => setTabSwitcherOpen(false)}
         />
       )}
       {shortcutsOpen && <ShortcutsModal onClose={() => setShortcutsOpen(false)} />}
