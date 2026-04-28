@@ -1,6 +1,12 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useEditorStore } from "../../store/editorStore";
-import { findMatches, replaceAt, replaceAll } from "../../lib/replaceEngine";
+import {
+  findMatches,
+  previewReplacePairs,
+  replaceAt,
+  replaceAll,
+  type ReplacePair,
+} from "../../lib/replaceEngine";
 
 interface FindReplacePanelProps {
   mode: "find" | "findReplace";
@@ -14,6 +20,11 @@ export function FindReplacePanel({ mode, onClose, onMatchesChange }: FindReplace
   const [caseSensitive, setCaseSensitive] = useState(false);
   const [regex, setRegex] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [replaceMode, setReplaceMode] = useState<"single" | "bulk">("single");
+  const [bulkPairs, setBulkPairs] = useState<ReplacePair[]>([
+    { from: "", to: "", caseSensitive: false, wholeWord: false },
+    { from: "", to: "", caseSensitive: false, wholeWord: false },
+  ]);
 
   const findInputRef = useRef<HTMLInputElement>(null);
 
@@ -88,6 +99,34 @@ export function FindReplacePanel({ mode, onClose, onMatchesChange }: FindReplace
   }
 
   const showReplace = mode === "findReplace";
+  const activeBulkPairs = useMemo(
+    () => bulkPairs.filter((pair) => pair.from.trim() !== ""),
+    [bulkPairs]
+  );
+  const bulkPreview = useMemo(
+    () => previewReplacePairs(content, activeBulkPairs),
+    [activeBulkPairs, content]
+  );
+
+  function updateBulkPair(index: number, patch: Partial<ReplacePair>) {
+    setBulkPairs((pairs) => pairs.map((pair, i) => i === index ? { ...pair, ...patch } : pair));
+  }
+
+  function addBulkPair() {
+    setBulkPairs((pairs) => [...pairs, { from: "", to: "", caseSensitive: false, wholeWord: false }]);
+  }
+
+  function removeBulkPair(index: number) {
+    setBulkPairs((pairs) => pairs.length === 1
+      ? [{ from: "", to: "", caseSensitive: false, wholeWord: false }]
+      : pairs.filter((_, i) => i !== index)
+    );
+  }
+
+  function applyBulkReplace() {
+    if (!activeTabId || activeBulkPairs.length === 0 || bulkPreview.totalCount === 0) return;
+    updateContent(activeTabId, bulkPreview.result);
+  }
 
   return (
     <div className="shrink-0 bg-surface border-b border-border px-3 py-2 flex flex-col gap-1.5 animate-slide-down">
@@ -138,30 +177,143 @@ export function FindReplacePanel({ mode, onClose, onMatchesChange }: FindReplace
 
       {/* Replace row */}
       {showReplace && (
-        <div className="flex items-center gap-1.5">
-          <input
-            type="text"
-            value={replacement}
-            onChange={(e) => setReplacement(e.target.value)}
-            onKeyDown={handleReplaceKeyDown}
-            placeholder="Replace..."
-            className="flex-1 h-7 px-2 bg-bg border border-border rounded-[4px] text-[11px] text-text placeholder:text-text-muted/40 outline-none focus:border-accent/50 transition-colors"
-          />
-          <button
-            onClick={handleReplace}
-            disabled={matches.length === 0}
-            className="h-7 px-2.5 text-[10px] rounded-[4px] bg-surface-hover text-text-muted hover:text-text disabled:opacity-30 disabled:pointer-events-none transition-colors"
-          >
-            Replace
-          </button>
-          <button
-            onClick={handleReplaceAll}
-            disabled={matches.length === 0}
-            className="h-7 px-2.5 text-[10px] rounded-[4px] bg-accent/15 text-accent hover:bg-accent/25 disabled:opacity-30 disabled:pointer-events-none transition-colors"
-          >
-            Replace All
-          </button>
-        </div>
+        <>
+          <div className="flex items-center gap-1.5">
+            <div className="flex h-7 rounded-[4px] bg-bg border border-border overflow-hidden shrink-0">
+              <button
+                onClick={() => setReplaceMode("single")}
+                className={`px-2.5 text-[10px] transition-colors ${replaceMode === "single" ? "bg-accent/20 text-accent" : "text-text-muted hover:text-text hover:bg-surface-hover"}`}
+              >
+                Single
+              </button>
+              <button
+                onClick={() => setReplaceMode("bulk")}
+                className={`px-2.5 text-[10px] border-l border-border transition-colors ${replaceMode === "bulk" ? "bg-accent/20 text-accent" : "text-text-muted hover:text-text hover:bg-surface-hover"}`}
+              >
+                Bulk
+              </button>
+            </div>
+
+            {replaceMode === "single" ? (
+              <>
+                <input
+                  type="text"
+                  value={replacement}
+                  onChange={(e) => setReplacement(e.target.value)}
+                  onKeyDown={handleReplaceKeyDown}
+                  placeholder="Replace..."
+                  className="flex-1 h-7 px-2 bg-bg border border-border rounded-[4px] text-[11px] text-text placeholder:text-text-muted/40 outline-none focus:border-accent/50 transition-colors"
+                />
+                <button
+                  onClick={handleReplace}
+                  disabled={matches.length === 0}
+                  className="h-7 px-2.5 text-[10px] rounded-[4px] bg-surface-hover text-text-muted hover:text-text disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                >
+                  Replace
+                </button>
+                <button
+                  onClick={handleReplaceAll}
+                  disabled={matches.length === 0}
+                  className="h-7 px-2.5 text-[10px] rounded-[4px] bg-accent/15 text-accent hover:bg-accent/25 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                >
+                  Replace All
+                </button>
+              </>
+            ) : (
+              <>
+                <div className="flex-1 text-[10px] text-text-muted">
+                  {activeBulkPairs.length === 0
+                    ? "Добавь пары замен"
+                    : bulkPreview.totalCount > 0
+                      ? `${bulkPreview.totalCount} замен в ${bulkPreview.entries.length} парах`
+                      : "Совпадений нет"}
+                </div>
+                <button
+                  onClick={applyBulkReplace}
+                  disabled={activeBulkPairs.length === 0 || bulkPreview.totalCount === 0}
+                  className="h-7 px-3 text-[10px] rounded-[4px] bg-accent/15 text-accent hover:bg-accent/25 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                >
+                  Apply Bulk
+                </button>
+              </>
+            )}
+          </div>
+
+          {replaceMode === "bulk" && (
+            <div className="rounded-[4px] border border-border/70 bg-bg/35 overflow-hidden animate-slide-down">
+              <div className="max-h-44 overflow-y-auto">
+                {bulkPairs.map((pair, index) => (
+                  <div key={index} className="grid grid-cols-[1fr_auto_1fr_auto_auto_auto] items-center gap-1.5 px-2 py-1.5 border-b border-border/40 last:border-b-0">
+                    <input
+                      value={pair.from}
+                      onChange={(e) => updateBulkPair(index, { from: e.target.value })}
+                      placeholder="Find"
+                      className="min-w-0 h-7 px-2 bg-surface border border-border rounded-[3px] text-[11px] text-text placeholder:text-text-muted/40 outline-none focus:border-accent/50"
+                    />
+                    <span className="text-text-muted/50 text-[10px]">→</span>
+                    <input
+                      value={pair.to}
+                      onChange={(e) => updateBulkPair(index, { to: e.target.value })}
+                      placeholder="Replace"
+                      className="min-w-0 h-7 px-2 bg-surface border border-border rounded-[3px] text-[11px] text-text placeholder:text-text-muted/40 outline-none focus:border-accent/50"
+                    />
+                    <ToggleButton
+                      active={pair.caseSensitive}
+                      onClick={() => updateBulkPair(index, { caseSensitive: !pair.caseSensitive })}
+                      title="Case sensitive"
+                    >
+                      Aa
+                    </ToggleButton>
+                    <ToggleButton
+                      active={pair.wholeWord}
+                      onClick={() => updateBulkPair(index, { wholeWord: !pair.wholeWord })}
+                      title="Whole word"
+                    >
+                      W
+                    </ToggleButton>
+                    <button
+                      onClick={() => removeBulkPair(index)}
+                      className="flex items-center justify-center w-6 h-6 rounded-[3px] text-text-muted hover:text-danger hover:bg-danger/10 transition-colors"
+                      title="Remove pair"
+                    >
+                      <svg width="8" height="8" viewBox="0 0 8 8">
+                        <path d="M1.5 1.5l5 5M6.5 1.5l-5 5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+                      </svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex items-start gap-2 px-2 py-1.5 border-t border-border/50">
+                <button
+                  onClick={addBulkPair}
+                  className="h-6 px-2 text-[10px] rounded-[3px] text-text-muted hover:text-text hover:bg-surface-hover transition-colors"
+                >
+                  + Pair
+                </button>
+
+                <div className="flex-1 min-w-0">
+                  {bulkPreview.entries.length > 0 ? (
+                    <div className="flex flex-wrap gap-1">
+                      {bulkPreview.entries.map((entry, index) => (
+                        <span key={index} className="inline-flex items-center gap-1 max-w-full px-1.5 py-0.5 rounded-[3px] bg-surface-hover text-[10px]">
+                          <span className="text-danger/80 line-through truncate max-w-28">{entry.from}</span>
+                          <span className="text-text-muted/50">→</span>
+                          <span className="text-accent truncate max-w-28">{entry.to || "∅"}</span>
+                          <span className="text-text-muted/50">×{entry.count}</span>
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-[10px] text-text-muted/60 py-0.5">
+                      Preview появится после совпадений
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
