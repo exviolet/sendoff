@@ -10,6 +10,8 @@ import { CommandPalette, type Command } from "./components/CommandPalette/Comman
 import { ShortcutsModal } from "./components/ShortcutsModal/ShortcutsModal";
 import { SettingsPanel } from "./components/Settings/SettingsPanel";
 import { TabSwitcher } from "./components/TabSwitcher/TabSwitcher";
+import { GlobalSearchPanel } from "./components/GlobalSearch/GlobalSearchPanel";
+import type { MatchResult } from "./lib/replaceEngine";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useSessionPersistence } from "./hooks/useSessionPersistence";
 import { useFileIO } from "./hooks/useFileIO";
@@ -33,6 +35,7 @@ function App() {
   const [distractionFree, setDistractionFree] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [tabSwitcherOpen, setTabSwitcherOpen] = useState(false);
+  const [globalSearchOpen, setGlobalSearchOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [markdownPreview, setMarkdownPreview] = useState(false);
 
@@ -99,6 +102,7 @@ function App() {
     setSidePanel(null);
     setCommandPaletteOpen(false);
     setTabSwitcherOpen(false);
+    setGlobalSearchOpen(false);
     setShortcutsOpen(false);
     textareaRef.current?.focus();
   }, []);
@@ -129,6 +133,15 @@ function App() {
     });
   }, [sendToTmux, tmuxAutoSubmit, tmuxTargetMode, tmuxTargetPane]);
 
+  const openGlobalMatch = useCallback((tabId: string, match: MatchResult) => {
+    useEditorStore.getState().setActiveTab(tabId);
+    setPanelMode(null);
+    setSidePanel(null);
+    setHighlights([{ index: match.index, length: match.length }]);
+    setActiveHighlight(0);
+    requestAnimationFrame(() => textareaRef.current?.focus());
+  }, []);
+
   const paletteCommands: Command[] = useMemo(() => [
     { id: "new-tab", label: "Новый таб", shortcut: "Ctrl+N", action: () => useEditorStore.getState().createTab() },
     { id: "close-tab", label: "Закрыть таб", shortcut: "Ctrl+W", action: () => {
@@ -154,6 +167,7 @@ function App() {
     { id: "cleanup-empty-tabs", label: "Очистить пустые табы", action: cleanupEmptyTabs },
     { id: "reopen-tab", label: "Восстановить закрытый таб", shortcut: "Ctrl+Shift+T", action: () => useEditorStore.getState().reopenTab() },
     { id: "tab-switcher", label: "Найти таб", shortcut: "Ctrl+T", action: () => setTabSwitcherOpen(true) },
+    { id: "global-search", label: "Глобальный поиск по табам", shortcut: "Ctrl+Shift+D", action: () => setGlobalSearchOpen(true) },
     { id: "find", label: "Найти", shortcut: "Ctrl+F", action: () => setPanelMode("find") },
     { id: "find-replace", label: "Найти и заменить", shortcut: "Ctrl+H", action: () => setPanelMode("findReplace") },
     { id: "presets", label: "Пресеты замены", action: () => setSidePanel("presets") },
@@ -182,7 +196,7 @@ function App() {
     onClosePanels: () => {
       if (distractionFree) {
         setDistractionFree(false);
-      } else if (commandPaletteOpen || shortcutsOpen || tabSwitcherOpen) {
+      } else if (commandPaletteOpen || shortcutsOpen || tabSwitcherOpen || globalSearchOpen) {
         // handled by their own listeners
       } else if (panelMode || sidePanel) {
         closePanel();
@@ -204,6 +218,7 @@ function App() {
     onTmuxSend: handleTmuxSend,
     onTabSwitcher: () => setTabSwitcherOpen((v) => !v),
     onReferencePanel: () => toggleSidePanel("reference"),
+    onGlobalSearch: () => setGlobalSearchOpen((v) => !v),
   });
 
   return (
@@ -249,6 +264,12 @@ function App() {
       {tabSwitcherOpen && (
         <TabSwitcher
           onClose={() => setTabSwitcherOpen(false)}
+        />
+      )}
+      {globalSearchOpen && (
+        <GlobalSearchPanel
+          onClose={() => setGlobalSearchOpen(false)}
+          onOpenMatch={openGlobalMatch}
         />
       )}
       {shortcutsOpen && <ShortcutsModal onClose={() => setShortcutsOpen(false)} />}

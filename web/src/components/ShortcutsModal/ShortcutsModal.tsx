@@ -18,6 +18,7 @@ const SHORTCUT_GROUPS = [
       { keys: "Ctrl+Z", action: "Отменить" },
       { keys: "Ctrl+Shift+Z", action: "Повторить" },
       { keys: "Ctrl+F", action: "Найти" },
+      { keys: "Ctrl+Shift+D", action: "Глобальный поиск по табам" },
       { keys: "Ctrl+H", action: "Найти и заменить" },
       { keys: "Ctrl+Enter", action: "Отправить в tmux" },
     ],
