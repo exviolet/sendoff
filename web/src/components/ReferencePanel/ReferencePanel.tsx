@@ -1,6 +1,9 @@
-import type { RefObject } from "react";
+import { useEffect, useRef, type RefObject } from "react";
 import { useEditorStore } from "../../store/editorStore";
-import { useReferenceStore } from "../../store/referenceStore";
+import {
+  useReferenceStore,
+  clampReferenceWidth,
+} from "../../store/referenceStore";
 import { toast } from "../../store/toastStore";
 
 interface ReferencePanelProps {
@@ -17,7 +20,50 @@ function joinWithSpacing(before: string, inserted: string, after: string) {
 export function ReferencePanel({ onClose, textareaRef }: ReferencePanelProps) {
   const text = useReferenceStore((s) => s.text);
   const setText = useReferenceStore((s) => s.setText);
+  const setWidth = useReferenceStore((s) => s.setWidth);
   const clear = useReferenceStore((s) => s.clear);
+  const width = useReferenceStore((s) => s.width);
+
+  const dragStateRef = useRef<{ startX: number; startWidth: number } | null>(null);
+
+  // Re-clamp width on viewport resize so panel never exceeds bounds
+  useEffect(() => {
+    function handleResize() {
+      const current = useReferenceStore.getState().width;
+      const clamped = clampReferenceWidth(current);
+      if (clamped !== current) {
+        useReferenceStore.getState().setWidth(clamped);
+      }
+    }
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  function handleResizeStart(e: React.MouseEvent<HTMLDivElement>) {
+    e.preventDefault();
+    dragStateRef.current = {
+      startX: e.clientX,
+      startWidth: useReferenceStore.getState().width,
+    };
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+
+    function onMove(ev: MouseEvent) {
+      const drag = dragStateRef.current;
+      if (!drag) return;
+      const next = drag.startWidth + (drag.startX - ev.clientX);
+      setWidth(next);
+    }
+    function onUp() {
+      dragStateRef.current = null;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    }
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }
 
   function insertIntoPrompt() {
     const reference = text.trim();
@@ -49,7 +95,16 @@ export function ReferencePanel({ onClose, textareaRef }: ReferencePanelProps) {
   }
 
   return (
-    <aside className="absolute inset-y-0 right-0 w-80 bg-surface border-l border-border z-20 flex flex-col animate-slide-left">
+    <aside
+      style={{ width: `${width}px` }}
+      className="absolute inset-y-0 right-0 bg-surface border-l border-border z-20 flex flex-col animate-slide-left"
+    >
+      <div
+        onMouseDown={handleResizeStart}
+        className="absolute inset-y-0 -left-0.5 w-1 cursor-col-resize hover:bg-accent/40 active:bg-accent/60 transition-colors z-30"
+        title="Перетащите, чтобы изменить ширину"
+      />
+
       <div className="flex items-center justify-between h-9 px-3 border-b border-border shrink-0">
         <span className="text-[11px] tracking-wide text-text-muted uppercase">
           Reference

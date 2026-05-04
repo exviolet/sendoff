@@ -76,6 +76,7 @@ export async function loadSession() {
   const tmuxTargetPane = (await db.get("meta", "tmuxTargetPane")) as string | undefined;
   const tmuxAutoSubmit = (await db.get("meta", "tmuxAutoSubmit")) as boolean | undefined;
   const referenceText = (await db.get("meta", "referenceText")) as string | undefined;
+  const referenceWidth = (await db.get("meta", "referenceWidth")) as number | undefined;
   return {
     tabs, presets, promptTemplates,
     activeTabId: activeTabId ?? null,
@@ -87,6 +88,7 @@ export async function loadSession() {
     tmuxTargetPane: tmuxTargetPane ?? "",
     tmuxAutoSubmit: tmuxAutoSubmit ?? true,
     referenceText: referenceText ?? "",
+    referenceWidth: typeof referenceWidth === "number" ? referenceWidth : undefined,
   };
 }
 
@@ -103,6 +105,7 @@ export async function saveSession(
   tmuxTargetPane: string,
   tmuxAutoSubmit: boolean,
   referenceText: string,
+  referenceWidth: number,
 ) {
   const db = await getDB();
   const tx = db.transaction(["tabs", "presets", "promptTemplates", "meta"], "readwrite");
@@ -139,6 +142,7 @@ export async function saveSession(
   await metaStore.put(tmuxTargetPane, "tmuxTargetPane");
   await metaStore.put(tmuxAutoSubmit, "tmuxAutoSubmit");
   await metaStore.put(referenceText, "referenceText");
+  await metaStore.put(referenceWidth, "referenceWidth");
 
   await tx.done;
 }

@@ -19,6 +19,7 @@ import { useTmuxSend } from "./hooks/useTmuxSend";
 import { useEditorStore } from "./store/editorStore";
 import { useThemeStore } from "./store/themeStore";
 import { useSettingsStore } from "./store/settingsStore";
+import { useReferenceStore } from "./store/referenceStore";
 import { ToastContainer } from "./components/Toast/Toast";
 import { ConfirmDialog } from "./components/ConfirmDialog/ConfirmDialog";
 import { toast } from "./store/toastStore";
@@ -47,6 +48,8 @@ function App() {
   const pendingClose = useEditorStore((s) => s.pendingClose);
   const confirmPendingClose = useEditorStore((s) => s.confirmPendingClose);
   const cancelPendingClose = useEditorStore((s) => s.cancelPendingClose);
+
+  const referenceWidth = useReferenceStore((s) => s.width);
 
   const fontSize = useSettingsStore((s) => s.fontSize);
   const wordWrap = useSettingsStore((s) => s.wordWrap);
@@ -244,7 +247,14 @@ function App() {
       )}
       <div className="flex-1 min-h-0 relative">
         <div className={distractionFree ? "h-full flex justify-center" : "h-full"}>
-          <div className={distractionFree ? "w-full max-w-[780px]" : `w-full h-full ${sidePanel === "reference" ? "pr-80" : ""}`}>
+          <div
+            className={distractionFree ? "w-full max-w-[780px]" : "w-full h-full"}
+            style={
+              !distractionFree && sidePanel === "reference"
+                ? { paddingRight: `${referenceWidth}px` }
+                : undefined
+            }
+          >
             <Editor highlights={highlights} activeHighlight={activeHighlight} textareaRef={textareaRef} markdownPreview={markdownPreview} fontSize={fontSize} wordWrap={wordWrap} />
           </div>
         </div>
