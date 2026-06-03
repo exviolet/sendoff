@@ -53,6 +53,14 @@ export interface TmuxSessionInfo {
   windows: TmuxWindowInfo[];
 }
 
+// Что picker отдаёт наружу при выборе.
+export interface TmuxPickTarget {
+  paneId: string;
+  session: string;
+  window: string;
+  label: string;
+}
+
 const TARGET_FIELDS = [
   "#{session_name}",
   "#{window_index}",
@@ -95,6 +103,21 @@ export async function listTmuxTargets(): Promise<TmuxSessionInfo[]> {
   }
 
   return Array.from(sessions.values());
+}
+
+// Резолвит binding {session, window} в живой pane id по имени.
+// Окно не запущено / tmux недоступен → null (вызывающий открывает picker).
+export async function resolveTmuxBinding(binding: { session: string; window: string }): Promise<string | null> {
+  try {
+    const sessions = await listTmuxTargets();
+    const session = sessions.find((s) => s.name === binding.session);
+    const window = session?.windows.find((w) => w.name === binding.window);
+    if (!window || window.panes.length === 0) return null;
+    const pane = window.panes.find((p) => p.paneActive) ?? window.panes[0];
+    return pane.paneId;
+  } catch {
+    return null;
+  }
 }
 
 async function resolveTarget(target: TmuxTarget) {

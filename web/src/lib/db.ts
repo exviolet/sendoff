@@ -72,8 +72,6 @@ export async function loadSession() {
   const theme = (await db.get("meta", "theme")) as string | undefined;
   const fontSize = (await db.get("meta", "fontSize")) as number | undefined;
   const wordWrap = (await db.get("meta", "wordWrap")) as boolean | undefined;
-  const tmuxTargetMode = (await db.get("meta", "tmuxTargetMode")) as string | undefined;
-  const tmuxTargetPane = (await db.get("meta", "tmuxTargetPane")) as string | undefined;
   const tmuxAutoSubmit = (await db.get("meta", "tmuxAutoSubmit")) as boolean | undefined;
   const referenceText = (await db.get("meta", "referenceText")) as string | undefined;
   const referenceWidth = (await db.get("meta", "referenceWidth")) as number | undefined;
@@ -84,8 +82,6 @@ export async function loadSession() {
     theme: theme ?? "dark",
     fontSize: fontSize ?? 13,
     wordWrap: wordWrap ?? true,
-    tmuxTargetMode: tmuxTargetMode === "pane" ? "pane" as const : "active" as const,
-    tmuxTargetPane: tmuxTargetPane ?? "",
     tmuxAutoSubmit: tmuxAutoSubmit ?? true,
     referenceText: referenceText ?? "",
     referenceWidth: typeof referenceWidth === "number" ? referenceWidth : undefined,
@@ -101,8 +97,6 @@ export async function saveSession(
   theme: string,
   fontSize: number,
   wordWrap: boolean,
-  tmuxTargetMode: string,
-  tmuxTargetPane: string,
   tmuxAutoSubmit: boolean,
   referenceText: string,
   referenceWidth: number,
@@ -138,8 +132,6 @@ export async function saveSession(
   await metaStore.put(theme, "theme");
   await metaStore.put(fontSize, "fontSize");
   await metaStore.put(wordWrap, "wordWrap");
-  await metaStore.put(tmuxTargetMode, "tmuxTargetMode");
-  await metaStore.put(tmuxTargetPane, "tmuxTargetPane");
   await metaStore.put(tmuxAutoSubmit, "tmuxAutoSubmit");
   await metaStore.put(referenceText, "referenceText");
   await metaStore.put(referenceWidth, "referenceWidth");

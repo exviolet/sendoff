@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useEditorStore } from "../../store/editorStore";
+import type { TmuxBinding } from "../../store/editorStore";
 import type { Theme } from "../../store/themeStore";
 import { isTauri } from "../../lib/platform";
 import { toast } from "../../store/toastStore";
@@ -15,6 +16,7 @@ interface TabBarProps {
   theme: Theme;
   onThemeToggle: () => void;
   onCleanupEmptyTabs: () => void;
+  onBindTmux: (tabId: string) => void;
 }
 
 function tabsMetaEqual(prev: ReturnType<typeof useEditorStore.getState>["tabs"], next: ReturnType<typeof useEditorStore.getState>["tabs"]) {
@@ -22,11 +24,13 @@ function tabsMetaEqual(prev: ReturnType<typeof useEditorStore.getState>["tabs"],
   return prev.every((tab, i) =>
     tab.id === next[i].id &&
     tab.title === next[i].title &&
-    tab.isDirty === next[i].isDirty
+    tab.isDirty === next[i].isDirty &&
+    tab.tmuxBinding?.session === next[i].tmuxBinding?.session &&
+    tab.tmuxBinding?.window === next[i].tmuxBinding?.window
   );
 }
 
-export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAll, onImportBackup, theme, onThemeToggle, onCleanupEmptyTabs }: TabBarProps) {
+export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAll, onImportBackup, theme, onThemeToggle, onCleanupEmptyTabs, onBindTmux }: TabBarProps) {
   const tabs = useEditorStore((s) => s.tabs, tabsMetaEqual);
   const activeTabId = useEditorStore((s) => s.activeTabId);
   const setActiveTab = useEditorStore((s) => s.setActiveTab);
@@ -37,6 +41,7 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
   const closeSavedTabs = useEditorStore((s) => s.closeSavedTabs);
   const closeOtherTabs = useEditorStore((s) => s.closeOtherTabs);
   const closeTabsToRight = useEditorStore((s) => s.closeTabsToRight);
+  const setTabBinding = useEditorStore((s) => s.setTabBinding);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
@@ -174,6 +179,18 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
               {/* Dirty indicator */}
               {tab.isDirty && (
                 <span className="w-1.5 h-1.5 rounded-full bg-dirty shrink-0" />
+              )}
+
+              {/* tmux binding indicator */}
+              {tab.tmuxBinding && (
+                <span
+                  className="shrink-0 text-accent"
+                  title={`tmux → ${tab.tmuxBinding.session}:${tab.tmuxBinding.window}`}
+                >
+                  <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+                    <path d="M6.5 9.5l3-3M7 4.5l1-1a2.5 2.5 0 0 1 3.5 3.5l-1 1M9 11.5l-1 1a2.5 2.5 0 0 1-3.5-3.5l1-1" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </span>
               )}
 
               {/* Title — editable or static */}
@@ -362,7 +379,10 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
         <TabContextMenu
           x={ctxMenu.x}
           y={ctxMenu.y}
+          binding={tabs.find((t) => t.id === ctxMenu.id)?.tmuxBinding ?? null}
           onClose={() => setCtxMenu(null)}
+          onBindTmux={() => onBindTmux(ctxMenu.id)}
+          onUnbindTmux={() => setTabBinding(ctxMenu.id, null)}
           onCloseTab={() => closeTab(ctxMenu.id)}
           onCloseOthers={() => reportClosed(closeOtherTabs(ctxMenu.id))}
           onCloseRight={() => reportClosed(closeTabsToRight(ctxMenu.id))}
@@ -375,41 +395,57 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
 }
 
 function TabContextMenu({
-  x, y, onClose, onCloseTab, onCloseOthers, onCloseRight, onCloseSaved, onCleanupEmpty,
+  x, y, binding, onClose, onBindTmux, onUnbindTmux, onCloseTab, onCloseOthers, onCloseRight, onCloseSaved, onCleanupEmpty,
 }: {
   x: number; y: number;
+  binding: TmuxBinding | null;
   onClose: () => void;
+  onBindTmux: () => void;
+  onUnbindTmux: () => void;
   onCloseTab: () => void;
   onCloseOthers: () => void;
   onCloseRight: () => void;
   onCloseSaved: () => void;
   onCleanupEmpty: () => void;
 }) {
-  const items = [
+  const tmuxItems = binding
+    ? [
+        { label: "Перепривязать к tmux-окну…", action: onBindTmux },
+        { label: `Отвязать от tmux (${binding.window})`, action: onUnbindTmux },
+      ]
+    : [{ label: "Привязать к tmux-окну…", action: onBindTmux }];
+
+  const closeItems = [
     { label: "Закрыть", action: onCloseTab, shortcut: "Ctrl+W" },
     { label: "Закрыть остальные", action: onCloseOthers },
     { label: "Закрыть справа", action: onCloseRight },
     { label: "Закрыть все сохранённые", action: onCloseSaved },
     { label: "Закрыть пустые", action: onCleanupEmpty },
   ];
+
+  function renderItem(it: { label: string; action: () => void; shortcut?: string }) {
+    return (
+      <button
+        key={it.label}
+        onClick={() => { it.action(); onClose(); }}
+        className="flex items-center justify-between w-full px-3 py-1.5 text-[11px] tracking-wide text-text-muted hover:text-text hover:bg-surface-hover transition-colors whitespace-nowrap"
+      >
+        <span>{it.label}</span>
+        {it.shortcut && (
+          <kbd className="text-[10px] text-text-muted/60 font-mono ml-4">{it.shortcut}</kbd>
+        )}
+      </button>
+    );
+  }
+
   return (
     <div
       className="fixed z-50 min-w-[200px] bg-surface border border-border rounded-[6px] shadow-lg overflow-hidden animate-slide-down"
       style={{ left: x, top: y }}
       onMouseDown={(e) => e.stopPropagation()}
     >
-      {items.map((it) => (
-        <button
-          key={it.label}
-          onClick={() => { it.action(); onClose(); }}
-          className="flex items-center justify-between w-full px-3 py-1.5 text-[11px] tracking-wide text-text-muted hover:text-text hover:bg-surface-hover transition-colors whitespace-nowrap"
-        >
-          <span>{it.label}</span>
-          {it.shortcut && (
-            <kbd className="text-[10px] text-text-muted/60 font-mono ml-4">{it.shortcut}</kbd>
-          )}
-        </button>
-      ))}
+      <div className="border-b border-border/40">{tmuxItems.map(renderItem)}</div>
+      {closeItems.map(renderItem)}
     </div>
   );
 }
