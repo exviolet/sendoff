@@ -1,63 +1,126 @@
+<div align="center">
+
+<img src="public/favicon.svg" alt="Rewrite" width="112" height="112" />
+
 # Rewrite
 
-Fast, minimal browser-based text editor for bulk find & replace. Primary use case: converting text tone (e.g. formal "Вы/Ваш" to collaborative "Мы/Наш") using reusable presets.
+**A prompt-first editor for drafting LLM prompts — fast, local, keyboard-driven.**
 
-No backend, no API keys — everything runs client-side.
+<img src="https://img.shields.io/badge/license-MIT-8b5cf6?style=for-the-badge" alt="License MIT" />
+<img src="https://img.shields.io/badge/status-personal_project-c4b5fd?style=for-the-badge" alt="Status: personal project" />
+<img src="https://img.shields.io/badge/version-0.1.x-2a2650?style=for-the-badge" alt="Version 0.1.x" />
 
-## Quick Start
+English · [Русский](README.ru.md)
+
+</div>
+
+Rewrite is a minimal text editor built around one workflow: write a prompt in a
+real editing surface, then fire it straight into the terminal agent you're
+already running. It was born from a concrete annoyance — the cramped input box
+in Claude Code and the awkward scrollback in long `tmux` sessions. Rewrite gives
+the prompt room to breathe before it's sent.
+
+No backend, no API keys, no telemetry. Everything runs client-side.
+
+> **Not** a pipeline builder, a knowledge base, or a code editor — by design.
+
+## The core loop
+
+```
+┌─────────────┐   Ctrl+Enter    ┌──────────────┐
+│   Rewrite   │ ──────────────► │  tmux pane   │
+│  draft your │                 │  Claude Code │
+│   prompt    │ ◄────────────── │  / any agent │
+└─────────────┘   paste reply   └──────────────┘
+        ▲ Ctrl+R reference panel keeps the reply in view
+```
+
+Draft the prompt → `Ctrl+Enter` sends it to the active `tmux` pane → keep the
+agent's reply pinned in the reference panel while you write the next one.
+
+## Features
+
+**Prompt workflow**
+- **Send to tmux** (`Ctrl+Enter`) — push the current buffer into the active
+  `tmux` pane without leaving the keyboard.
+- **Reference panel** (`Ctrl+R`) — a resizable, persisted side panel to keep an
+  agent's reply visible while you compose the follow-up.
+
+**Tabs that scale**
+- Tabbed editor with drag-and-drop reorder; survives restarts (75+ tabs daily).
+- Tabs auto-name themselves from the first line; empty tabs auto-clean.
+- **Tab switcher** (`Ctrl+T`) with a live content preview.
+- **Global tab search** (`Ctrl+Shift+D`) — full-text search across every tab.
+
+**Text tooling**
+- Find & Replace with a real-time highlight overlay.
+- Bulk find & replace with a diff preview before applying.
+- **Replace presets** — reusable bulk-replacement rule sets (the original use
+  case: tone conversion, e.g. formal `Вы/Ваш` → collaborative `Мы/Наш`).
+- Markdown preview, distraction-free mode, command palette (`Ctrl+P`).
+
+**Under the hood**
+- Session persistence via IndexedDB — close and reopen, everything's there.
+- File import/export (`.txt`, `.md`).
+- Light / dark / system theme.
+
+## Quick start
 
 ```bash
 bun install
 bun dev
 ```
 
-Open [http://localhost:5173](http://localhost:5173) in your browser.
-
-## Production Build
+Open [http://localhost:5173](http://localhost:5173).
 
 ```bash
-bun run build
-bun run preview   # test the production build locally
+bun run build      # production build
+bun run preview    # serve the production build locally
 ```
 
-## Features
+> Looking for the native desktop app? See
+> [**rewrite-desktop**](https://github.com/exviolet/rewrite-desktop) — a Tauri v2
+> wrapper with native dialogs, a custom title bar, and the `tmux` integration.
 
-- Tabbed editor with drag & drop reorder
-- Find & Replace with real-time highlight overlay
-- Replace Presets — save and apply bulk replacement rules
-- AI Prompt Builder — assemble prompts from templates, copy to clipboard
-- Session persistence via IndexedDB
-- File import/export (.txt, .md)
-- Command Palette (Ctrl+P)
-- Distraction-free mode
-- Undo/Redo with debounced history
-
-## Keyboard Shortcuts
+## Keyboard shortcuts
 
 | Shortcut | Action |
 |----------|--------|
-| `Ctrl+N` | New tab |
-| `Ctrl+W` | Close tab |
-| `Ctrl+Tab` / `Ctrl+Shift+Tab` | Next / Previous tab |
-| `Ctrl+Z` / `Ctrl+Shift+Z` | Undo / Redo |
-| `Ctrl+F` | Find |
-| `Ctrl+H` | Find & Replace |
-| `Ctrl+K` | AI Prompt panel |
-| `Ctrl+P` | Command Palette |
-| `Ctrl+S` | Save as .txt |
-| `Ctrl+O` | Open file |
+| `Ctrl+Enter` | Send buffer to active tmux pane |
+| `Ctrl+R` | Toggle reference panel |
+| `Ctrl+T` | Tab switcher (with preview) |
+| `Ctrl+Shift+D` | Global tab search |
+| `Ctrl+N` / `Ctrl+W` | New / close tab |
+| `Ctrl+Shift+T` | Reopen closed tab |
+| `Ctrl+Tab` / `Ctrl+Shift+Tab` | Next / previous tab |
+| `Ctrl+Z` / `Ctrl+Shift+Z` | Undo / redo |
+| `Ctrl+F` / `Ctrl+H` | Find / Find & Replace |
+| `Ctrl+P` | Command palette |
+| `Ctrl+S` / `Ctrl+O` | Save / open file |
+| `Ctrl+.` | Toggle presets sidebar |
+| `Ctrl+M` | Markdown preview |
 | `Ctrl+Shift+F` | Distraction-free mode |
-| `Ctrl+/` | Keyboard shortcuts reference |
+| `Ctrl+,` | Settings |
+| `Ctrl+/` | Shortcuts reference |
 | `Escape` | Close panels |
 
-## Tech Stack
+## Tech stack
 
-- React 19 + TypeScript (strict)
-- Vite + Bun
-- Tailwind CSS v4
-- Zustand (state management)
-- IndexedDB via `idb` (persistence)
+| Layer | Choice |
+|-------|--------|
+| Framework | React 19 + TypeScript (strict) |
+| Build | Vite + Bun |
+| Styling | Tailwind CSS v4 |
+| State | Zustand |
+| Persistence | IndexedDB (`idb`) |
+| Editor | Native `<textarea>` + custom overlay — no Monaco/CodeMirror |
 
-## Roadmap
+## Status
 
-- **Phase 7** — Tauri v2 desktop wrapper (zero frontend changes required)
+A personal tool, used daily, still on `v0.1.x`. Public so it can serve as a
+portfolio piece — **it works for me, but no support or stability is guaranteed.**
+Expect fast, unannounced breaking changes.
+
+## License
+
+MIT
