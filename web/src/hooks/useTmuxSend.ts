@@ -126,9 +126,13 @@ export function useTmuxSend() {
     try {
       const pane = await resolveTarget(opts.target);
       await runTmux(["set-buffer", "-b", BUFFER_NAME, "--", text]);
-      await runTmux(["paste-buffer", "-d", "-b", BUFFER_NAME, "-t", pane]);
+      // -p: bracketed paste, если приложение его запросило (codex/Claude Code).
+      // Даёт чёткую границу вставки, иначе TUI глотает следующий Enter как часть пасты.
+      await runTmux(["paste-buffer", "-d", "-p", "-b", BUFFER_NAME, "-t", pane]);
 
       if (opts.submit) {
+        // settle-задержка: детерминирует тайминг-эвристику «вставка vs ввод».
+        await new Promise((resolve) => setTimeout(resolve, 80));
         await runTmux(["send-keys", "-t", pane, "Enter"]);
       }
 
