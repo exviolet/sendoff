@@ -35,6 +35,68 @@ async function runTmux(args: string[]) {
   return output;
 }
 
+export interface TmuxPaneInfo {
+  paneId: string;
+  command: string;
+  paneActive: boolean;
+}
+
+export interface TmuxWindowInfo {
+  index: string;
+  name: string;
+  windowActive: boolean;
+  panes: TmuxPaneInfo[];
+}
+
+export interface TmuxSessionInfo {
+  name: string;
+  windows: TmuxWindowInfo[];
+}
+
+const TARGET_FIELDS = [
+  "#{session_name}",
+  "#{window_index}",
+  "#{window_name}",
+  "#{pane_id}",
+  "#{pane_active}",
+  "#{window_active}",
+  "#{pane_current_command}",
+].join("\t");
+
+// Читает всю топологию одним вызовом (capability уже разрешает tmux args).
+// Бросает при ошибке (tmux не запущен / не Tauri) — UI ловит и показывает empty-state.
+export async function listTmuxTargets(): Promise<TmuxSessionInfo[]> {
+  if (!isTauri) throw new Error("tmux доступен только в desktop-сборке");
+
+  const output = await runTmux(["list-panes", "-a", "-F", TARGET_FIELDS]);
+  const sessions = new Map<string, TmuxSessionInfo>();
+  const windows = new Map<string, TmuxWindowInfo>();
+
+  for (const line of output.stdout.split("\n")) {
+    if (!line.trim()) continue;
+    const [session, windowIndex, windowName, paneId, paneActive, windowActive, command] = line.split("\t");
+    if (!session || !paneId) continue;
+
+    let s = sessions.get(session);
+    if (!s) {
+      s = { name: session, windows: [] };
+      sessions.set(session, s);
+    }
+
+    const wKey = `${session}\t${windowIndex}`;
+    let w = windows.get(wKey);
+    if (!w) {
+      w = { index: windowIndex, name: windowName, windowActive: windowActive === "1", panes: [] };
+      windows.set(wKey, w);
+      s.windows.push(w);
+    }
+
+    w.panes.push({ paneId, command, paneActive: paneActive === "1" });
+  }
+
+  return Array.from(sessions.values());
+}
+
 async function resolveTarget(target: TmuxTarget) {
   if (target.mode === "pane") {
     const pane = target.pane.trim();
@@ -64,9 +126,13 @@ export function useTmuxSend() {
     try {
       const pane = await resolveTarget(opts.target);
       await runTmux(["set-buffer", "-b", BUFFER_NAME, "--", text]);
-      await runTmux(["paste-buffer", "-d", "-b", BUFFER_NAME, "-t", pane]);
+      // -p: bracketed paste, если приложение его запросило (codex/Claude Code).
+      // Даёт чёткую границу вставки, иначе TUI глотает следующий Enter как часть пасты.
+      await runTmux(["paste-buffer", "-d", "-p", "-b", BUFFER_NAME, "-t", pane]);
 
       if (opts.submit) {
+        // settle-задержка: детерминирует тайминг-эвристику «вставка vs ввод».
+        await new Promise((resolve) => setTimeout(resolve, 80));
         await runTmux(["send-keys", "-t", pane, "Enter"]);
       }
 

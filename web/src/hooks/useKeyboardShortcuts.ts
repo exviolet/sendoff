@@ -16,6 +16,7 @@ interface ShortcutCallbacks {
   onSettings?: () => void;
   onFocusEditor?: () => void;
   onTmuxSend?: () => void;
+  onTmuxPicker?: () => void;
   onTabSwitcher?: () => void;
   onReferencePanel?: () => void;
   onGlobalSearch?: () => void;
@@ -26,6 +27,12 @@ export function useKeyboardShortcuts(callbacks?: ShortcutCallbacks) {
     function handleKeyDown(e: KeyboardEvent) {
       const ctrl = e.ctrlKey || e.metaKey;
       const code = e.code;
+
+      if (ctrl && e.shiftKey && code === "Enter") {
+        e.preventDefault();
+        callbacks?.onTmuxPicker?.();
+        return;
+      }
 
       if (ctrl && code === "Enter") {
         e.preventDefault();
