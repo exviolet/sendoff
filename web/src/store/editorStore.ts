@@ -1,5 +1,10 @@
 import { createWithEqualityFn as create } from "zustand/traditional";
 
+export interface TmuxBinding {
+  session: string;
+  window: string;
+}
+
 export interface Tab {
   id: string;
   title: string;
@@ -8,6 +13,7 @@ export interface Tab {
   createdAt: number;
   updatedAt: number;
   titleSource?: "auto" | "manual" | "file";
+  tmuxBinding?: TmuxBinding;
 }
 
 interface EditorStore {
@@ -30,6 +36,7 @@ interface EditorStore {
   updateContent: (id: string, content: string) => void;
   renameTab: (id: string, title: string) => void;
   markSaved: (id: string) => void;
+  setTabBinding: (id: string, binding: TmuxBinding | null) => void;
   reorderTab: (fromIndex: number, toIndex: number) => void;
   undo: (id: string) => void;
   redo: (id: string) => void;
@@ -353,6 +360,17 @@ export const useEditorStore = create<EditorStore>((set, get) => {
       tabs: s.tabs.map((t) =>
         t.id === id ? { ...t, isDirty: false, updatedAt: Date.now() } : t
       ),
+    })),
+
+  setTabBinding: (id, binding) =>
+    set((s) => ({
+      tabs: s.tabs.map((t) => {
+        if (t.id !== id) return t;
+        const next = { ...t, updatedAt: Date.now() };
+        if (binding) next.tmuxBinding = binding;
+        else delete next.tmuxBinding;
+        return next;
+      }),
     })),
 
   addTabFromFile: (title, content) => {

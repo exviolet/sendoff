@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { listTmuxTargets, type TmuxSessionInfo } from "../../hooks/useTmuxSend";
+import { listTmuxTargets, type TmuxSessionInfo, type TmuxPickTarget } from "../../hooks/useTmuxSend";
 import { useTmuxStore } from "../../store/tmuxStore";
 
 interface TmuxTargetPickerProps {
   onClose: () => void;
-  onPick: (paneId: string, label: string) => void;
+  onPick: (target: TmuxPickTarget) => void;
+  mode?: "send" | "bind";
 }
 
 interface TargetRow {
@@ -42,7 +43,7 @@ function rowLabel(row: TargetRow, multiSession: boolean): string {
   return multiSession ? `${row.session}:${win}` : win;
 }
 
-export function TmuxTargetPicker({ onClose, onPick }: TmuxTargetPickerProps) {
+export function TmuxTargetPicker({ onClose, onPick, mode = "send" }: TmuxTargetPickerProps) {
   const [sessions, setSessions] = useState<TmuxSessionInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -97,7 +98,12 @@ export function TmuxTargetPicker({ onClose, onPick }: TmuxTargetPickerProps) {
   const pick = useCallback(
     (row: TargetRow | undefined) => {
       if (!row) return;
-      onPick(row.paneId, rowLabel(row, multiSession));
+      onPick({
+        paneId: row.paneId,
+        session: row.session,
+        window: row.windowName,
+        label: rowLabel(row, multiSession),
+      });
     },
     [multiSession, onPick]
   );
@@ -152,7 +158,7 @@ export function TmuxTargetPicker({ onClose, onPick }: TmuxTargetPickerProps) {
             ref={inputRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Выбрать окно / pane для отправки..."
+            placeholder={mode === "bind" ? "Привязать таб к окну / pane..." : "Выбрать окно / pane для отправки..."}
             className="flex-1 bg-transparent text-text text-sm outline-none placeholder:text-text-muted/50"
           />
           <span className="text-[10px] text-text-muted/50 tabular-nums shrink-0">
@@ -230,7 +236,7 @@ export function TmuxTargetPicker({ onClose, onPick }: TmuxTargetPickerProps) {
 
         <div className="flex items-center gap-3 px-4 py-2 border-t border-border text-[10px] text-text-muted/50">
           <span>↑↓ навигация</span>
-          <span>↵ отправить</span>
+          <span>↵ {mode === "bind" ? "привязать" : "отправить"}</span>
           <span>Esc закрыть</span>
         </div>
       </div>
