@@ -11,6 +11,7 @@ import { ShortcutsModal } from "./components/ShortcutsModal/ShortcutsModal";
 import { SettingsPanel } from "./components/Settings/SettingsPanel";
 import { TabSwitcher } from "./components/TabSwitcher/TabSwitcher";
 import { GlobalSearchPanel } from "./components/GlobalSearch/GlobalSearchPanel";
+import { TmuxTargetPicker } from "./components/TmuxPicker/TmuxTargetPicker";
 import type { MatchResult } from "./lib/replaceEngine";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useSessionPersistence } from "./hooks/useSessionPersistence";
@@ -20,6 +21,7 @@ import { useEditorStore } from "./store/editorStore";
 import { useThemeStore } from "./store/themeStore";
 import { useSettingsStore } from "./store/settingsStore";
 import { useReferenceStore } from "./store/referenceStore";
+import { useTmuxStore } from "./store/tmuxStore";
 import { ToastContainer } from "./components/Toast/Toast";
 import { ConfirmDialog } from "./components/ConfirmDialog/ConfirmDialog";
 import { toast } from "./store/toastStore";
@@ -37,6 +39,7 @@ function App() {
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [tabSwitcherOpen, setTabSwitcherOpen] = useState(false);
   const [globalSearchOpen, setGlobalSearchOpen] = useState(false);
+  const [tmuxPickerOpen, setTmuxPickerOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [markdownPreview, setMarkdownPreview] = useState(false);
 
@@ -115,18 +118,24 @@ function App() {
     toast(n === 0 ? "Пустых табов нет" : `Закрыто пустых табов: ${n}`, n === 0 ? "info" : "success");
   }, []);
 
-  const handleTmuxSend = useCallback(() => {
+  // Текст для отправки: выделение, если есть, иначе весь буфер активного таба.
+  const getSendText = useCallback((): string | null => {
     const { tabs, activeTabId } = useEditorStore.getState();
     const tab = tabs.find((t) => t.id === activeTabId);
-    if (!tab) return;
+    if (!tab) return null;
 
     const textarea = textareaRef.current;
     const hasSelection = textarea && textarea.selectionStart !== textarea.selectionEnd;
-    const text = textarea
+    return textarea
       ? hasSelection
         ? textarea.value.slice(textarea.selectionStart, textarea.selectionEnd)
         : textarea.value
       : tab.content;
+  }, []);
+
+  const handleTmuxSend = useCallback(() => {
+    const text = getSendText();
+    if (text === null) return;
 
     void sendToTmux(text, {
       target: tmuxTargetMode === "pane"
@@ -134,7 +143,17 @@ function App() {
         : { mode: "active" },
       submit: tmuxAutoSubmit,
     });
-  }, [sendToTmux, tmuxAutoSubmit, tmuxTargetMode, tmuxTargetPane]);
+  }, [getSendText, sendToTmux, tmuxAutoSubmit, tmuxTargetMode, tmuxTargetPane]);
+
+  // Фаза A: явный выбор таргета через модалку (Ctrl+Shift+Enter).
+  const handleTmuxPick = useCallback((paneId: string, label: string) => {
+    const text = getSendText();
+    setTmuxPickerOpen(false);
+    if (text === null) return;
+
+    void sendToTmux(text, { target: { mode: "pane", pane: paneId }, submit: tmuxAutoSubmit });
+    useTmuxStore.getState().setLastTarget({ pane: paneId, label });
+  }, [getSendText, sendToTmux, tmuxAutoSubmit]);
 
   const openGlobalMatch = useCallback((tabId: string, match: MatchResult) => {
     useEditorStore.getState().setActiveTab(tabId);
@@ -177,6 +196,7 @@ function App() {
     { id: "reference", label: "Reference panel", shortcut: "Ctrl+R", action: () => toggleSidePanel("reference") },
     { id: "ai-prompt", label: "AI Prompt", shortcut: "Ctrl+K", action: () => setSidePanel("ai") },
     { id: "tmux-send", label: "Отправить в tmux", shortcut: "Ctrl+Enter", action: handleTmuxSend },
+    { id: "tmux-pick", label: "Отправить в tmux (выбрать окно)", shortcut: "Ctrl+Shift+Enter", action: () => setTmuxPickerOpen(true) },
     { id: "save", label: "Сохранить как .txt", shortcut: "Ctrl+S", action: saveCurrentTab },
     { id: "open", label: "Открыть файл", shortcut: "Ctrl+O", action: openFile },
     { id: "download", label: "Скачать таб", action: downloadCurrentTab },
@@ -199,7 +219,7 @@ function App() {
     onClosePanels: () => {
       if (distractionFree) {
         setDistractionFree(false);
-      } else if (commandPaletteOpen || shortcutsOpen || tabSwitcherOpen || globalSearchOpen) {
+      } else if (commandPaletteOpen || shortcutsOpen || tabSwitcherOpen || globalSearchOpen || tmuxPickerOpen) {
         // handled by their own listeners
       } else if (panelMode || sidePanel) {
         closePanel();
@@ -219,6 +239,7 @@ function App() {
     onSettings: () => toggleSidePanel("settings"),
     onFocusEditor: focusEditor,
     onTmuxSend: handleTmuxSend,
+    onTmuxPicker: () => setTmuxPickerOpen((v) => !v),
     onTabSwitcher: () => setTabSwitcherOpen((v) => !v),
     onReferencePanel: () => toggleSidePanel("reference"),
     onGlobalSearch: () => setGlobalSearchOpen((v) => !v),
@@ -280,6 +301,12 @@ function App() {
         <GlobalSearchPanel
           onClose={() => setGlobalSearchOpen(false)}
           onOpenMatch={openGlobalMatch}
+        />
+      )}
+      {tmuxPickerOpen && (
+        <TmuxTargetPicker
+          onClose={() => setTmuxPickerOpen(false)}
+          onPick={handleTmuxPick}
         />
       )}
       {shortcutsOpen && <ShortcutsModal onClose={() => setShortcutsOpen(false)} />}
