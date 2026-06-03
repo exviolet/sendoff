@@ -22,6 +22,8 @@ const SHORTCUT_GROUPS = [
       { keys: "Ctrl+H", action: "Найти и заменить" },
       { keys: "Ctrl+Enter", action: "Отправить в tmux" },
       { keys: "Ctrl+Shift+Enter", action: "Отправить в tmux (выбор окна)" },
+      { keys: "Ctrl+B", action: "Привязать таб к tmux-окну" },
+      { keys: "Ctrl+Shift+B", action: "Отвязать таб от tmux" },
     ],
   },
   {

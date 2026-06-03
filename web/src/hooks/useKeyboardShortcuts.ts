@@ -17,6 +17,8 @@ interface ShortcutCallbacks {
   onFocusEditor?: () => void;
   onTmuxSend?: () => void;
   onTmuxPicker?: () => void;
+  onTmuxBind?: () => void;
+  onTmuxUnbind?: () => void;
   onTabSwitcher?: () => void;
   onReferencePanel?: () => void;
   onGlobalSearch?: () => void;
@@ -55,6 +57,18 @@ export function useKeyboardShortcuts(callbacks?: ShortcutCallbacks) {
       if (ctrl && e.shiftKey && code === "KeyD") {
         e.preventDefault();
         callbacks?.onGlobalSearch?.();
+        return;
+      }
+
+      if (ctrl && e.shiftKey && code === "KeyB") {
+        e.preventDefault();
+        callbacks?.onTmuxUnbind?.();
+        return;
+      }
+
+      if (ctrl && !e.shiftKey && code === "KeyB") {
+        e.preventDefault();
+        callbacks?.onTmuxBind?.();
         return;
       }
 

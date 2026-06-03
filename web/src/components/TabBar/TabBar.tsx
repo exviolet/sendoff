@@ -184,11 +184,11 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
               {/* tmux binding indicator */}
               {tab.tmuxBinding && (
                 <span
-                  className="shrink-0 text-accent/70"
+                  className="shrink-0 text-accent"
                   title={`tmux → ${tab.tmuxBinding.session}:${tab.tmuxBinding.window}`}
                 >
-                  <svg width="9" height="9" viewBox="0 0 16 16" fill="none">
-                    <path d="M6.5 9.5l3-3M7 4.5l1-1a2.5 2.5 0 0 1 3.5 3.5l-1 1M9 11.5l-1 1a2.5 2.5 0 0 1-3.5-3.5l1-1" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                  <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+                    <path d="M6.5 9.5l3-3M7 4.5l1-1a2.5 2.5 0 0 1 3.5 3.5l-1 1M9 11.5l-1 1a2.5 2.5 0 0 1-3.5-3.5l1-1" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 </span>
               )}

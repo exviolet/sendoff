@@ -191,6 +191,25 @@ function App() {
     setTmuxPicker({ mode: "bind", tabId });
   }, []);
 
+  // Ctrl+B — привязать/перепривязать активный таб.
+  const bindActiveTab = useCallback(() => {
+    const id = useEditorStore.getState().activeTabId;
+    if (id) setTmuxPicker({ mode: "bind", tabId: id });
+  }, []);
+
+  // Ctrl+Shift+B — отвязать активный таб.
+  const unbindActiveTab = useCallback(() => {
+    const { tabs, activeTabId } = useEditorStore.getState();
+    const tab = tabs.find((t) => t.id === activeTabId);
+    if (!tab) return;
+    if (!tab.tmuxBinding) {
+      toast("Таб не привязан к tmux", "info");
+      return;
+    }
+    useEditorStore.getState().setTabBinding(tab.id, null);
+    toast(`Таб отвязан от «${tab.tmuxBinding.window}»`, "success");
+  }, []);
+
   const openGlobalMatch = useCallback((tabId: string, match: MatchResult) => {
     useEditorStore.getState().setActiveTab(tabId);
     setPanelMode(null);
@@ -233,6 +252,8 @@ function App() {
     { id: "ai-prompt", label: "AI Prompt", shortcut: "Ctrl+K", action: () => setSidePanel("ai") },
     { id: "tmux-send", label: "Отправить в tmux", shortcut: "Ctrl+Enter", action: handleTmuxSend },
     { id: "tmux-pick", label: "Отправить в tmux (выбрать окно)", shortcut: "Ctrl+Shift+Enter", action: () => setTmuxPicker({ mode: "send" }) },
+    { id: "tmux-bind", label: "Привязать таб к tmux-окну", shortcut: "Ctrl+B", action: bindActiveTab },
+    { id: "tmux-unbind", label: "Отвязать таб от tmux", shortcut: "Ctrl+Shift+B", action: unbindActiveTab },
     { id: "save", label: "Сохранить как .txt", shortcut: "Ctrl+S", action: saveCurrentTab },
     { id: "open", label: "Открыть файл", shortcut: "Ctrl+O", action: openFile },
     { id: "download", label: "Скачать таб", action: downloadCurrentTab },
@@ -247,7 +268,7 @@ function App() {
     { id: "toggle-md-preview", label: markdownPreview ? "Редактор" : "Markdown превью", shortcut: "Ctrl+M", action: () => setMarkdownPreview((v) => !v) },
     { id: "settings", label: "Настройки", shortcut: "Ctrl+,", action: () => toggleSidePanel("settings") },
     { id: "focus-editor", label: "Фокус в редактор", shortcut: "Ctrl+E", action: focusEditor },
-  ], [saveCurrentTab, openFile, downloadCurrentTab, exportAll, importBackup, toggleDistractionFree, toggleSidePanel, setTheme, markdownPreview, focusEditor, handleTmuxSend, cleanupEmptyTabs]);
+  ], [saveCurrentTab, openFile, downloadCurrentTab, exportAll, importBackup, toggleDistractionFree, toggleSidePanel, setTheme, markdownPreview, focusEditor, handleTmuxSend, cleanupEmptyTabs, bindActiveTab, unbindActiveTab]);
 
   useKeyboardShortcuts({
     onFind: () => setPanelMode("find"),
@@ -276,6 +297,8 @@ function App() {
     onFocusEditor: focusEditor,
     onTmuxSend: handleTmuxSend,
     onTmuxPicker: () => setTmuxPicker((v) => (v ? null : { mode: "send" })),
+    onTmuxBind: bindActiveTab,
+    onTmuxUnbind: unbindActiveTab,
     onTabSwitcher: () => setTabSwitcherOpen((v) => !v),
     onReferencePanel: () => toggleSidePanel("reference"),
     onGlobalSearch: () => setGlobalSearchOpen((v) => !v),
@@ -321,7 +344,7 @@ function App() {
         {!distractionFree && sidePanel === "ai" && <AIPromptPanel onClose={() => setSidePanel(null)} textareaRef={textareaRef} />}
         {!distractionFree && sidePanel === "settings" && <SettingsPanel onClose={() => setSidePanel(null)} />}
       </div>
-      {!distractionFree && <StatusBar />}
+      {!distractionFree && <StatusBar onBindTmux={bindActiveTab} />}
 
       {commandPaletteOpen && (
         <CommandPalette
