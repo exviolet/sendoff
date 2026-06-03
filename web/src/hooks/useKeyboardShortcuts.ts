@@ -9,6 +9,7 @@ interface ShortcutCallbacks {
   onOpen?: () => void;
   onAIPrompt?: () => void;
   onCommandPalette?: () => void;
+  onTogglePin?: () => void;
   onDistractionFree?: () => void;
   onShortcutsHelp?: () => void;
   onToggleSidebar?: () => void;
@@ -123,9 +124,15 @@ export function useKeyboardShortcuts(callbacks?: ShortcutCallbacks) {
         return;
       }
 
-      if (ctrl && code === "KeyP") {
+      if (ctrl && e.shiftKey && code === "KeyP") {
         e.preventDefault();
         callbacks?.onCommandPalette?.();
+        return;
+      }
+
+      if (ctrl && !e.shiftKey && code === "KeyP") {
+        e.preventDefault();
+        callbacks?.onTogglePin?.();
         return;
       }
 

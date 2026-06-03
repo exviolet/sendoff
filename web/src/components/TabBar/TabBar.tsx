@@ -25,6 +25,7 @@ function tabsMetaEqual(prev: ReturnType<typeof useEditorStore.getState>["tabs"],
     tab.id === next[i].id &&
     tab.title === next[i].title &&
     tab.isDirty === next[i].isDirty &&
+    tab.pinned === next[i].pinned &&
     tab.tmuxBinding?.session === next[i].tmuxBinding?.session &&
     tab.tmuxBinding?.window === next[i].tmuxBinding?.window
   );
@@ -42,6 +43,7 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
   const closeOtherTabs = useEditorStore((s) => s.closeOtherTabs);
   const closeTabsToRight = useEditorStore((s) => s.closeTabsToRight);
   const setTabBinding = useEditorStore((s) => s.setTabBinding);
+  const togglePin = useEditorStore((s) => s.togglePin);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
@@ -179,6 +181,15 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
               {/* Dirty indicator */}
               {tab.isDirty && (
                 <span className="w-1.5 h-1.5 rounded-full bg-dirty shrink-0" />
+              )}
+
+              {/* Pinned indicator */}
+              {tab.pinned && (
+                <span className="shrink-0 text-accent" title="Закреплён">
+                  <svg width="11" height="11" viewBox="0 0 16 16" fill="none">
+                    <path d="M5.5 2.5h5l-.8 4 2.3 2.3v1.2H8.7L8 14l-.7-4H4V8.8l2.3-2.3-.8-4z" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </span>
               )}
 
               {/* tmux binding indicator */}
@@ -379,8 +390,10 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
         <TabContextMenu
           x={ctxMenu.x}
           y={ctxMenu.y}
+          pinned={tabs.find((t) => t.id === ctxMenu.id)?.pinned ?? false}
           binding={tabs.find((t) => t.id === ctxMenu.id)?.tmuxBinding ?? null}
           onClose={() => setCtxMenu(null)}
+          onTogglePin={() => togglePin(ctxMenu.id)}
           onBindTmux={() => onBindTmux(ctxMenu.id)}
           onUnbindTmux={() => setTabBinding(ctxMenu.id, null)}
           onCloseTab={() => closeTab(ctxMenu.id)}
@@ -395,11 +408,13 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
 }
 
 function TabContextMenu({
-  x, y, binding, onClose, onBindTmux, onUnbindTmux, onCloseTab, onCloseOthers, onCloseRight, onCloseSaved, onCleanupEmpty,
+  x, y, pinned, binding, onClose, onTogglePin, onBindTmux, onUnbindTmux, onCloseTab, onCloseOthers, onCloseRight, onCloseSaved, onCleanupEmpty,
 }: {
   x: number; y: number;
+  pinned: boolean;
   binding: TmuxBinding | null;
   onClose: () => void;
+  onTogglePin: () => void;
   onBindTmux: () => void;
   onUnbindTmux: () => void;
   onCloseTab: () => void;
@@ -444,6 +459,9 @@ function TabContextMenu({
       style={{ left: x, top: y }}
       onMouseDown={(e) => e.stopPropagation()}
     >
+      <div className="border-b border-border/40">
+        {renderItem({ label: pinned ? "Открепить таб" : "Закрепить таб", action: onTogglePin, shortcut: "Ctrl+P" })}
+      </div>
       <div className="border-b border-border/40">{tmuxItems.map(renderItem)}</div>
       {closeItems.map(renderItem)}
     </div>
