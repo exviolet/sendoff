@@ -12,6 +12,7 @@ export interface Tab {
   isDirty: boolean;
   createdAt: number;
   updatedAt: number;
+  pinned?: boolean;
   titleSource?: "auto" | "manual" | "file";
   tmuxBinding?: TmuxBinding;
 }
@@ -37,6 +38,7 @@ interface EditorStore {
   renameTab: (id: string, title: string) => void;
   markSaved: (id: string) => void;
   setTabBinding: (id: string, binding: TmuxBinding | null) => void;
+  togglePin: (id: string) => void;
   reorderTab: (fromIndex: number, toIndex: number) => void;
   undo: (id: string) => void;
   redo: (id: string) => void;
@@ -136,12 +138,16 @@ function normalizeTab(tab: Tab) {
   return { ...tab, title, titleSource };
 }
 
+function partitionPinned(tabs: Tab[]): Tab[] {
+  return [...tabs.filter((t) => t.pinned), ...tabs.filter((t) => !t.pinned)];
+}
+
 function isAutoTitled(tab: Tab) {
   return tab.titleSource === "auto" || (tab.titleSource === undefined && UNTITLED_RE.test(tab.title));
 }
 
 function canCleanupTab(tab: Tab) {
-  return tab.content.trim() === "" && !tab.isDirty && isAutoTitled(tab);
+  return tab.content.trim() === "" && !tab.isDirty && !tab.pinned && isAutoTitled(tab);
 }
 
 export const useEditorStore = create<EditorStore>((set, get) => {
@@ -239,15 +245,15 @@ export const useEditorStore = create<EditorStore>((set, get) => {
 
   cancelPendingClose: () => set({ pendingClose: null }),
 
-  closeSavedTabs: () => performCloseMany(get().tabs.filter((t) => !t.isDirty).map((t) => t.id)),
+  closeSavedTabs: () => performCloseMany(get().tabs.filter((t) => !t.isDirty && !t.pinned).map((t) => t.id)),
 
-  closeOtherTabs: (keepId) => performCloseMany(get().tabs.filter((t) => t.id !== keepId).map((t) => t.id)),
+  closeOtherTabs: (keepId) => performCloseMany(get().tabs.filter((t) => t.id !== keepId && !t.pinned).map((t) => t.id)),
 
   closeTabsToRight: (id) => {
     const tabs = get().tabs;
     const idx = tabs.findIndex((t) => t.id === id);
     if (idx < 0) return 0;
-    return performCloseMany(tabs.slice(idx + 1).map((t) => t.id));
+    return performCloseMany(tabs.slice(idx + 1).filter((t) => !t.pinned).map((t) => t.id));
   },
 
   cleanupEmptyTabs: () => {
@@ -282,7 +288,7 @@ export const useEditorStore = create<EditorStore>((set, get) => {
     if (closedTabs.length === 0) return;
     const tab = closedTabs[closedTabs.length - 1];
     set((s) => ({
-      tabs: [...s.tabs, tab],
+      tabs: partitionPinned([...s.tabs, tab]),
       activeTabId: tab.id,
       closedTabs: s.closedTabs.slice(0, -1),
     }));
@@ -316,12 +322,20 @@ export const useEditorStore = create<EditorStore>((set, get) => {
       ),
     })),
 
+  togglePin: (id) =>
+    set((s) => {
+      const tabs = s.tabs.map((t) =>
+        t.id === id ? { ...t, pinned: !t.pinned, updatedAt: Date.now() } : t
+      );
+      return { tabs: partitionPinned(tabs) };
+    }),
+
   reorderTab: (fromIndex, toIndex) =>
     set((s) => {
       const tabs = [...s.tabs];
       const [moved] = tabs.splice(fromIndex, 1);
       tabs.splice(toIndex, 0, moved);
-      return { tabs };
+      return { tabs: partitionPinned(tabs) };
     }),
 
   undo: (id) => {
@@ -392,6 +406,6 @@ export const useEditorStore = create<EditorStore>((set, get) => {
   },
 
   hydrate: (tabs, activeTabId, tabCounter) =>
-    set({ tabs: tabs.map(normalizeTab), activeTabId, tabCounter, isHydrated: true }),
+    set({ tabs: partitionPinned(tabs.map(normalizeTab)), activeTabId, tabCounter, isHydrated: true }),
   };
 });

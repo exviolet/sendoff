@@ -210,6 +210,11 @@ function App() {
     toast(`Таб отвязан от «${tab.tmuxBinding.window}»`, "success");
   }, []);
 
+  const toggleActivePin = useCallback(() => {
+    const id = useEditorStore.getState().activeTabId;
+    if (id) useEditorStore.getState().togglePin(id);
+  }, []);
+
   const openGlobalMatch = useCallback((tabId: string, match: MatchResult) => {
     useEditorStore.getState().setActiveTab(tabId);
     setPanelMode(null);
@@ -241,6 +246,7 @@ function App() {
       const n = closeTabsToRight(activeTabId);
       toast(n === 0 ? "Нечего закрывать" : `Закрыто: ${n}`, n === 0 ? "info" : "success");
     }},
+    { id: "toggle-pin", label: "Закрепить/открепить таб", shortcut: "Ctrl+P", action: toggleActivePin },
     { id: "cleanup-empty-tabs", label: "Очистить пустые табы", action: cleanupEmptyTabs },
     { id: "reopen-tab", label: "Восстановить закрытый таб", shortcut: "Ctrl+Shift+T", action: () => useEditorStore.getState().reopenTab() },
     { id: "tab-switcher", label: "Найти таб", shortcut: "Ctrl+T", action: () => setTabSwitcherOpen(true) },
@@ -268,7 +274,7 @@ function App() {
     { id: "toggle-md-preview", label: markdownPreview ? "Редактор" : "Markdown превью", shortcut: "Ctrl+M", action: () => setMarkdownPreview((v) => !v) },
     { id: "settings", label: "Настройки", shortcut: "Ctrl+,", action: () => toggleSidePanel("settings") },
     { id: "focus-editor", label: "Фокус в редактор", shortcut: "Ctrl+E", action: focusEditor },
-  ], [saveCurrentTab, openFile, downloadCurrentTab, exportAll, importBackup, toggleDistractionFree, toggleSidePanel, setTheme, markdownPreview, focusEditor, handleTmuxSend, cleanupEmptyTabs, bindActiveTab, unbindActiveTab]);
+  ], [saveCurrentTab, openFile, downloadCurrentTab, exportAll, importBackup, toggleDistractionFree, toggleSidePanel, setTheme, markdownPreview, focusEditor, handleTmuxSend, cleanupEmptyTabs, bindActiveTab, unbindActiveTab, toggleActivePin]);
 
   useKeyboardShortcuts({
     onFind: () => setPanelMode("find"),
@@ -289,6 +295,7 @@ function App() {
     onOpen: openFile,
     onAIPrompt: () => toggleSidePanel("ai"),
     onCommandPalette: () => setCommandPaletteOpen((v) => !v),
+    onTogglePin: toggleActivePin,
     onDistractionFree: toggleDistractionFree,
     onShortcutsHelp: () => setShortcutsOpen((v) => !v),
     onToggleSidebar: () => toggleSidePanel("presets"),
