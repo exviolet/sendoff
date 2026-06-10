@@ -41,8 +41,13 @@ agent's reply pinned in the reference panel while you write the next one.
 ## Features
 
 **Prompt workflow**
-- **Send to tmux** (`Ctrl+Enter`) — push the current buffer into the active
-  `tmux` pane without leaving the keyboard.
+- **Send to tmux** (`Ctrl+Enter`) — push the current buffer into the bound or
+  active `tmux` pane without leaving the keyboard.
+- **tmux target picker** (`Ctrl+Shift+Enter`) — choose the destination
+  session / window / pane by name instead of relying on the active pane.
+- **tmux tab-binding** (`Ctrl+B` / `Ctrl+Shift+B`) — bind a tab to a specific
+  tmux window by `session:window` name; the status bar shows the live binding so
+  `Ctrl+Enter` always lands in the right place.
 - **Reference panel** (`Ctrl+R`) — a resizable, persisted side panel to keep an
   agent's reply visible while you compose the follow-up.
 
@@ -51,6 +56,7 @@ agent's reply pinned in the reference panel while you write the next one.
 - Tabs auto-name themselves from the first line; empty tabs auto-clean.
 - **Tab switcher** (`Ctrl+T`) with a live content preview.
 - **Global tab search** (`Ctrl+Shift+D`) — full-text search across every tab.
+- **Pin tabs** (`Ctrl+P`) — keep important drafts pinned at the front of the tab bar.
 
 **Text tooling**
 - Find & Replace with a real-time highlight overlay.
@@ -86,16 +92,19 @@ bun run preview    # serve the production build locally
 
 | Shortcut | Action |
 |----------|--------|
-| `Ctrl+Enter` | Send buffer to active tmux pane |
+| `Ctrl+Enter` | Send buffer to bound / active tmux pane |
+| `Ctrl+Shift+Enter` | tmux target picker |
+| `Ctrl+B` / `Ctrl+Shift+B` | Bind / unbind tab to tmux window |
 | `Ctrl+R` | Toggle reference panel |
 | `Ctrl+T` | Tab switcher (with preview) |
 | `Ctrl+Shift+D` | Global tab search |
+| `Ctrl+P` | Pin / unpin current tab |
 | `Ctrl+N` / `Ctrl+W` | New / close tab |
 | `Ctrl+Shift+T` | Reopen closed tab |
 | `Ctrl+Tab` / `Ctrl+Shift+Tab` | Next / previous tab |
 | `Ctrl+Z` / `Ctrl+Shift+Z` | Undo / redo |
 | `Ctrl+F` / `Ctrl+H` | Find / Find & Replace |
-| `Ctrl+P` | Command palette |
+| `Ctrl+Shift+P` | Command palette |
 | `Ctrl+S` / `Ctrl+O` | Save / open file |
 | `Ctrl+.` | Toggle presets sidebar |
 | `Ctrl+M` | Markdown preview |
