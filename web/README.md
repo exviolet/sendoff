@@ -38,6 +38,12 @@ No backend, no API keys, no telemetry. Everything runs client-side.
 Draft the prompt → `Ctrl+Enter` sends it to the active `tmux` pane → keep the
 agent's reply pinned in the reference panel while you write the next one.
 
+> **The `tmux` send needs the [desktop build](https://github.com/exviolet/rewrite-desktop).**
+> The direct write into a `tmux` pane goes through the Tauri shell, which only
+> the desktop app has. In a plain browser tab `Ctrl+Enter` falls back to copying
+> the buffer to the clipboard. Rewrite is **desktop-first**; the browser build is
+> a limited editor without the terminal bridge.
+
 ## Features
 
 **Prompt workflow**
