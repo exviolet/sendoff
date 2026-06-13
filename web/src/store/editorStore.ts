@@ -70,6 +70,19 @@ function flushPending(id: string) {
   flushTimers.delete(id);
 }
 
+// Free per-tab history when a tab is closed — these module-level Maps are never
+// otherwise cleared, so closed tabs would leak their undo/redo stacks until reload.
+// Trade-off: a reopened tab (Ctrl+Shift+T) starts with a fresh history.
+function disposeTabHistory(id: string) {
+  undoStacks.delete(id);
+  redoStacks.delete(id);
+  lastPushTime.delete(id);
+  pendingSnapshot.delete(id);
+  const timer = flushTimers.get(id);
+  if (timer !== undefined) clearTimeout(timer);
+  flushTimers.delete(id);
+}
+
 function pushUndo(id: string, prevContent: string, newContent: string) {
   const now = Date.now();
   const lastTime = lastPushTime.get(id) ?? 0;
@@ -158,6 +171,7 @@ export const useEditorStore = create<EditorStore>((set, get) => {
       ? [...closedTabs, tab].slice(-MAX_CLOSED_TABS)
       : closedTabs;
     const remaining = tabs.filter((t) => t.id !== id);
+    disposeTabHistory(id);
 
     if (remaining.length === 0) {
       const next = get().tabCounter + 1;
@@ -183,6 +197,7 @@ export const useEditorStore = create<EditorStore>((set, get) => {
     const closing = tabs.filter((t) => toClose.has(t.id) && !t.isDirty);
     if (closing.length === 0) return 0;
     const closingIds = new Set(closing.map((t) => t.id));
+    closingIds.forEach(disposeTabHistory);
     const newClosedTabs = [...closedTabs, ...closing].slice(-MAX_CLOSED_TABS);
     const remaining = tabs.filter((t) => !closingIds.has(t.id));
 
@@ -268,6 +283,7 @@ export const useEditorStore = create<EditorStore>((set, get) => {
     if (cleanupIds.size === 0) return 0;
 
     const closing = tabs.filter((t) => cleanupIds.has(t.id));
+    cleanupIds.forEach(disposeTabHistory);
     const remaining = tabs.filter((t) => !cleanupIds.has(t.id));
     const newClosedTabs = [...closedTabs, ...closing].slice(-MAX_CLOSED_TABS);
 
