@@ -196,7 +196,7 @@ export function TmuxTargetPicker({ onClose, onPick, mode = "send" }: TmuxTargetP
             return (
               <section key={session.name} className="border-b border-border/40 last:border-b-0">
                 <div className="sticky top-0 z-10 flex items-center gap-2 px-4 py-1.5 bg-surface/95 border-b border-border/30">
-                  <span className="text-[10px] uppercase tracking-widest text-text-muted/55">{session.name}</span>
+                  <span className="text-[10px] uppercase tracking-widest text-accent">{session.name}</span>
                 </div>
 
                 <div className="py-1">
