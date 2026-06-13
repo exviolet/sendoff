@@ -6,6 +6,7 @@ import { useThemeStore } from "../store/themeStore";
 import { useSettingsStore } from "../store/settingsStore";
 import { useReferenceStore } from "../store/referenceStore";
 import { loadSession, saveSession } from "../lib/db";
+import { toast } from "../store/toastStore";
 
 export function useSessionPersistence() {
   const hasRestored = useRef(false);
@@ -35,12 +36,17 @@ export function useSessionPersistence() {
         text: referenceText,
         width: referenceWidth ?? useReferenceStore.getState().width,
       });
+    }).catch(() => {
+      // Leave isHydrated=false on purpose: blocks the persist effect below, so a
+      // failed read can't clobber existing IndexedDB data with empty defaults.
+      toast("Не удалось загрузить сессию из хранилища", "error");
     });
   }, []);
 
   // Persist on changes (debounced 500ms)
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>;
+    let saveErrorShown = false;
 
     const unsubEditor = useEditorStore.subscribe(() => {
       if (!useEditorStore.getState().isHydrated) return;
@@ -85,7 +91,15 @@ export function useSessionPersistence() {
       const { theme } = useThemeStore.getState();
       const { fontSize, wordWrap, tmuxAutoSubmit } = useSettingsStore.getState();
       const { text: referenceText, width: referenceWidth } = useReferenceStore.getState();
-      saveSession(tabs, activeTabId, tabCounter, presets, templates, theme, fontSize, wordWrap, tmuxAutoSubmit, referenceText, referenceWidth);
+      saveSession(tabs, activeTabId, tabCounter, presets, templates, theme, fontSize, wordWrap, tmuxAutoSubmit, referenceText, referenceWidth)
+        .then(() => { saveErrorShown = false; })
+        .catch(() => {
+          // Throttle: one toast per failure streak, not every 500ms tick.
+          if (!saveErrorShown) {
+            saveErrorShown = true;
+            toast("Не удалось сохранить сессию", "error");
+          }
+        });
     }
 
     return () => {
