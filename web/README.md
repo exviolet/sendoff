@@ -14,6 +14,14 @@ English · [Русский](README.ru.md)
 
 </div>
 
+<div align="center">
+
+<img src="public/rewrite-demo.gif" alt="Draft a prompt in Rewrite, press Ctrl+Enter, and it lands in the tmux pane running Claude Code" width="900" />
+
+<sub>Draft a prompt → <code>Ctrl+Enter</code> → it lands in the <code>tmux</code> pane running your agent.</sub>
+
+</div>
+
 Rewrite is a minimal text editor built around one workflow: write a prompt in a
 real editing surface, then fire it straight into the terminal agent you're
 already running. It was born from a concrete annoyance — the cramped input box
