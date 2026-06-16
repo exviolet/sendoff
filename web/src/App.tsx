@@ -16,13 +16,11 @@ import type { MatchResult } from "./lib/replaceEngine";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useSessionPersistence } from "./hooks/useSessionPersistence";
 import { useFileIO } from "./hooks/useFileIO";
-import { useTmuxSend, resolveTmuxBinding, type TmuxPickTarget } from "./hooks/useTmuxSend";
-import { isTauri } from "./lib/platform";
+import { useTmuxActions } from "./hooks/useTmuxActions";
 import { useEditorStore } from "./store/editorStore";
 import { useThemeStore } from "./store/themeStore";
 import { useSettingsStore } from "./store/settingsStore";
 import { useReferenceStore } from "./store/referenceStore";
-import { useTmuxStore } from "./store/tmuxStore";
 import { ToastContainer } from "./components/Toast/Toast";
 import { ConfirmDialog } from "./components/ConfirmDialog/ConfirmDialog";
 import { toast } from "./store/toastStore";
@@ -40,7 +38,6 @@ function App() {
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [tabSwitcherOpen, setTabSwitcherOpen] = useState(false);
   const [globalSearchOpen, setGlobalSearchOpen] = useState(false);
-  const [tmuxPicker, setTmuxPicker] = useState<null | { mode: "send" } | { mode: "bind"; tabId: string }>(null);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [markdownPreview, setMarkdownPreview] = useState(false);
 
@@ -57,7 +54,6 @@ function App() {
 
   const fontSize = useSettingsStore((s) => s.fontSize);
   const wordWrap = useSettingsStore((s) => s.wordWrap);
-  const tmuxAutoSubmit = useSettingsStore((s) => s.tmuxAutoSubmit);
 
   // Sync data-theme attribute on <html>
   useEffect(() => {
@@ -66,7 +62,10 @@ function App() {
 
   useSessionPersistence();
   const { saveCurrentTab, downloadCurrentTab, openFile, exportAll, importBackup } = useFileIO();
-  const sendToTmux = useTmuxSend();
+  const {
+    tmuxPicker, setTmuxPicker, handleTmuxSend, handleTmuxPick,
+    openBindPicker, bindActiveTab, unbindActiveTab,
+  } = useTmuxActions(textareaRef);
 
   // Warn on browser close if dirty tabs exist
   useEffect(() => {
@@ -115,99 +114,6 @@ function App() {
   const cleanupEmptyTabs = useCallback(() => {
     const n = useEditorStore.getState().cleanupEmptyTabs();
     toast(n === 0 ? "Пустых табов нет" : `Закрыто пустых табов: ${n}`, n === 0 ? "info" : "success");
-  }, []);
-
-  // Текст для отправки: выделение, если есть, иначе весь буфер активного таба.
-  const getSendText = useCallback((): string | null => {
-    const { tabs, activeTabId } = useEditorStore.getState();
-    const tab = tabs.find((t) => t.id === activeTabId);
-    if (!tab) return null;
-
-    const textarea = textareaRef.current;
-    const hasSelection = textarea && textarea.selectionStart !== textarea.selectionEnd;
-    return textarea
-      ? hasSelection
-        ? textarea.value.slice(textarea.selectionStart, textarea.selectionEnd)
-        : textarea.value
-      : tab.content;
-  }, []);
-
-  // Ctrl+Enter — цепочка резолва: Explicit (binding) → Last → Fallback (picker).
-  const handleTmuxSend = useCallback(async () => {
-    const text = getSendText();
-    if (text === null) return;
-
-    // Браузер: shell недоступен, sendToTmux сам уйдёт в clipboard.
-    if (!isTauri) {
-      void sendToTmux(text, { target: { mode: "active" }, submit: tmuxAutoSubmit });
-      return;
-    }
-
-    const { tabs, activeTabId } = useEditorStore.getState();
-    const binding = tabs.find((t) => t.id === activeTabId)?.tmuxBinding;
-
-    // 1. Explicit — таб привязан к окну.
-    if (binding) {
-      const pane = await resolveTmuxBinding(binding);
-      if (pane) {
-        void sendToTmux(text, { target: { mode: "pane", pane }, submit: tmuxAutoSubmit });
-      } else {
-        toast(`tmux-окно «${binding.window}» не найдено — выбери цель`, "info");
-        setTmuxPicker({ mode: "send" });
-      }
-      return;
-    }
-
-    // 2. Last — последний выбор в picker'е (in-memory).
-    const last = useTmuxStore.getState().lastTarget;
-    if (last) {
-      void sendToTmux(text, { target: { mode: "pane", pane: last.pane }, submit: tmuxAutoSubmit });
-      return;
-    }
-
-    // 3. Fallback — picker.
-    setTmuxPicker({ mode: "send" });
-  }, [getSendText, sendToTmux, tmuxAutoSubmit]);
-
-  // Выбор в picker'е: отправить (send-режим) или привязать таб (bind-режим).
-  const handleTmuxPick = useCallback((target: TmuxPickTarget) => {
-    const picker = tmuxPicker;
-    setTmuxPicker(null);
-    if (!picker) return;
-
-    if (picker.mode === "bind") {
-      useEditorStore.getState().setTabBinding(picker.tabId, { session: target.session, window: target.window });
-      toast(`Таб привязан к tmux-окну «${target.label}»`, "success");
-      return;
-    }
-
-    const text = getSendText();
-    if (text === null) return;
-    void sendToTmux(text, { target: { mode: "pane", pane: target.paneId }, submit: tmuxAutoSubmit });
-    useTmuxStore.getState().setLastTarget({ pane: target.paneId, label: target.label });
-  }, [tmuxPicker, getSendText, sendToTmux, tmuxAutoSubmit]);
-
-  const openBindPicker = useCallback((tabId: string) => {
-    setTmuxPicker({ mode: "bind", tabId });
-  }, []);
-
-  // Ctrl+B — привязать/перепривязать активный таб.
-  const bindActiveTab = useCallback(() => {
-    const id = useEditorStore.getState().activeTabId;
-    if (id) setTmuxPicker({ mode: "bind", tabId: id });
-  }, []);
-
-  // Ctrl+Shift+B — отвязать активный таб.
-  const unbindActiveTab = useCallback(() => {
-    const { tabs, activeTabId } = useEditorStore.getState();
-    const tab = tabs.find((t) => t.id === activeTabId);
-    if (!tab) return;
-    if (!tab.tmuxBinding) {
-      toast("Таб не привязан к tmux", "info");
-      return;
-    }
-    useEditorStore.getState().setTabBinding(tab.id, null);
-    toast(`Таб отвязан от «${tab.tmuxBinding.window}»`, "success");
   }, []);
 
   const toggleActivePin = useCallback(() => {
@@ -274,7 +180,7 @@ function App() {
     { id: "toggle-md-preview", label: markdownPreview ? "Редактор" : "Markdown превью", shortcut: "Ctrl+M", action: () => setMarkdownPreview((v) => !v) },
     { id: "settings", label: "Настройки", shortcut: "Ctrl+,", action: () => toggleSidePanel("settings") },
     { id: "focus-editor", label: "Фокус в редактор", shortcut: "Ctrl+E", action: focusEditor },
-  ], [saveCurrentTab, openFile, downloadCurrentTab, exportAll, importBackup, toggleDistractionFree, toggleSidePanel, setTheme, markdownPreview, focusEditor, handleTmuxSend, cleanupEmptyTabs, bindActiveTab, unbindActiveTab, toggleActivePin]);
+  ], [saveCurrentTab, openFile, downloadCurrentTab, exportAll, importBackup, toggleDistractionFree, toggleSidePanel, setTheme, markdownPreview, focusEditor, handleTmuxSend, cleanupEmptyTabs, bindActiveTab, unbindActiveTab, toggleActivePin, setTmuxPicker]);
 
   useKeyboardShortcuts({
     onFind: () => setPanelMode("find"),
