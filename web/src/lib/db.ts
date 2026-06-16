@@ -18,7 +18,7 @@ interface RewriteDB extends DBSchema {
   };
   meta: {
     key: string;
-    value: string | number | boolean;
+    value: string | number | boolean | string[];
   };
 }
 
@@ -62,9 +62,23 @@ function getDB() {
   });
 }
 
+// Reorder tabs to match the persisted id sequence. Tabs missing from the list
+// (e.g. written before tabOrder existed) keep getAll's key order at the end.
+function orderTabs(tabs: Tab[], order: string[] | undefined): Tab[] {
+  if (!order || order.length === 0) return tabs;
+  const rank = new Map(order.map((id, i) => [id, i]));
+  return [...tabs].sort(
+    (a, b) => (rank.get(a.id) ?? Infinity) - (rank.get(b.id) ?? Infinity),
+  );
+}
+
 export async function loadSession() {
   const db = await getDB();
-  const tabs = await db.getAll("tabs");
+  // getAll returns records sorted by primary key (uuid), NOT tab order. Restore
+  // the user's arrangement (incl. DnD reorder) from the persisted tabOrder list.
+  const storedTabs = await db.getAll("tabs");
+  const tabOrder = (await db.get("meta", "tabOrder")) as string[] | undefined;
+  const tabs = orderTabs(storedTabs, tabOrder);
   const presets = await db.getAll("presets");
   const promptTemplates = await db.getAll("promptTemplates");
   const activeTabId = (await db.get("meta", "activeTabId")) as string | undefined;
@@ -127,6 +141,7 @@ export async function saveSession(
 
   // Meta
   const metaStore = tx.objectStore("meta");
+  await metaStore.put(tabs.map((t) => t.id), "tabOrder");
   await metaStore.put(activeTabId ?? "", "activeTabId");
   await metaStore.put(tabCounter, "tabCounter");
   await metaStore.put(theme, "theme");
