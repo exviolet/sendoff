@@ -1,4 +1,5 @@
 import { createWithEqualityFn as create } from "zustand/traditional";
+import { pushHistory, disposeHistory, takeUndo, takeRedo } from "./editorHistory";
 
 export interface TmuxBinding {
   session: string;
@@ -46,71 +47,8 @@ interface EditorStore {
   hydrate: (tabs: Tab[], activeTabId: string | null, tabCounter: number) => void;
 }
 
-// Undo/redo stacks per tab (kept outside Zustand to avoid re-renders)
-const MAX_HISTORY = 100;
-const DEBOUNCE_MS = 500;
 const AUTO_TITLE_MAX_LENGTH = 48;
 const UNTITLED_RE = /^Untitled \d+$/;
-const undoStacks = new Map<string, string[]>();
-const redoStacks = new Map<string, string[]>();
-const lastPushTime = new Map<string, number>();
-const pendingSnapshot = new Map<string, string>();
-const flushTimers = new Map<string, ReturnType<typeof setTimeout>>();
-
-function flushPending(id: string) {
-  const snapshot = pendingSnapshot.get(id);
-  if (snapshot === undefined) return;
-  if (!undoStacks.has(id)) undoStacks.set(id, []);
-  const stack = undoStacks.get(id)!;
-  if (stack[stack.length - 1] !== snapshot) {
-    stack.push(snapshot);
-    if (stack.length > MAX_HISTORY) stack.shift();
-  }
-  pendingSnapshot.delete(id);
-  flushTimers.delete(id);
-}
-
-// Free per-tab history when a tab is closed — these module-level Maps are never
-// otherwise cleared, so closed tabs would leak their undo/redo stacks until reload.
-// Trade-off: a reopened tab (Ctrl+Shift+T) starts with a fresh history.
-function disposeTabHistory(id: string) {
-  undoStacks.delete(id);
-  redoStacks.delete(id);
-  lastPushTime.delete(id);
-  pendingSnapshot.delete(id);
-  const timer = flushTimers.get(id);
-  if (timer !== undefined) clearTimeout(timer);
-  flushTimers.delete(id);
-}
-
-function pushUndo(id: string, prevContent: string, newContent: string) {
-  const now = Date.now();
-  const lastTime = lastPushTime.get(id) ?? 0;
-  const lenDiff = Math.abs(newContent.length - prevContent.length);
-
-  // Large change (paste/delete) or enough time passed — flush + push immediately
-  if (lenDiff > 1 || now - lastTime > DEBOUNCE_MS) {
-    flushPending(id);
-    if (!undoStacks.has(id)) undoStacks.set(id, []);
-    const stack = undoStacks.get(id)!;
-    if (stack[stack.length - 1] !== prevContent) {
-      stack.push(prevContent);
-      if (stack.length > MAX_HISTORY) stack.shift();
-    }
-    pendingSnapshot.delete(id);
-    lastPushTime.set(id, now);
-  } else {
-    // Single char typing — defer, save first snapshot of the burst
-    if (!pendingSnapshot.has(id)) {
-      pendingSnapshot.set(id, prevContent);
-    }
-    clearTimeout(flushTimers.get(id));
-    flushTimers.set(id, setTimeout(() => flushPending(id), DEBOUNCE_MS));
-    lastPushTime.set(id, now);
-  }
-
-  redoStacks.set(id, []);
-}
 
 function makeTab(n: number): Tab {
   return {
@@ -171,7 +109,7 @@ export const useEditorStore = create<EditorStore>((set, get) => {
       ? [...closedTabs, tab].slice(-MAX_CLOSED_TABS)
       : closedTabs;
     const remaining = tabs.filter((t) => t.id !== id);
-    disposeTabHistory(id);
+    disposeHistory(id);
 
     if (remaining.length === 0) {
       const next = get().tabCounter + 1;
@@ -197,7 +135,7 @@ export const useEditorStore = create<EditorStore>((set, get) => {
     const closing = tabs.filter((t) => toClose.has(t.id) && !t.isDirty);
     if (closing.length === 0) return 0;
     const closingIds = new Set(closing.map((t) => t.id));
-    closingIds.forEach(disposeTabHistory);
+    closingIds.forEach(disposeHistory);
     const newClosedTabs = [...closedTabs, ...closing].slice(-MAX_CLOSED_TABS);
     const remaining = tabs.filter((t) => !closingIds.has(t.id));
 
@@ -283,7 +221,7 @@ export const useEditorStore = create<EditorStore>((set, get) => {
     if (cleanupIds.size === 0) return 0;
 
     const closing = tabs.filter((t) => cleanupIds.has(t.id));
-    cleanupIds.forEach(disposeTabHistory);
+    cleanupIds.forEach(disposeHistory);
     const remaining = tabs.filter((t) => !cleanupIds.has(t.id));
     const newClosedTabs = [...closedTabs, ...closing].slice(-MAX_CLOSED_TABS);
 
@@ -314,7 +252,7 @@ export const useEditorStore = create<EditorStore>((set, get) => {
 
   updateContent: (id, content) => {
     const tab = get().tabs.find((t) => t.id === id);
-    if (tab) pushUndo(id, tab.content, content);
+    if (tab) pushHistory(id, tab.content, content);
     set((s) => ({
       tabs: s.tabs.map((t) =>
         t.id === id
@@ -355,14 +293,10 @@ export const useEditorStore = create<EditorStore>((set, get) => {
     }),
 
   undo: (id) => {
-    flushPending(id);
-    const stack = undoStacks.get(id);
-    if (!stack || stack.length === 0) return;
     const tab = get().tabs.find((t) => t.id === id);
     if (!tab) return;
-    if (!redoStacks.has(id)) redoStacks.set(id, []);
-    redoStacks.get(id)!.push(tab.content);
-    const prev = stack.pop()!;
+    const prev = takeUndo(id, tab.content);
+    if (prev === undefined) return;
     set((s) => ({
       tabs: s.tabs.map((t) =>
         t.id === id ? { ...t, content: prev, updatedAt: Date.now() } : t
@@ -371,13 +305,10 @@ export const useEditorStore = create<EditorStore>((set, get) => {
   },
 
   redo: (id) => {
-    flushPending(id);
-    const stack = redoStacks.get(id);
-    if (!stack || stack.length === 0) return;
     const tab = get().tabs.find((t) => t.id === id);
     if (!tab) return;
-    undoStacks.get(id)!.push(tab.content);
-    const next = stack.pop()!;
+    const next = takeRedo(id, tab.content);
+    if (next === undefined) return;
     set((s) => ({
       tabs: s.tabs.map((t) =>
         t.id === id ? { ...t, content: next, updatedAt: Date.now() } : t
