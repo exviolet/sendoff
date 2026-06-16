@@ -1,5 +1,13 @@
 import { createWithEqualityFn as create } from "zustand/traditional";
 import { pushHistory, disposeHistory, takeUndo, takeRedo } from "./editorHistory";
+import {
+  makeTab,
+  makeAutoTitle,
+  normalizeTab,
+  partitionPinned,
+  isAutoTitled,
+  canCleanupTab,
+} from "../lib/tabUtils";
 
 export interface TmuxBinding {
   session: string;
@@ -47,59 +55,9 @@ interface EditorStore {
   hydrate: (tabs: Tab[], activeTabId: string | null, tabCounter: number) => void;
 }
 
-const AUTO_TITLE_MAX_LENGTH = 48;
-const UNTITLED_RE = /^Untitled \d+$/;
-
-function makeTab(n: number): Tab {
-  return {
-    id: crypto.randomUUID(),
-    title: `Untitled ${n}`,
-    content: "",
-    isDirty: false,
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
-    titleSource: "auto",
-  };
-}
-
 const initialTab = makeTab(1);
 
 const MAX_CLOSED_TABS = 20;
-
-function firstContentLine(content: string) {
-  return content
-    .split(/\r?\n/)
-    .map((line) => line.trim().replace(/\s+/g, " "))
-    .find(Boolean) ?? "";
-}
-
-function makeAutoTitle(content: string, fallback: string) {
-  const line = firstContentLine(content);
-  if (!line) return fallback;
-  return line.length > AUTO_TITLE_MAX_LENGTH
-    ? `${line.slice(0, AUTO_TITLE_MAX_LENGTH - 3)}...`
-    : line;
-}
-
-function normalizeTab(tab: Tab) {
-  const titleSource = tab.titleSource ?? (UNTITLED_RE.test(tab.title) ? "auto" : "manual");
-  const title = titleSource === "auto"
-    ? makeAutoTitle(tab.content, tab.title)
-    : tab.title;
-  return { ...tab, title, titleSource };
-}
-
-function partitionPinned(tabs: Tab[]): Tab[] {
-  return [...tabs.filter((t) => t.pinned), ...tabs.filter((t) => !t.pinned)];
-}
-
-function isAutoTitled(tab: Tab) {
-  return tab.titleSource === "auto" || (tab.titleSource === undefined && UNTITLED_RE.test(tab.title));
-}
-
-function canCleanupTab(tab: Tab) {
-  return tab.content.trim() === "" && !tab.isDirty && !tab.pinned && isAutoTitled(tab);
-}
 
 export const useEditorStore = create<EditorStore>((set, get) => {
   function performClose(id: string) {
