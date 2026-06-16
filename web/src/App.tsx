@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { TabBar } from "./components/TabBar/TabBar";
 import { Editor } from "./components/Editor/Editor";
 import { FindReplacePanel } from "./components/FindReplace/FindReplacePanel";
@@ -6,7 +6,7 @@ import { PresetsPanel } from "./components/Presets/PresetsPanel";
 import { AIPromptPanel } from "./components/AIPrompt/AIPromptPanel";
 import { ReferencePanel } from "./components/ReferencePanel/ReferencePanel";
 import { StatusBar } from "./components/StatusBar/StatusBar";
-import { CommandPalette, type Command } from "./components/CommandPalette/CommandPalette";
+import { CommandPalette } from "./components/CommandPalette/CommandPalette";
 import { ShortcutsModal } from "./components/ShortcutsModal/ShortcutsModal";
 import { SettingsPanel } from "./components/Settings/SettingsPanel";
 import { TabSwitcher } from "./components/TabSwitcher/TabSwitcher";
@@ -17,6 +17,7 @@ import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useSessionPersistence } from "./hooks/useSessionPersistence";
 import { useFileIO } from "./hooks/useFileIO";
 import { useTmuxActions } from "./hooks/useTmuxActions";
+import { useCommands, type PanelMode, type SidePanel } from "./hooks/useCommands";
 import { useEditorStore } from "./store/editorStore";
 import { useThemeStore } from "./store/themeStore";
 import { useSettingsStore } from "./store/settingsStore";
@@ -24,9 +25,6 @@ import { useReferenceStore } from "./store/referenceStore";
 import { ToastContainer } from "./components/Toast/Toast";
 import { ConfirmDialog } from "./components/ConfirmDialog/ConfirmDialog";
 import { toast } from "./store/toastStore";
-
-type PanelMode = null | "find" | "findReplace";
-type SidePanel = null | "presets" | "ai" | "settings" | "reference";
 
 function App() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -130,57 +128,13 @@ function App() {
     requestAnimationFrame(() => textareaRef.current?.focus());
   }, []);
 
-  const paletteCommands: Command[] = useMemo(() => [
-    { id: "new-tab", label: "Новый таб", shortcut: "Ctrl+N", action: () => useEditorStore.getState().createTab() },
-    { id: "close-tab", label: "Закрыть таб", shortcut: "Ctrl+W", action: () => {
-      const { activeTabId, closeTab } = useEditorStore.getState();
-      if (activeTabId) closeTab(activeTabId);
-    }},
-    { id: "close-saved-tabs", label: "Закрыть все сохранённые табы", action: () => {
-      const n = useEditorStore.getState().closeSavedTabs();
-      toast(n === 0 ? "Нечего закрывать" : `Закрыто: ${n}`, n === 0 ? "info" : "success");
-    }},
-    { id: "close-other-tabs", label: "Закрыть остальные табы", action: () => {
-      const { activeTabId, closeOtherTabs } = useEditorStore.getState();
-      if (!activeTabId) return;
-      const n = closeOtherTabs(activeTabId);
-      toast(n === 0 ? "Нечего закрывать" : `Закрыто: ${n}`, n === 0 ? "info" : "success");
-    }},
-    { id: "close-tabs-to-right", label: "Закрыть табы справа", action: () => {
-      const { activeTabId, closeTabsToRight } = useEditorStore.getState();
-      if (!activeTabId) return;
-      const n = closeTabsToRight(activeTabId);
-      toast(n === 0 ? "Нечего закрывать" : `Закрыто: ${n}`, n === 0 ? "info" : "success");
-    }},
-    { id: "toggle-pin", label: "Закрепить/открепить таб", shortcut: "Ctrl+P", action: toggleActivePin },
-    { id: "cleanup-empty-tabs", label: "Очистить пустые табы", action: cleanupEmptyTabs },
-    { id: "reopen-tab", label: "Восстановить закрытый таб", shortcut: "Ctrl+Shift+T", action: () => useEditorStore.getState().reopenTab() },
-    { id: "tab-switcher", label: "Найти таб", shortcut: "Ctrl+T", action: () => setTabSwitcherOpen(true) },
-    { id: "global-search", label: "Глобальный поиск по табам", shortcut: "Ctrl+Shift+D", action: () => setGlobalSearchOpen(true) },
-    { id: "find", label: "Найти", shortcut: "Ctrl+F", action: () => setPanelMode("find") },
-    { id: "find-replace", label: "Найти и заменить", shortcut: "Ctrl+H", action: () => setPanelMode("findReplace") },
-    { id: "presets", label: "Пресеты замены", action: () => setSidePanel("presets") },
-    { id: "reference", label: "Reference panel", shortcut: "Ctrl+R", action: () => toggleSidePanel("reference") },
-    { id: "ai-prompt", label: "AI Prompt", shortcut: "Ctrl+K", action: () => setSidePanel("ai") },
-    { id: "tmux-send", label: "Отправить в tmux", shortcut: "Ctrl+Enter", action: handleTmuxSend },
-    { id: "tmux-pick", label: "Отправить в tmux (выбрать окно)", shortcut: "Ctrl+Shift+Enter", action: () => setTmuxPicker({ mode: "send" }) },
-    { id: "tmux-bind", label: "Привязать таб к tmux-окну", shortcut: "Ctrl+B", action: bindActiveTab },
-    { id: "tmux-unbind", label: "Отвязать таб от tmux", shortcut: "Ctrl+Shift+B", action: unbindActiveTab },
-    { id: "save", label: "Сохранить как .txt", shortcut: "Ctrl+S", action: saveCurrentTab },
-    { id: "open", label: "Открыть файл", shortcut: "Ctrl+O", action: openFile },
-    { id: "download", label: "Скачать таб", action: downloadCurrentTab },
-    { id: "export", label: "Экспорт бэкапа", action: exportAll },
-    { id: "import", label: "Импорт бэкапа", action: importBackup },
-    { id: "distraction-free", label: "Distraction-free режим", shortcut: "Ctrl+Shift+F", action: toggleDistractionFree },
-    { id: "shortcuts", label: "Клавиатурные сокращения", shortcut: "Ctrl+/", action: () => setShortcutsOpen(true) },
-    { id: "theme-dark", label: "Тема: Тёмная", action: () => setTheme("dark") },
-    { id: "theme-light", label: "Тема: Светлая", action: () => setTheme("light") },
-    { id: "theme-system", label: "Тема: Системная", action: () => setTheme("system") },
-    { id: "toggle-sidebar", label: "Пресеты (sidebar)", shortcut: "Ctrl+.", action: () => toggleSidePanel("presets") },
-    { id: "toggle-md-preview", label: markdownPreview ? "Редактор" : "Markdown превью", shortcut: "Ctrl+M", action: () => setMarkdownPreview((v) => !v) },
-    { id: "settings", label: "Настройки", shortcut: "Ctrl+,", action: () => toggleSidePanel("settings") },
-    { id: "focus-editor", label: "Фокус в редактор", shortcut: "Ctrl+E", action: focusEditor },
-  ], [saveCurrentTab, openFile, downloadCurrentTab, exportAll, importBackup, toggleDistractionFree, toggleSidePanel, setTheme, markdownPreview, focusEditor, handleTmuxSend, cleanupEmptyTabs, bindActiveTab, unbindActiveTab, toggleActivePin, setTmuxPicker]);
+  const paletteCommands = useCommands({
+    saveCurrentTab, openFile, downloadCurrentTab, exportAll, importBackup,
+    toggleDistractionFree, toggleSidePanel, setSidePanel, setPanelMode, setTheme,
+    setTabSwitcherOpen, setGlobalSearchOpen, setShortcutsOpen, setMarkdownPreview,
+    markdownPreview, focusEditor, cleanupEmptyTabs, toggleActivePin,
+    handleTmuxSend, setTmuxPicker, bindActiveTab, unbindActiveTab,
+  });
 
   useKeyboardShortcuts({
     onFind: () => setPanelMode("find"),
