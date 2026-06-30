@@ -1,6 +1,6 @@
 import { useEditorStore } from "../store/editorStore";
 import { usePresetsStore } from "../store/presetsStore";
-import { usePromptTemplatesStore } from "../store/promptTemplatesStore";
+import { useTriggerPhrasesStore } from "../store/triggerPhrasesStore";
 import { isTauri } from "../lib/platform";
 import { toast } from "../store/toastStore";
 
@@ -88,8 +88,8 @@ export function useFileIO() {
   async function exportAll() {
     const { tabs } = useEditorStore.getState();
     const { presets } = usePresetsStore.getState();
-    const { templates: promptTemplates } = usePromptTemplatesStore.getState();
-    const data = JSON.stringify({ tabs, presets, promptTemplates }, null, 2);
+    const { phrases: triggerPhrases } = useTriggerPhrasesStore.getState();
+    const data = JSON.stringify({ tabs, presets, triggerPhrases }, null, 2);
 
     if (isTauri) {
       try {
@@ -175,7 +175,7 @@ function hydrateFromBackup(data: Record<string, unknown>) {
   if (Array.isArray(data.presets) && data.presets.length > 0) {
     usePresetsStore.getState().hydrate(data.presets);
   }
-  if (Array.isArray(data.promptTemplates) && data.promptTemplates.length > 0) {
-    usePromptTemplatesStore.getState().hydrate(data.promptTemplates);
+  if (Array.isArray(data.triggerPhrases) && data.triggerPhrases.length > 0) {
+    useTriggerPhrasesStore.getState().hydrate(data.triggerPhrases);
   }
 }

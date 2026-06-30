@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useEditorStore } from "../store/editorStore";
 import { usePresetsStore } from "../store/presetsStore";
-import { usePromptTemplatesStore } from "../store/promptTemplatesStore";
+import { useTriggerPhrasesStore } from "../store/triggerPhrasesStore";
 import { useThemeStore } from "../store/themeStore";
 import { useSettingsStore } from "../store/settingsStore";
 import { useReferenceStore } from "../store/referenceStore";
@@ -16,7 +16,7 @@ export function useSessionPersistence() {
     if (hasRestored.current) return;
     hasRestored.current = true;
 
-    loadSession().then(({ tabs, presets, promptTemplates, activeTabId, tabCounter, theme, fontSize, wordWrap, tmuxAutoSubmit, referenceText, referenceWidth }) => {
+    loadSession().then(({ tabs, presets, triggerPhrases, activeTabId, tabCounter, theme, fontSize, wordWrap, tmuxAutoSubmit, referenceText, referenceWidth }) => {
       if (tabs.length > 0) {
         useEditorStore.getState().hydrate(tabs, activeTabId, tabCounter);
       } else {
@@ -25,8 +25,8 @@ export function useSessionPersistence() {
       if (presets.length > 0) {
         usePresetsStore.getState().hydrate(presets);
       }
-      if (promptTemplates.length > 0) {
-        usePromptTemplatesStore.getState().hydrate(promptTemplates);
+      if (triggerPhrases.length > 0) {
+        useTriggerPhrasesStore.getState().hydrate(triggerPhrases);
       }
       if (theme === "light" || theme === "dark" || theme === "system") {
         useThemeStore.getState().hydrate(theme);
@@ -60,7 +60,7 @@ export function useSessionPersistence() {
       timer = setTimeout(persist, 500);
     });
 
-    const unsubTemplates = usePromptTemplatesStore.subscribe(() => {
+    const unsubPhrases = useTriggerPhrasesStore.subscribe(() => {
       if (!useEditorStore.getState().isHydrated) return;
       clearTimeout(timer);
       timer = setTimeout(persist, 500);
@@ -87,11 +87,11 @@ export function useSessionPersistence() {
     function persist() {
       const { tabs, activeTabId, tabCounter } = useEditorStore.getState();
       const { presets } = usePresetsStore.getState();
-      const { templates } = usePromptTemplatesStore.getState();
+      const { phrases } = useTriggerPhrasesStore.getState();
       const { theme } = useThemeStore.getState();
       const { fontSize, wordWrap, tmuxAutoSubmit } = useSettingsStore.getState();
       const { text: referenceText, width: referenceWidth } = useReferenceStore.getState();
-      saveSession(tabs, activeTabId, tabCounter, presets, templates, theme, fontSize, wordWrap, tmuxAutoSubmit, referenceText, referenceWidth)
+      saveSession(tabs, activeTabId, tabCounter, presets, phrases, theme, fontSize, wordWrap, tmuxAutoSubmit, referenceText, referenceWidth)
         .then(() => { saveErrorShown = false; })
         .catch(() => {
           // Throttle: one toast per failure streak, not every 500ms tick.
@@ -106,7 +106,7 @@ export function useSessionPersistence() {
       clearTimeout(timer);
       unsubEditor();
       unsubPresets();
-      unsubTemplates();
+      unsubPhrases();
       unsubTheme();
       unsubSettings();
       unsubReference();

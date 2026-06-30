@@ -1,7 +1,7 @@
 import { openDB, type DBSchema } from "idb";
 import type { Tab } from "../store/editorStore";
 import type { ReplacePreset } from "../store/presetsStore";
-import type { PromptTemplate } from "./promptBuilder";
+import type { TriggerPhrase } from "../store/triggerPhrasesStore";
 
 interface RewriteDB extends DBSchema {
   tabs: {
@@ -12,9 +12,9 @@ interface RewriteDB extends DBSchema {
     key: string;
     value: ReplacePreset;
   };
-  promptTemplates: {
+  triggerPhrases: {
     key: string;
-    value: PromptTemplate;
+    value: TriggerPhrase;
   };
   meta: {
     key: string;
@@ -23,11 +23,11 @@ interface RewriteDB extends DBSchema {
 }
 
 const DB_NAME = "rewrite-db";
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 
 function getDB() {
   return openDB<RewriteDB>(DB_NAME, DB_VERSION, {
-    upgrade(db, oldVersion, _newVersion, tx) {
+    upgrade(db, oldVersion) {
       // v1: tabs, presets, meta
       if (!db.objectStoreNames.contains("tabs")) {
         db.createObjectStore("tabs", { keyPath: "id" });
@@ -39,24 +39,15 @@ function getDB() {
         db.createObjectStore("meta");
       }
 
-      // v2: promptTemplates store
-      if (!db.objectStoreNames.contains("promptTemplates")) {
-        db.createObjectStore("promptTemplates", { keyPath: "id" });
-      }
-
-      // v3: add `order` field to existing promptTemplates
-      if (oldVersion >= 2 && oldVersion < 3) {
-        const store = tx.objectStore("promptTemplates");
-        let idx = 0;
-        void store.openCursor().then(function iterate(cursor): Promise<void> | undefined {
-          if (!cursor) return;
-          const value = cursor.value as unknown as { order?: number };
-          if (value.order === undefined) {
-            value.order = idx++;
-            cursor.update(value as unknown as PromptTemplate);
-          }
-          return cursor.continue().then(iterate);
-        });
+      // v4: промпт-шаблоны (clipboard-обёртки) заменены на trigger phrases —
+      // старый стор отбрасываем целиком (clean sweep, без миграции данных).
+      if (oldVersion < 4) {
+        if (db.objectStoreNames.contains("promptTemplates")) {
+          db.deleteObjectStore("promptTemplates");
+        }
+        if (!db.objectStoreNames.contains("triggerPhrases")) {
+          db.createObjectStore("triggerPhrases", { keyPath: "id" });
+        }
       }
     },
   });
@@ -80,7 +71,7 @@ export async function loadSession() {
   const tabOrder = (await db.get("meta", "tabOrder")) as string[] | undefined;
   const tabs = orderTabs(storedTabs, tabOrder);
   const presets = await db.getAll("presets");
-  const promptTemplates = await db.getAll("promptTemplates");
+  const triggerPhrases = await db.getAll("triggerPhrases");
   const activeTabId = (await db.get("meta", "activeTabId")) as string | undefined;
   const tabCounter = (await db.get("meta", "tabCounter")) as number | undefined;
   const theme = (await db.get("meta", "theme")) as string | undefined;
@@ -90,7 +81,7 @@ export async function loadSession() {
   const referenceText = (await db.get("meta", "referenceText")) as string | undefined;
   const referenceWidth = (await db.get("meta", "referenceWidth")) as number | undefined;
   return {
-    tabs, presets, promptTemplates,
+    tabs, presets, triggerPhrases,
     activeTabId: activeTabId ?? null,
     tabCounter: tabCounter ?? 0,
     theme: theme ?? "dark",
@@ -107,7 +98,7 @@ export async function saveSession(
   activeTabId: string | null,
   tabCounter: number,
   presets: ReplacePreset[],
-  promptTemplates: PromptTemplate[],
+  triggerPhrases: TriggerPhrase[],
   theme: string,
   fontSize: number,
   wordWrap: boolean,
@@ -116,7 +107,7 @@ export async function saveSession(
   referenceWidth: number,
 ) {
   const db = await getDB();
-  const tx = db.transaction(["tabs", "presets", "promptTemplates", "meta"], "readwrite");
+  const tx = db.transaction(["tabs", "presets", "triggerPhrases", "meta"], "readwrite");
 
   // Clear and rewrite tabs
   const tabStore = tx.objectStore("tabs");
@@ -132,11 +123,11 @@ export async function saveSession(
     await presetStore.put(preset);
   }
 
-  // Clear and rewrite prompt templates
-  const templateStore = tx.objectStore("promptTemplates");
-  await templateStore.clear();
-  for (const tpl of promptTemplates) {
-    await templateStore.put(tpl);
+  // Clear and rewrite trigger phrases
+  const phraseStore = tx.objectStore("triggerPhrases");
+  await phraseStore.clear();
+  for (const phrase of triggerPhrases) {
+    await phraseStore.put(phrase);
   }
 
   // Meta
