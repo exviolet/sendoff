@@ -7,7 +7,7 @@ interface ShortcutCallbacks {
   onClosePanels?: () => void;
   onSave?: () => void;
   onOpen?: () => void;
-  onAIPrompt?: () => void;
+  onTriggerPhrases?: () => void;
   onCommandPalette?: () => void;
   onTogglePin?: () => void;
   onDistractionFree?: () => void;
@@ -120,7 +120,7 @@ export function useKeyboardShortcuts(callbacks?: ShortcutCallbacks) {
 
       if (ctrl && code === "KeyK") {
         e.preventDefault();
-        callbacks?.onAIPrompt?.();
+        callbacks?.onTriggerPhrases?.();
         return;
       }
 

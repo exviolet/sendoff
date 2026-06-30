@@ -5,7 +5,7 @@ import type { Theme } from "../../store/themeStore";
 import { isTauri } from "../../lib/platform";
 import { toast } from "../../store/toastStore";
 
-type SidePanel = null | "presets" | "ai" | "settings" | "reference";
+type SidePanel = null | "presets" | "settings" | "reference";
 
 interface TabBarProps {
   sidePanel: SidePanel;
@@ -17,6 +17,7 @@ interface TabBarProps {
   onThemeToggle: () => void;
   onCleanupEmptyTabs: () => void;
   onBindTmux: (tabId: string) => void;
+  onTriggerPhrases: () => void;
 }
 
 function tabsMetaEqual(prev: ReturnType<typeof useEditorStore.getState>["tabs"], next: ReturnType<typeof useEditorStore.getState>["tabs"]) {
@@ -31,7 +32,7 @@ function tabsMetaEqual(prev: ReturnType<typeof useEditorStore.getState>["tabs"],
   );
 }
 
-export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAll, onImportBackup, theme, onThemeToggle, onCleanupEmptyTabs, onBindTmux }: TabBarProps) {
+export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAll, onImportBackup, theme, onThemeToggle, onCleanupEmptyTabs, onBindTmux, onTriggerPhrases }: TabBarProps) {
   const tabs = useEditorStore((s) => s.tabs, tabsMetaEqual);
   const activeTabId = useEditorStore((s) => s.activeTabId);
   const setActiveTab = useEditorStore((s) => s.setActiveTab);
@@ -347,22 +348,19 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
           </svg>
         </button>
 
-        {/* AI Prompt button */}
+        {/* Trigger phrases button */}
         <button
-          onClick={() => onSidePanelToggle("ai")}
-          className={`
+          onClick={onTriggerPhrases}
+          className="
             flex items-center justify-center w-7 h-7 rounded-[4px] transition-colors duration-150
-            ${sidePanel === "ai"
-              ? "text-accent bg-accent/10"
-              : "text-text-muted hover:text-text hover:bg-surface-hover"
-            }
-          `}
-          aria-label="AI Prompt"
-          title="AI Prompt (Ctrl+K)"
+            text-text-muted hover:text-text hover:bg-surface-hover
+          "
+          aria-label="Фразы-триггеры"
+          title="Фразы-триггеры (Ctrl+K)"
         >
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-            <path d="M8 2L3 8l5 6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
-            <path d="M8 2l5 6-5 6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+            <rect x="2" y="2" width="12" height="12" rx="2.5" stroke="currentColor" strokeWidth="1.3" />
+            <path d="M9 4L5.5 9H8l-1 3 3.5-5H8z" fill="currentColor" />
           </svg>
         </button>
 

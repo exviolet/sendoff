@@ -30,7 +30,7 @@ const SHORTCUT_GROUPS = [
   {
     title: "Панели",
     items: [
-      { keys: "Ctrl+K", action: "AI Prompt" },
+      { keys: "Ctrl+K", action: "Фразы-триггеры" },
       { keys: "Ctrl+R", action: "Reference panel" },
       { keys: "Ctrl+,", action: "Настройки" },
       { keys: "Ctrl+.", action: "Toggle sidebar" },

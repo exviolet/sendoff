@@ -3,7 +3,7 @@ import { TabBar } from "./components/TabBar/TabBar";
 import { Editor } from "./components/Editor/Editor";
 import { FindReplacePanel } from "./components/FindReplace/FindReplacePanel";
 import { PresetsPanel } from "./components/Presets/PresetsPanel";
-import { AIPromptPanel } from "./components/AIPrompt/AIPromptPanel";
+import { TriggerPhrasePicker } from "./components/TriggerPhrase/TriggerPhrasePicker";
 import { ReferencePanel } from "./components/ReferencePanel/ReferencePanel";
 import { StatusBar } from "./components/StatusBar/StatusBar";
 import { CommandPalette } from "./components/CommandPalette/CommandPalette";
@@ -36,6 +36,7 @@ function App() {
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [tabSwitcherOpen, setTabSwitcherOpen] = useState(false);
   const [globalSearchOpen, setGlobalSearchOpen] = useState(false);
+  const [triggerPhrasesOpen, setTriggerPhrasesOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [markdownPreview, setMarkdownPreview] = useState(false);
 
@@ -105,6 +106,7 @@ function App() {
     setCommandPaletteOpen(false);
     setTabSwitcherOpen(false);
     setGlobalSearchOpen(false);
+    setTriggerPhrasesOpen(false);
     setShortcutsOpen(false);
     textareaRef.current?.focus();
   }, []);
@@ -131,7 +133,7 @@ function App() {
   const paletteCommands = useCommands({
     saveCurrentTab, openFile, downloadCurrentTab, exportAll, importBackup,
     toggleDistractionFree, toggleSidePanel, setSidePanel, setPanelMode, setTheme,
-    setTabSwitcherOpen, setGlobalSearchOpen, setShortcutsOpen, setMarkdownPreview,
+    setTabSwitcherOpen, setGlobalSearchOpen, setTriggerPhrasesOpen, setShortcutsOpen, setMarkdownPreview,
     markdownPreview, focusEditor, cleanupEmptyTabs, toggleActivePin,
     handleTmuxSend, setTmuxPicker, bindActiveTab, unbindActiveTab,
   });
@@ -142,7 +144,7 @@ function App() {
     onClosePanels: () => {
       if (distractionFree) {
         setDistractionFree(false);
-      } else if (commandPaletteOpen || shortcutsOpen || tabSwitcherOpen || globalSearchOpen || tmuxPicker) {
+      } else if (commandPaletteOpen || shortcutsOpen || tabSwitcherOpen || globalSearchOpen || triggerPhrasesOpen || tmuxPicker) {
         // handled by their own listeners
       } else if (panelMode || sidePanel) {
         closePanel();
@@ -153,7 +155,7 @@ function App() {
     },
     onSave: saveCurrentTab,
     onOpen: openFile,
-    onAIPrompt: () => toggleSidePanel("ai"),
+    onTriggerPhrases: () => setTriggerPhrasesOpen((v) => !v),
     onCommandPalette: () => setCommandPaletteOpen((v) => !v),
     onTogglePin: toggleActivePin,
     onDistractionFree: toggleDistractionFree,
@@ -184,6 +186,7 @@ function App() {
           onThemeToggle={toggleTheme}
           onCleanupEmptyTabs={cleanupEmptyTabs}
           onBindTmux={openBindPicker}
+          onTriggerPhrases={() => setTriggerPhrasesOpen(true)}
         />
       )}
       {!distractionFree && panelMode && (
@@ -208,7 +211,6 @@ function App() {
         </div>
         {!distractionFree && sidePanel === "presets" && <PresetsPanel onClose={() => setSidePanel(null)} />}
         {!distractionFree && sidePanel === "reference" && <ReferencePanel onClose={() => setSidePanel(null)} textareaRef={textareaRef} />}
-        {!distractionFree && sidePanel === "ai" && <AIPromptPanel onClose={() => setSidePanel(null)} textareaRef={textareaRef} />}
         {!distractionFree && sidePanel === "settings" && <SettingsPanel onClose={() => setSidePanel(null)} />}
       </div>
       {!distractionFree && <StatusBar onBindTmux={bindActiveTab} />}
@@ -222,6 +224,12 @@ function App() {
       {tabSwitcherOpen && (
         <TabSwitcher
           onClose={() => setTabSwitcherOpen(false)}
+        />
+      )}
+      {triggerPhrasesOpen && (
+        <TriggerPhrasePicker
+          onClose={() => setTriggerPhrasesOpen(false)}
+          textareaRef={textareaRef}
         />
       )}
       {globalSearchOpen && (

@@ -5,7 +5,7 @@ import { toast } from "../store/toastStore";
 import { type TmuxPicker } from "./useTmuxActions";
 
 export type PanelMode = null | "find" | "findReplace";
-export type SidePanel = null | "presets" | "ai" | "settings" | "reference";
+export type SidePanel = null | "presets" | "settings" | "reference";
 
 // All the app-level handlers the command catalog wires together. The catalog is
 // the single hub that maps every action to a palette entry, so this surface is
@@ -23,6 +23,7 @@ export interface CommandDeps {
   setTheme: (theme: "dark" | "light" | "system") => void;
   setTabSwitcherOpen: Dispatch<SetStateAction<boolean>>;
   setGlobalSearchOpen: Dispatch<SetStateAction<boolean>>;
+  setTriggerPhrasesOpen: Dispatch<SetStateAction<boolean>>;
   setShortcutsOpen: Dispatch<SetStateAction<boolean>>;
   setMarkdownPreview: Dispatch<SetStateAction<boolean>>;
   markdownPreview: boolean;
@@ -39,7 +40,7 @@ export function useCommands(deps: CommandDeps): Command[] {
   const {
     saveCurrentTab, openFile, downloadCurrentTab, exportAll, importBackup,
     toggleDistractionFree, toggleSidePanel, setSidePanel, setPanelMode, setTheme,
-    setTabSwitcherOpen, setGlobalSearchOpen, setShortcutsOpen, setMarkdownPreview,
+    setTabSwitcherOpen, setGlobalSearchOpen, setTriggerPhrasesOpen, setShortcutsOpen, setMarkdownPreview,
     markdownPreview, focusEditor, cleanupEmptyTabs, toggleActivePin,
     handleTmuxSend, setTmuxPicker, bindActiveTab, unbindActiveTab,
   } = deps;
@@ -75,7 +76,7 @@ export function useCommands(deps: CommandDeps): Command[] {
     { id: "find-replace", label: "Найти и заменить", shortcut: "Ctrl+H", action: () => setPanelMode("findReplace") },
     { id: "presets", label: "Пресеты замены", action: () => setSidePanel("presets") },
     { id: "reference", label: "Reference panel", shortcut: "Ctrl+R", action: () => toggleSidePanel("reference") },
-    { id: "ai-prompt", label: "AI Prompt", shortcut: "Ctrl+K", action: () => setSidePanel("ai") },
+    { id: "trigger-phrases", label: "Фразы-триггеры", shortcut: "Ctrl+K", action: () => setTriggerPhrasesOpen(true) },
     { id: "tmux-send", label: "Отправить в tmux", shortcut: "Ctrl+Enter", action: handleTmuxSend },
     { id: "tmux-pick", label: "Отправить в tmux (выбрать окно)", shortcut: "Ctrl+Shift+Enter", action: () => setTmuxPicker({ mode: "send" }) },
     { id: "tmux-bind", label: "Привязать таб к tmux-окну", shortcut: "Ctrl+B", action: bindActiveTab },
@@ -94,5 +95,5 @@ export function useCommands(deps: CommandDeps): Command[] {
     { id: "toggle-md-preview", label: markdownPreview ? "Редактор" : "Markdown превью", shortcut: "Ctrl+M", action: () => setMarkdownPreview((v) => !v) },
     { id: "settings", label: "Настройки", shortcut: "Ctrl+,", action: () => toggleSidePanel("settings") },
     { id: "focus-editor", label: "Фокус в редактор", shortcut: "Ctrl+E", action: focusEditor },
-  ], [saveCurrentTab, openFile, downloadCurrentTab, exportAll, importBackup, toggleDistractionFree, toggleSidePanel, setSidePanel, setPanelMode, setTheme, setTabSwitcherOpen, setGlobalSearchOpen, setShortcutsOpen, setMarkdownPreview, markdownPreview, focusEditor, cleanupEmptyTabs, toggleActivePin, handleTmuxSend, setTmuxPicker, bindActiveTab, unbindActiveTab]);
+  ], [saveCurrentTab, openFile, downloadCurrentTab, exportAll, importBackup, toggleDistractionFree, toggleSidePanel, setSidePanel, setPanelMode, setTheme, setTabSwitcherOpen, setGlobalSearchOpen, setTriggerPhrasesOpen, setShortcutsOpen, setMarkdownPreview, markdownPreview, focusEditor, cleanupEmptyTabs, toggleActivePin, handleTmuxSend, setTmuxPicker, bindActiveTab, unbindActiveTab]);
 }
