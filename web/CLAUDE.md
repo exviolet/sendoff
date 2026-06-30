@@ -11,7 +11,7 @@ Rewrite is a fast, minimal browser-based personal text editor. The primary use c
 ```bash
 # Development
 bun dev               # Start dev server
-bun tsc --noEmit      # TypeScript type checking (must pass: zero errors)
+bun tsc -b            # TypeScript type checking (must pass: zero errors)
 bun lint              # ESLint validation (must pass: zero warnings/errors)
 
 # Production
@@ -19,7 +19,13 @@ bun run build
 bun run preview       # Test production build locally
 ```
 
-**After every phase**: run `bun tsc --noEmit` and `bun lint` — both must be clean before proceeding.
+**After every phase**: run `bun tsc -b` and `bun lint` — both must be clean before proceeding.
+
+> ⚠️ Use `tsc -b`, **not** `tsc --noEmit`. The root `tsconfig.json` is a solution-style
+> stub (`"files": []` + project references), so `tsc --noEmit` against it checks **zero
+> files** and always passes — a hollow no-op. Only `-b` (build mode) follows the
+> references into `tsconfig.app.json` and actually type-checks `src/`. This is what
+> `bun run build` runs.
 
 ## Tech Stack
 

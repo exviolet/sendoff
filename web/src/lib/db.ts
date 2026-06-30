@@ -1,4 +1,4 @@
-import { openDB, type DBSchema } from "idb";
+import { openDB, type DBSchema, type IDBPDatabase } from "idb";
 import type { Tab } from "../store/editorStore";
 import type { ReplacePreset } from "../store/presetsStore";
 import type { TriggerPhrase } from "../store/triggerPhrasesStore";
@@ -42,8 +42,12 @@ function getDB() {
       // v4: промпт-шаблоны (clipboard-обёртки) заменены на trigger phrases —
       // старый стор отбрасываем целиком (clean sweep, без миграции данных).
       if (oldVersion < 4) {
-        if (db.objectStoreNames.contains("promptTemplates")) {
-          db.deleteObjectStore("promptTemplates");
+        // db типизирован новой схемой (promptTemplates в ней уже нет), поэтому к
+        // легаси-стору обращаемся через нетипизированный IDBPDatabase — иначе
+        // tsc -b ругается на строковый литерал не из union'а store-имён.
+        const legacy = db as unknown as IDBPDatabase;
+        if (legacy.objectStoreNames.contains("promptTemplates")) {
+          legacy.deleteObjectStore("promptTemplates");
         }
         if (!db.objectStoreNames.contains("triggerPhrases")) {
           db.createObjectStore("triggerPhrases", { keyPath: "id" });
