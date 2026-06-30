@@ -11,7 +11,7 @@ interface MatchResult {
   match: boolean;
   score: number;
   indices: number[];
-  source: "title" | "preview" | "content";
+  source: "title" | "binding" | "preview" | "content";
 }
 
 interface TabResult {
@@ -20,6 +20,15 @@ interface TabResult {
   indices: number[];
   score: number;
   source: MatchResult["source"] | null;
+}
+
+// «Только tmux»-фильтр держится на сессию (сбрасывается на перезагрузке), но
+// переживает закрытие/открытие модалки. IndexedDB-персист не нужен — это эфемерный
+// режим просмотра, не настройка.
+let sessionBoundOnly = false;
+
+function bindingLabel(tab: Tab): string {
+  return tab.tmuxBinding ? `${tab.tmuxBinding.session}:${tab.tmuxBinding.window}` : "";
 }
 
 function firstContentLine(content: string) {
@@ -59,9 +68,15 @@ function fuzzyMatch(query: string, text: string, baseScore = 0, source: MatchRes
 
 function bestMatch(query: string, tab: Tab) {
   const title = fuzzyMatch(query, tab.title, 20, "title");
+  const label = bindingLabel(tab);
+  // Привязка участвует в поиске: печатаешь `work:claude` или просто `claude` —
+  // привязанный таб всплывает. Балл между title и preview.
+  const binding: MatchResult = label
+    ? fuzzyMatch(query, label, 16, "binding")
+    : { match: false, score: 0, indices: [], source: "binding" };
   const preview = fuzzyMatch(query, makePreview(tab), 8, "preview");
   const content = fuzzyMatch(query, tab.content, 0, "content");
-  const matches = [title, preview, content].filter((result) => result.match);
+  const matches = [title, binding, preview, content].filter((result) => result.match);
   if (matches.length === 0) return null;
   return matches.sort((a, b) => b.score - a.score)[0];
 }
@@ -152,19 +167,39 @@ export function TabSwitcher({ onClose }: TabSwitcherProps) {
   const setActiveTab = useEditorStore((s) => s.setActiveTab);
   const closeTab = useEditorStore((s) => s.closeTab);
   const [query, setQuery] = useState("");
+  const [boundOnly, setBoundOnly] = useState(sessionBoundOnly);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+
+  const boundCount = useMemo(() => tabs.filter((t) => t.tmuxBinding).length, [tabs]);
 
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
 
+  const toggleBoundOnly = useCallback(() => {
+    setBoundOnly((v) => {
+      sessionBoundOnly = !v;
+      return !v;
+    });
+    setSelectedIndex(0);
+  }, []);
+
   const results = useMemo(() => {
-    const indexedTabs = tabs.map((tab, index) => ({ tab, index }));
+    const indexedTabs = tabs
+      .map((tab, index) => ({ tab, index }))
+      .filter((item) => !boundOnly || item.tab.tmuxBinding);
+
     if (!query.trim()) {
+      // Пустой запрос: привязанные первыми, внутри групп — по свежести.
       return indexedTabs
-        .sort((a, b) => b.tab.updatedAt - a.tab.updatedAt)
+        .sort((a, b) => {
+          const aBound = a.tab.tmuxBinding ? 1 : 0;
+          const bBound = b.tab.tmuxBinding ? 1 : 0;
+          if (aBound !== bBound) return bBound - aBound;
+          return b.tab.updatedAt - a.tab.updatedAt;
+        })
         .map((item) => ({ ...item, indices: [] as number[], score: 0, source: null }));
     }
 
@@ -174,7 +209,7 @@ export function TabSwitcher({ onClose }: TabSwitcherProps) {
         return match ? [{ ...item, indices: match.indices, score: match.score, source: match.source }] : [];
       })
       .sort((a, b) => b.score - a.score || b.tab.updatedAt - a.tab.updatedAt);
-  }, [query, tabs]);
+  }, [query, tabs, boundOnly]);
 
   const selectedResult = results[selectedIndex];
   const previewContext = selectedResult
@@ -211,6 +246,13 @@ export function TabSwitcher({ onClose }: TabSwitcherProps) {
         return;
       }
 
+      if (e.key === "Tab") {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleBoundOnly();
+        return;
+      }
+
       if (e.key === "ArrowDown") {
         e.preventDefault();
         setSelectedIndex((i) => Math.min(i + 1, results.length - 1));
@@ -223,7 +265,9 @@ export function TabSwitcher({ onClose }: TabSwitcherProps) {
         return;
       }
 
-      if ((e.ctrlKey || e.metaKey) && (e.key === "Delete" || e.key === "Backspace")) {
+      // Только Ctrl+Del закрывает таб. Ctrl+Backspace НЕ перехватываем — это
+      // стандартное «удалить слово» в инпуте поиска.
+      if ((e.ctrlKey || e.metaKey) && e.key === "Delete") {
         e.preventDefault();
         e.stopPropagation();
         closeSelected();
@@ -238,7 +282,7 @@ export function TabSwitcher({ onClose }: TabSwitcherProps) {
 
     document.addEventListener("keydown", handleKeyDown, true);
     return () => document.removeEventListener("keydown", handleKeyDown, true);
-  }, [closeSelected, executeSelected, onClose, pendingClose, results.length]);
+  }, [closeSelected, executeSelected, onClose, pendingClose, results.length, toggleBoundOnly]);
 
   useEffect(() => {
     const list = listRef.current;
@@ -266,17 +310,31 @@ export function TabSwitcher({ onClose }: TabSwitcherProps) {
               setQuery(e.target.value);
               setSelectedIndex(0);
             }}
-            placeholder="Найти таб..."
+            placeholder={boundOnly ? "Найти привязанный таб..." : "Найти таб..."}
             className="flex-1 bg-transparent text-text text-sm outline-none placeholder:text-text-muted/50"
           />
-          <span className="text-[10px] text-text-muted/50 tabular-nums">{tabs.length} табов</span>
+          <button
+            type="button"
+            onClick={toggleBoundOnly}
+            title="Только привязанные к tmux (Tab)"
+            className={`shrink-0 px-2 py-0.5 rounded-[3px] border text-[10px] font-medium transition-colors ${
+              boundOnly
+                ? "border-accent/30 bg-accent/15 text-accent"
+                : "border-border text-text-muted hover:text-text"
+            }`}
+          >
+            tmux
+          </button>
+          <span className="text-[10px] text-text-muted/50 tabular-nums shrink-0">
+            {results.length}/{boundOnly ? boundCount : tabs.length}
+          </span>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-[minmax(260px,0.92fr)_minmax(340px,1.08fr)]">
           <div ref={listRef} className="max-h-[52vh] overflow-y-auto py-1 md:border-r md:border-border">
             {results.length === 0 && (
               <div className="px-4 py-8 text-center text-text-muted text-xs">
-                Ничего не найдено
+                {boundOnly && boundCount === 0 ? "Нет привязанных табов" : "Ничего не найдено"}
               </div>
             )}
             {results.map((item, i) => {
@@ -300,6 +358,16 @@ export function TabSwitcher({ onClose }: TabSwitcherProps) {
                     <span className="flex items-center gap-2 min-w-0">
                       <span className="truncate text-[13px] text-text">{highlightText(item.tab.title, item.source === "title" ? item.indices : [])}</span>
                       {isActive && <span className="text-[10px] text-accent shrink-0">активный</span>}
+                      {item.tab.tmuxBinding && (
+                        <span
+                          className="shrink-0 px-1.5 py-0.5 rounded-[3px] bg-accent/10 text-accent text-[9px] font-mono leading-none"
+                          title={`tmux → ${bindingLabel(item.tab)}`}
+                        >
+                          {item.source === "binding"
+                            ? highlightText(bindingLabel(item.tab), item.indices)
+                            : bindingLabel(item.tab)}
+                        </span>
+                      )}
                     </span>
                     <span className="block truncate text-[11px] text-text-muted/70 mt-0.5">{preview}</span>
                   </span>
@@ -316,6 +384,11 @@ export function TabSwitcher({ onClose }: TabSwitcherProps) {
                   <div className="flex items-center gap-2 min-w-0">
                     <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${selectedResult.tab.isDirty ? "bg-dirty" : selectedResult.tab.id === activeTabId ? "bg-accent" : "bg-border"}`} />
                     <h2 className="truncate text-sm font-medium text-text">{selectedResult.tab.title}</h2>
+                    {selectedResult.tab.tmuxBinding && (
+                      <span className="shrink-0 px-1.5 py-0.5 rounded-[3px] bg-accent/10 text-accent text-[10px] font-mono leading-none">
+                        {bindingLabel(selectedResult.tab)}
+                      </span>
+                    )}
                     <span className="ml-auto text-[10px] text-text-muted/50 tabular-nums shrink-0">#{selectedResult.index + 1}</span>
                     <button
                       type="button"
@@ -330,6 +403,7 @@ export function TabSwitcher({ onClose }: TabSwitcherProps) {
                     {selectedResult.tab.id === activeTabId && <span className="text-accent">активный</span>}
                     {selectedResult.tab.isDirty && <span className="text-dirty">изменён</span>}
                     {selectedResult.source === "content" && <span>совпадение в тексте</span>}
+                    {selectedResult.source === "binding" && <span>совпадение в привязке</span>}
                   </div>
                 </div>
 
@@ -360,6 +434,7 @@ export function TabSwitcher({ onClose }: TabSwitcherProps) {
         <div className="flex items-center gap-3 px-4 py-2 border-t border-border text-[10px] text-text-muted/50">
           <span>↑↓ навигация</span>
           <span>↵ открыть</span>
+          <span>Tab только tmux</span>
           <span>Ctrl+Del закрыть</span>
           <span>Esc закрыть</span>
         </div>
