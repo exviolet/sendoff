@@ -19,9 +19,11 @@ function summarizeError(action: string, output: CommandOutput) {
   return `${action}: ${detail}`;
 }
 
-async function runOrca(args: string[]): Promise<CommandOutput> {
+// Первый аргумент Command.create — ИМЯ scoped-команды из allowlist (capabilities),
+// а НЕ бинарь. Бинарь (`orca-ide`) и разрешённые args берутся из entry по имени.
+async function runOrca(scopedName: string, args: string[]): Promise<CommandOutput> {
   const { Command } = await import("@tauri-apps/plugin-shell");
-  const output = await Command.create("orca-ide", args).execute();
+  const output = await Command.create(scopedName, args).execute();
 
   if (output.code !== 0) {
     throw new Error(summarizeError("orca error", output));
@@ -70,8 +72,8 @@ export async function listOrcaAgentTargets(): Promise<OrcaAgentTarget[]> {
   if (!isTauri) throw new Error("Orca доступен только в desktop-сборке");
 
   const [psOut, listOut] = await Promise.all([
-    runOrca(["worktree", "ps", "--json"]),
-    runOrca(["terminal", "list", "--json"]),
+    runOrca("orca-worktree-ps", ["worktree", "ps", "--json"]),
+    runOrca("orca-terminal-list", ["terminal", "list", "--json"]),
   ]);
 
   const listResult = parseResult(listOut.stdout);
@@ -151,11 +153,11 @@ export function useOrcaSend() {
       // bracketed-paste маркеры держит многострочник одним буфером; отдельный
       // --enter сабмитит разом. Аналог tmux `paste-buffer -p`.
       const wrapped = `\x1b[200~${text}\x1b[201~`;
-      await runOrca(["terminal", "send", "--terminal", opts.handle, "--text", wrapped, "--json"]);
+      await runOrca("orca-terminal-send-text", ["terminal", "send", "--terminal", opts.handle, "--text", wrapped, "--json"]);
 
       if (opts.submit) {
         await new Promise((resolve) => setTimeout(resolve, 80));
-        await runOrca(["terminal", "send", "--terminal", opts.handle, "--enter", "--json"]);
+        await runOrca("orca-terminal-send-enter", ["terminal", "send", "--terminal", opts.handle, "--enter", "--json"]);
       }
 
       toast(`Отправлено в Orca (${text.length} симв.)`, "success");
