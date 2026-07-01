@@ -69,7 +69,7 @@ function App() {
   } = useTmuxActions(textareaRef);
   const {
     orcaPicker, setOrcaPicker, handleOrcaSend, handleOrcaPick,
-    bindActiveTabOrca, unbindActiveTabOrca,
+    bindActiveTabOrca, openBindPickerOrca, unbindActiveTabOrca,
   } = useOrcaActions(textareaRef);
 
   // Ctrl+Enter диспетчер: таб с orca-привязкой → Orca, иначе существующий tmux-flow.
@@ -201,6 +201,7 @@ function App() {
           onThemeToggle={toggleTheme}
           onCleanupEmptyTabs={cleanupEmptyTabs}
           onBindTmux={openBindPicker}
+          onBindOrca={openBindPickerOrca}
           onTriggerPhrases={() => setTriggerPhrasesOpen(true)}
         />
       )}

@@ -79,6 +79,11 @@ export function useOrcaActions(textareaRef: RefObject<HTMLTextAreaElement | null
     if (id) setOrcaPicker({ mode: "bind", tabId: id });
   }, []);
 
+  // Привязать конкретный таб (для контекстного меню TabBar).
+  const openBindPickerOrca = useCallback((tabId: string) => {
+    setOrcaPicker({ mode: "bind", tabId });
+  }, []);
+
   const unbindActiveTabOrca = useCallback(() => {
     const { tabs, activeTabId } = useEditorStore.getState();
     const tab = tabs.find((t) => t.id === activeTabId);
@@ -97,6 +102,7 @@ export function useOrcaActions(textareaRef: RefObject<HTMLTextAreaElement | null
     handleOrcaSend,
     handleOrcaPick,
     bindActiveTabOrca,
+    openBindPickerOrca,
     unbindActiveTabOrca,
   };
 }
