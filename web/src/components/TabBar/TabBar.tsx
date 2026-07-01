@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useEditorStore } from "../../store/editorStore";
-import type { TmuxBinding } from "../../store/editorStore";
+import type { TmuxBinding, OrcaBinding } from "../../store/editorStore";
 import type { Theme } from "../../store/themeStore";
 import { isTauri } from "../../lib/platform";
 import { toast } from "../../store/toastStore";
@@ -17,6 +17,7 @@ interface TabBarProps {
   onThemeToggle: () => void;
   onCleanupEmptyTabs: () => void;
   onBindTmux: (tabId: string) => void;
+  onBindOrca: (tabId: string) => void;
   onTriggerPhrases: () => void;
 }
 
@@ -28,11 +29,13 @@ function tabsMetaEqual(prev: ReturnType<typeof useEditorStore.getState>["tabs"],
     tab.isDirty === next[i].isDirty &&
     tab.pinned === next[i].pinned &&
     tab.tmuxBinding?.session === next[i].tmuxBinding?.session &&
-    tab.tmuxBinding?.window === next[i].tmuxBinding?.window
+    tab.tmuxBinding?.window === next[i].tmuxBinding?.window &&
+    tab.orcaBinding?.worktree === next[i].orcaBinding?.worktree &&
+    tab.orcaBinding?.titleHint === next[i].orcaBinding?.titleHint
   );
 }
 
-export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAll, onImportBackup, theme, onThemeToggle, onCleanupEmptyTabs, onBindTmux, onTriggerPhrases }: TabBarProps) {
+export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAll, onImportBackup, theme, onThemeToggle, onCleanupEmptyTabs, onBindTmux, onBindOrca, onTriggerPhrases }: TabBarProps) {
   const tabs = useEditorStore((s) => s.tabs, tabsMetaEqual);
   const activeTabId = useEditorStore((s) => s.activeTabId);
   const setActiveTab = useEditorStore((s) => s.setActiveTab);
@@ -44,6 +47,7 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
   const closeOtherTabs = useEditorStore((s) => s.closeOtherTabs);
   const closeTabsToRight = useEditorStore((s) => s.closeTabsToRight);
   const setTabBinding = useEditorStore((s) => s.setTabBinding);
+  const setOrcaBinding = useEditorStore((s) => s.setOrcaBinding);
   const togglePin = useEditorStore((s) => s.togglePin);
 
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -201,6 +205,19 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
                 >
                   <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
                     <path d="M6.5 9.5l3-3M7 4.5l1-1a2.5 2.5 0 0 1 3.5 3.5l-1 1M9 11.5l-1 1a2.5 2.5 0 0 1-3.5-3.5l1-1" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </span>
+              )}
+
+              {/* Orca binding indicator (терминал-глиф, отличается от tmux-«линка») */}
+              {tab.orcaBinding && (
+                <span
+                  className="shrink-0 text-accent"
+                  title={`orca → ${tab.orcaBinding.titleHint ?? tab.orcaBinding.worktree}`}
+                >
+                  <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+                    <rect x="2" y="3" width="12" height="10" rx="2" stroke="currentColor" strokeWidth="1.4" />
+                    <path d="M5 6.5L7 8l-2 1.5M8.5 9.5H11" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 </span>
               )}
@@ -390,10 +407,13 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
           y={ctxMenu.y}
           pinned={tabs.find((t) => t.id === ctxMenu.id)?.pinned ?? false}
           binding={tabs.find((t) => t.id === ctxMenu.id)?.tmuxBinding ?? null}
+          orcaBinding={tabs.find((t) => t.id === ctxMenu.id)?.orcaBinding ?? null}
           onClose={() => setCtxMenu(null)}
           onTogglePin={() => togglePin(ctxMenu.id)}
           onBindTmux={() => onBindTmux(ctxMenu.id)}
           onUnbindTmux={() => setTabBinding(ctxMenu.id, null)}
+          onBindOrca={() => onBindOrca(ctxMenu.id)}
+          onUnbindOrca={() => setOrcaBinding(ctxMenu.id, null)}
           onCloseTab={() => closeTab(ctxMenu.id)}
           onCloseOthers={() => reportClosed(closeOtherTabs(ctxMenu.id))}
           onCloseRight={() => reportClosed(closeTabsToRight(ctxMenu.id))}
@@ -406,15 +426,18 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
 }
 
 function TabContextMenu({
-  x, y, pinned, binding, onClose, onTogglePin, onBindTmux, onUnbindTmux, onCloseTab, onCloseOthers, onCloseRight, onCloseSaved, onCleanupEmpty,
+  x, y, pinned, binding, orcaBinding, onClose, onTogglePin, onBindTmux, onUnbindTmux, onBindOrca, onUnbindOrca, onCloseTab, onCloseOthers, onCloseRight, onCloseSaved, onCleanupEmpty,
 }: {
   x: number; y: number;
   pinned: boolean;
   binding: TmuxBinding | null;
+  orcaBinding: OrcaBinding | null;
   onClose: () => void;
   onTogglePin: () => void;
   onBindTmux: () => void;
   onUnbindTmux: () => void;
+  onBindOrca: () => void;
+  onUnbindOrca: () => void;
   onCloseTab: () => void;
   onCloseOthers: () => void;
   onCloseRight: () => void;
@@ -427,6 +450,13 @@ function TabContextMenu({
         { label: `Отвязать от tmux (${binding.window})`, action: onUnbindTmux },
       ]
     : [{ label: "Привязать к tmux-окну…", action: onBindTmux }];
+
+  const orcaItems = orcaBinding
+    ? [
+        { label: "Перепривязать к Orca-агенту…", action: onBindOrca },
+        { label: `Отвязать от Orca (${orcaBinding.titleHint ?? orcaBinding.worktree})`, action: onUnbindOrca },
+      ]
+    : [{ label: "Привязать к Orca-агенту…", action: onBindOrca }];
 
   const closeItems = [
     { label: "Закрыть", action: onCloseTab, shortcut: "Ctrl+W" },
@@ -461,6 +491,7 @@ function TabContextMenu({
         {renderItem({ label: pinned ? "Открепить таб" : "Закрепить таб", action: onTogglePin, shortcut: "Ctrl+P" })}
       </div>
       <div className="border-b border-border/40">{tmuxItems.map(renderItem)}</div>
+      <div className="border-b border-border/40">{orcaItems.map(renderItem)}</div>
       {closeItems.map(renderItem)}
     </div>
   );

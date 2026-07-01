@@ -12,11 +12,13 @@ import { SettingsPanel } from "./components/Settings/SettingsPanel";
 import { TabSwitcher } from "./components/TabSwitcher/TabSwitcher";
 import { GlobalSearchPanel } from "./components/GlobalSearch/GlobalSearchPanel";
 import { TmuxTargetPicker } from "./components/TmuxPicker/TmuxTargetPicker";
+import { OrcaTargetPicker } from "./components/OrcaPicker/OrcaTargetPicker";
 import type { MatchResult } from "./lib/replaceEngine";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useSessionPersistence } from "./hooks/useSessionPersistence";
 import { useFileIO } from "./hooks/useFileIO";
 import { useTmuxActions } from "./hooks/useTmuxActions";
+import { useOrcaActions } from "./hooks/useOrcaActions";
 import { useCommands, type PanelMode, type SidePanel } from "./hooks/useCommands";
 import { useEditorStore } from "./store/editorStore";
 import { useThemeStore } from "./store/themeStore";
@@ -65,6 +67,18 @@ function App() {
     tmuxPicker, setTmuxPicker, handleTmuxSend, handleTmuxPick,
     openBindPicker, bindActiveTab, unbindActiveTab,
   } = useTmuxActions(textareaRef);
+  const {
+    orcaPicker, setOrcaPicker, handleOrcaSend, handleOrcaPick,
+    bindActiveTabOrca, openBindPickerOrca, unbindActiveTabOrca,
+  } = useOrcaActions(textareaRef);
+
+  // Ctrl+Enter диспетчер: таб с orca-привязкой → Orca, иначе существующий tmux-flow.
+  const handleSend = useCallback(() => {
+    const { tabs, activeTabId } = useEditorStore.getState();
+    const tab = tabs.find((t) => t.id === activeTabId);
+    if (tab?.orcaBinding) void handleOrcaSend();
+    else void handleTmuxSend();
+  }, [handleOrcaSend, handleTmuxSend]);
 
   // Warn on browser close if dirty tabs exist
   useEffect(() => {
@@ -135,7 +149,8 @@ function App() {
     toggleDistractionFree, toggleSidePanel, setSidePanel, setPanelMode, setTheme,
     setTabSwitcherOpen, setGlobalSearchOpen, setTriggerPhrasesOpen, setShortcutsOpen, setMarkdownPreview,
     markdownPreview, focusEditor, cleanupEmptyTabs, toggleActivePin,
-    handleTmuxSend, setTmuxPicker, bindActiveTab, unbindActiveTab,
+    handleTmuxSend: handleSend, setTmuxPicker, bindActiveTab, unbindActiveTab,
+    setOrcaPicker, bindActiveTabOrca, unbindActiveTabOrca,
   });
 
   useKeyboardShortcuts({
@@ -144,7 +159,7 @@ function App() {
     onClosePanels: () => {
       if (distractionFree) {
         setDistractionFree(false);
-      } else if (commandPaletteOpen || shortcutsOpen || tabSwitcherOpen || globalSearchOpen || triggerPhrasesOpen || tmuxPicker) {
+      } else if (commandPaletteOpen || shortcutsOpen || tabSwitcherOpen || globalSearchOpen || triggerPhrasesOpen || tmuxPicker || orcaPicker) {
         // handled by their own listeners
       } else if (panelMode || sidePanel) {
         closePanel();
@@ -164,7 +179,7 @@ function App() {
     onToggleMarkdownPreview: () => setMarkdownPreview((v) => !v),
     onSettings: () => toggleSidePanel("settings"),
     onFocusEditor: focusEditor,
-    onTmuxSend: handleTmuxSend,
+    onTmuxSend: handleSend,
     onTmuxPicker: () => setTmuxPicker((v) => (v ? null : { mode: "send" })),
     onTmuxBind: bindActiveTab,
     onTmuxUnbind: unbindActiveTab,
@@ -186,6 +201,7 @@ function App() {
           onThemeToggle={toggleTheme}
           onCleanupEmptyTabs={cleanupEmptyTabs}
           onBindTmux={openBindPicker}
+          onBindOrca={openBindPickerOrca}
           onTriggerPhrases={() => setTriggerPhrasesOpen(true)}
         />
       )}
@@ -213,7 +229,7 @@ function App() {
         {!distractionFree && sidePanel === "reference" && <ReferencePanel onClose={() => setSidePanel(null)} textareaRef={textareaRef} />}
         {!distractionFree && sidePanel === "settings" && <SettingsPanel onClose={() => setSidePanel(null)} />}
       </div>
-      {!distractionFree && <StatusBar onBindTmux={bindActiveTab} />}
+      {!distractionFree && <StatusBar onBindTmux={bindActiveTab} onBindOrca={bindActiveTabOrca} />}
 
       {commandPaletteOpen && (
         <CommandPalette
@@ -243,6 +259,13 @@ function App() {
           mode={tmuxPicker.mode}
           onClose={() => setTmuxPicker(null)}
           onPick={handleTmuxPick}
+        />
+      )}
+      {orcaPicker && (
+        <OrcaTargetPicker
+          mode={orcaPicker.mode}
+          onClose={() => setOrcaPicker(null)}
+          onPick={handleOrcaPick}
         />
       )}
       {shortcutsOpen && <ShortcutsModal onClose={() => setShortcutsOpen(false)} />}

@@ -14,6 +14,11 @@ export interface TmuxBinding {
   window: string;
 }
 
+export interface OrcaBinding {
+  worktree: string;   // worktreePath или displayName (стабильно; хендл резолвится живьём)
+  titleHint?: string; // титул терминала для disambiguation внутри worktree
+}
+
 export interface Tab {
   id: string;
   title: string;
@@ -24,6 +29,7 @@ export interface Tab {
   pinned?: boolean;
   titleSource?: "auto" | "manual" | "file";
   tmuxBinding?: TmuxBinding;
+  orcaBinding?: OrcaBinding;
 }
 
 interface EditorStore {
@@ -47,6 +53,7 @@ interface EditorStore {
   renameTab: (id: string, title: string) => void;
   markSaved: (id: string) => void;
   setTabBinding: (id: string, binding: TmuxBinding | null) => void;
+  setOrcaBinding: (id: string, binding: OrcaBinding | null) => void;
   togglePin: (id: string) => void;
   reorderTab: (fromIndex: number, toIndex: number) => void;
   undo: (id: string) => void;
@@ -286,8 +293,27 @@ export const useEditorStore = create<EditorStore>((set, get) => {
       tabs: s.tabs.map((t) => {
         if (t.id !== id) return t;
         const next = { ...t, updatedAt: Date.now() };
-        if (binding) next.tmuxBinding = binding;
-        else delete next.tmuxBinding;
+        if (binding) {
+          next.tmuxBinding = binding;
+          delete next.orcaBinding; // взаимоисключимость: один таргет на таб
+        } else {
+          delete next.tmuxBinding;
+        }
+        return next;
+      }),
+    })),
+
+  setOrcaBinding: (id, binding) =>
+    set((s) => ({
+      tabs: s.tabs.map((t) => {
+        if (t.id !== id) return t;
+        const next = { ...t, updatedAt: Date.now() };
+        if (binding) {
+          next.orcaBinding = binding;
+          delete next.tmuxBinding; // взаимоисключимость: один таргет на таб
+        } else {
+          delete next.orcaBinding;
+        }
         return next;
       }),
     })),
