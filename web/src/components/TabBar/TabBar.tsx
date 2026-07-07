@@ -54,8 +54,11 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
   const [editValue, setEditValue] = useState("");
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [ctxMenu, setCtxMenu] = useState<{ id: string; x: number; y: number } | null>(null);
+  const [activeOff, setActiveOff] = useState<null | "left" | "right">(null);
   const dragIndexRef = useRef<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const activeTabRef = useRef<HTMLDivElement>(null);
+  const navRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     if (!ctxMenu) return;
@@ -80,6 +83,52 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
       inputRef.current.select();
     }
   }, [editingId]);
+
+  // Доскролл активного таба в зону видимости. inline:"nearest" ничего не делает,
+  // если таб уже виден; block:"nearest" — без вертикального сдвига хедера; instant.
+  const scrollToActive = useCallback(() => {
+    activeTabRef.current?.scrollIntoView({ inline: "nearest", block: "nearest" });
+  }, []);
+
+  // Авто-скролл при переключении таба (Ctrl+Tab, Ctrl+T switcher, создание/закрытие).
+  useEffect(() => {
+    scrollToActive();
+  }, [activeTabId, scrollToActive]);
+
+  // Индикатор «активный таб уехал за край» (ручной скролл колесом, таб не менялся):
+  // показываем контекстный шеврон, только когда активный таб не влезает в полосу.
+  // IntersectionObserver с root=nav ловит и скролл, и ресайз; async-колбэк не
+  // нарушает правило set-state-in-effect.
+  useEffect(() => {
+    const nav = navRef.current;
+    const el = activeTabRef.current;
+    if (!nav || !el) return;
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.intersectionRatio >= 0.99) { setActiveOff(null); return; }
+        const navRect = nav.getBoundingClientRect();
+        const elRect = el.getBoundingClientRect();
+        setActiveOff(elRect.left < navRect.left ? "left" : "right");
+      },
+      { root: nav, threshold: [0, 0.99] },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [activeTabId, tabs]);
+
+  // Ctrl+Shift+A → доскролл к активному табу. Локально в TabBar: это DOM-скролл-
+  // концерн полосы, не store-действие, поэтому не в централизованный
+  // useKeyboardShortcuts. e.code (не e.key) — независимо от раскладки; KeyA свободен.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && !e.altKey && e.code === "KeyA") {
+        e.preventDefault();
+        scrollToActive();
+      }
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [scrollToActive]);
 
   function startRename(id: string, title: string) {
     setEditingId(id);
@@ -134,9 +183,11 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
         </svg>
       </div>
 
-      {/* Tab strip */}
+      {/* Tab strip + контекстный шеврон «к активному табу» */}
+      <div className="relative flex items-center flex-1 min-w-0">
       <nav
-        className="no-scrollbar flex items-center gap-px flex-1 overflow-x-auto min-w-0 pr-1"
+        ref={navRef}
+        className="no-scrollbar flex items-center gap-px w-full overflow-x-auto min-w-0 pr-1"
         role="tablist"
         onWheel={(e) => {
           if (e.deltaY === 0 || e.shiftKey) return;
@@ -153,6 +204,7 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
           return (
             <div
               key={tab.id}
+              ref={isActive ? activeTabRef : undefined}
               role="tab"
               aria-selected={isActive}
               draggable={!isEditing}
@@ -274,6 +326,38 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
           </svg>
         </button>
       </nav>
+
+        {/* Контекстный шеврон «к активному табу»: виден только когда активный таб
+            уехал за край. Градиентный fade у края мягко затемняет крайний таб (не
+            перекрывает наглухо); стрелка в сторону активного; клик → доскролл.
+            Контейнер pointer-events-none (клики проходят к табам), кнопка — auto. */}
+        {activeOff && (
+          <div
+            className={`absolute top-0 bottom-0 z-10 w-14 flex items-center pointer-events-none ${
+              activeOff === "left"
+                ? "left-0 justify-start bg-gradient-to-r from-surface via-surface/85 to-transparent"
+                : "right-0 justify-end bg-gradient-to-l from-surface via-surface/85 to-transparent"
+            }`}
+          >
+            <button
+              onClick={scrollToActive}
+              aria-label="Прокрутить к активному табу"
+              title="К активному табу (Ctrl+Shift+A)"
+              className={`pointer-events-auto flex items-center justify-center h-6 w-5 rounded-[3px] text-accent hover:bg-surface-hover transition-colors duration-100 ${activeOff === "left" ? "ml-0.5" : "mr-0.5"}`}
+            >
+              {activeOff === "left" ? (
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                  <path d="M9.5 4L5.5 8l4 4M12.5 4L8.5 8l4 4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              ) : (
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                  <path d="M6.5 4l4 4-4 4M3.5 4l4 4-4 4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              )}
+            </button>
+          </div>
+        )}
+      </div>
 
       <div className="flex items-center gap-0.5 mr-2 shrink-0">
         {/* Download current tab */}
