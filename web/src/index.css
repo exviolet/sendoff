@@ -1,7 +1,25 @@
 @import "tailwindcss";
 
+/* Bundled JetBrains Mono (OFL, см. /assets/fonts/JetBrainsMono-OFL.txt) — гарантированный
+   красивый дефолт независимо от установленных в системе шрифтов. Nerd-Font-варианты
+   в стеке ниже матчатся раньше, если стоят в системе (рендер иконочных глифов). */
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/assets/fonts/JetBrainsMono-Regular.woff2") format("woff2");
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/assets/fonts/JetBrainsMono-Bold.woff2") format("woff2");
+}
+
 @theme {
-  --font-mono: "JetBrains Mono", "Fira Code", "Cascadia Code", ui-monospace, monospace;
+  --font-mono: "JetBrainsMono Nerd Font", "FiraCode Nerd Font", "CaskaydiaCove Nerd Font", "JetBrains Mono", ui-monospace, monospace;
   --color-bg: #0a0a0f;
   --color-surface: #12121a;
   --color-surface-hover: #1a1a26;
