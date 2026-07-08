@@ -9,9 +9,11 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
   const fontSize = useSettingsStore((s) => s.fontSize);
   const wordWrap = useSettingsStore((s) => s.wordWrap);
   const tmuxAutoSubmit = useSettingsStore((s) => s.tmuxAutoSubmit);
+  const fontFamily = useSettingsStore((s) => s.fontFamily);
   const setFontSize = useSettingsStore((s) => s.setFontSize);
   const setWordWrap = useSettingsStore((s) => s.setWordWrap);
   const setTmuxAutoSubmit = useSettingsStore((s) => s.setTmuxAutoSubmit);
+  const setFontFamily = useSettingsStore((s) => s.setFontFamily);
 
   const theme = useThemeStore((s) => s.theme);
   const setTheme = useThemeStore((s) => s.setTheme);
@@ -70,6 +72,38 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
               {fontSize}px
             </span>
           </div>
+        </div>
+
+        {/* Font family */}
+        <div className="space-y-2">
+          <label className="text-[10px] uppercase tracking-widest text-text-muted/60">
+            Шрифт
+          </label>
+          <input
+            type="text"
+            list="font-family-presets"
+            value={fontFamily}
+            onChange={(e) => setFontFamily(e.target.value)}
+            placeholder="По умолчанию (JetBrains Mono)"
+            spellCheck={false}
+            autoCapitalize="off"
+            autoCorrect="off"
+            className="w-full px-2.5 py-1.5 rounded-[6px] border border-border bg-bg text-[12px] text-text placeholder:text-text-muted/40 focus:outline-none focus:border-accent/50 transition-colors"
+          />
+          <datalist id="font-family-presets">
+            <option value="JetBrainsMono Nerd Font" />
+            <option value="FiraCode Nerd Font" />
+            <option value="CaskaydiaCove Nerd Font" />
+            <option value="Hack Nerd Font" />
+            <option value="JetBrains Mono" />
+            <option value="Fira Code" />
+            <option value="Cascadia Code" />
+          </datalist>
+          <p className="text-[10px] leading-relaxed text-text-muted/60">
+            Имя установленного в системе моноширинного шрифта. Для иконок — Nerd Font
+            вариант (напр. <span className="text-text-muted">JetBrainsMono Nerd Font</span>).
+            Пусто — забандленный JetBrains Mono.
+          </p>
         </div>
 
         {/* Word wrap */}
@@ -183,6 +217,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
               setFontSize(13);
               setWordWrap(true);
               setTmuxAutoSubmit(true);
+              setFontFamily("");
             }}
             className="text-[11px] text-text-muted hover:text-accent transition-colors"
           >

@@ -82,6 +82,7 @@ export async function loadSession() {
   const fontSize = (await db.get("meta", "fontSize")) as number | undefined;
   const wordWrap = (await db.get("meta", "wordWrap")) as boolean | undefined;
   const tmuxAutoSubmit = (await db.get("meta", "tmuxAutoSubmit")) as boolean | undefined;
+  const fontFamily = (await db.get("meta", "fontFamily")) as string | undefined;
   const referenceText = (await db.get("meta", "referenceText")) as string | undefined;
   const referenceWidth = (await db.get("meta", "referenceWidth")) as number | undefined;
   return {
@@ -92,6 +93,7 @@ export async function loadSession() {
     fontSize: fontSize ?? 13,
     wordWrap: wordWrap ?? true,
     tmuxAutoSubmit: tmuxAutoSubmit ?? true,
+    fontFamily: fontFamily ?? "",
     referenceText: referenceText ?? "",
     referenceWidth: typeof referenceWidth === "number" ? referenceWidth : undefined,
   };
@@ -107,6 +109,7 @@ export async function saveSession(
   fontSize: number,
   wordWrap: boolean,
   tmuxAutoSubmit: boolean,
+  fontFamily: string,
   referenceText: string,
   referenceWidth: number,
 ) {
@@ -143,6 +146,7 @@ export async function saveSession(
   await metaStore.put(fontSize, "fontSize");
   await metaStore.put(wordWrap, "wordWrap");
   await metaStore.put(tmuxAutoSubmit, "tmuxAutoSubmit");
+  await metaStore.put(fontFamily, "fontFamily");
   await metaStore.put(referenceText, "referenceText");
   await metaStore.put(referenceWidth, "referenceWidth");
 

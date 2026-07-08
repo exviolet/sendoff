@@ -55,11 +55,24 @@ function App() {
 
   const fontSize = useSettingsStore((s) => s.fontSize);
   const wordWrap = useSettingsStore((s) => s.wordWrap);
+  const fontFamily = useSettingsStore((s) => s.fontFamily);
 
   // Sync data-theme attribute on <html>
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", resolvedTheme);
   }, [resolvedTheme]);
+
+  // Override --font-mono с выбранным шрифтом (пусто = дефолтный стек из index.css).
+  // Санитизация: имя семейства не должно ломать CSS-значение (кавычки/точка с запятой/скобки).
+  useEffect(() => {
+    const el = document.documentElement;
+    const name = fontFamily.replace(/["'\\;{}]/g, "").trim();
+    if (name) {
+      el.style.setProperty("--font-mono", `"${name}", "JetBrains Mono", ui-monospace, monospace`);
+    } else {
+      el.style.removeProperty("--font-mono");
+    }
+  }, [fontFamily]);
 
   useSessionPersistence();
   const { saveCurrentTab, downloadCurrentTab, openFile, exportAll, importBackup } = useFileIO();

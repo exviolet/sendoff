@@ -16,7 +16,7 @@ export function useSessionPersistence() {
     if (hasRestored.current) return;
     hasRestored.current = true;
 
-    loadSession().then(({ tabs, presets, triggerPhrases, activeTabId, tabCounter, theme, fontSize, wordWrap, tmuxAutoSubmit, referenceText, referenceWidth }) => {
+    loadSession().then(({ tabs, presets, triggerPhrases, activeTabId, tabCounter, theme, fontSize, wordWrap, tmuxAutoSubmit, fontFamily, referenceText, referenceWidth }) => {
       if (tabs.length > 0) {
         useEditorStore.getState().hydrate(tabs, activeTabId, tabCounter);
       } else {
@@ -31,7 +31,7 @@ export function useSessionPersistence() {
       if (theme === "light" || theme === "dark" || theme === "system") {
         useThemeStore.getState().hydrate(theme);
       }
-      useSettingsStore.getState().hydrate({ fontSize, wordWrap, tmuxAutoSubmit });
+      useSettingsStore.getState().hydrate({ fontSize, wordWrap, tmuxAutoSubmit, fontFamily });
       useReferenceStore.getState().hydrate({
         text: referenceText,
         width: referenceWidth ?? useReferenceStore.getState().width,
@@ -89,9 +89,9 @@ export function useSessionPersistence() {
       const { presets } = usePresetsStore.getState();
       const { phrases } = useTriggerPhrasesStore.getState();
       const { theme } = useThemeStore.getState();
-      const { fontSize, wordWrap, tmuxAutoSubmit } = useSettingsStore.getState();
+      const { fontSize, wordWrap, tmuxAutoSubmit, fontFamily } = useSettingsStore.getState();
       const { text: referenceText, width: referenceWidth } = useReferenceStore.getState();
-      saveSession(tabs, activeTabId, tabCounter, presets, phrases, theme, fontSize, wordWrap, tmuxAutoSubmit, referenceText, referenceWidth)
+      saveSession(tabs, activeTabId, tabCounter, presets, phrases, theme, fontSize, wordWrap, tmuxAutoSubmit, fontFamily, referenceText, referenceWidth)
         .then(() => { saveErrorShown = false; })
         .catch(() => {
           // Throttle: one toast per failure streak, not every 500ms tick.
