@@ -1,6 +1,14 @@
 import { useCallback } from "react";
 import { isTauri } from "../lib/platform";
 import { toast } from "../store/toastStore";
+import {
+  TARGET_FIELDS,
+  parseTmuxTargets,
+  resolveBindingIn,
+  type TmuxBindingRef,
+  type TmuxResolveResult,
+  type TmuxSessionInfo,
+} from "../lib/tmuxResolve";
 
 type TmuxTarget =
   | { mode: "active" }
@@ -35,41 +43,22 @@ async function runTmux(args: string[]) {
   return output;
 }
 
-export interface TmuxPaneInfo {
-  paneId: string;
-  command: string;
-  paneActive: boolean;
-}
-
-export interface TmuxWindowInfo {
-  index: string;
-  name: string;
-  windowActive: boolean;
-  panes: TmuxPaneInfo[];
-}
-
-export interface TmuxSessionInfo {
-  name: string;
-  windows: TmuxWindowInfo[];
-}
-
 // Что picker отдаёт наружу при выборе.
 export interface TmuxPickTarget {
   paneId: string;
   session: string;
   window: string;
+  windowId: string;
   label: string;
 }
 
-const TARGET_FIELDS = [
-  "#{session_name}",
-  "#{window_index}",
-  "#{window_name}",
-  "#{pane_id}",
-  "#{pane_active}",
-  "#{window_active}",
-  "#{pane_current_command}",
-].join("\t");
+export type {
+  TmuxPaneInfo,
+  TmuxWindowInfo,
+  TmuxSessionInfo,
+  TmuxBindingRef,
+  TmuxResolveResult,
+} from "../lib/tmuxResolve";
 
 // Читает всю топологию одним вызовом (capability уже разрешает tmux args).
 // Бросает при ошибке (tmux не запущен / не Tauri) — UI ловит и показывает empty-state.
@@ -77,46 +66,15 @@ export async function listTmuxTargets(): Promise<TmuxSessionInfo[]> {
   if (!isTauri) throw new Error("tmux доступен только в desktop-сборке");
 
   const output = await runTmux(["list-panes", "-a", "-F", TARGET_FIELDS]);
-  const sessions = new Map<string, TmuxSessionInfo>();
-  const windows = new Map<string, TmuxWindowInfo>();
-
-  for (const line of output.stdout.split("\n")) {
-    if (!line.trim()) continue;
-    const [session, windowIndex, windowName, paneId, paneActive, windowActive, command] = line.split("\t");
-    if (!session || !paneId) continue;
-
-    let s = sessions.get(session);
-    if (!s) {
-      s = { name: session, windows: [] };
-      sessions.set(session, s);
-    }
-
-    const wKey = `${session}\t${windowIndex}`;
-    let w = windows.get(wKey);
-    if (!w) {
-      w = { index: windowIndex, name: windowName, windowActive: windowActive === "1", panes: [] };
-      windows.set(wKey, w);
-      s.windows.push(w);
-    }
-
-    w.panes.push({ paneId, command, paneActive: paneActive === "1" });
-  }
-
-  return Array.from(sessions.values());
+  return parseTmuxTargets(output.stdout);
 }
 
-// Резолвит binding {session, window} в живой pane id по имени.
-// Окно не запущено / tmux недоступен → null (вызывающий открывает picker).
-export async function resolveTmuxBinding(binding: { session: string; window: string }): Promise<string | null> {
+// Тонкая обёртка: топология из tmux + чистый резолв (см. lib/tmuxResolve.ts).
+export async function resolveTmuxBinding(binding: TmuxBindingRef): Promise<TmuxResolveResult> {
   try {
-    const sessions = await listTmuxTargets();
-    const session = sessions.find((s) => s.name === binding.session);
-    const window = session?.windows.find((w) => w.name === binding.window);
-    if (!window || window.panes.length === 0) return null;
-    const pane = window.panes.find((p) => p.paneActive) ?? window.panes[0];
-    return pane.paneId;
+    return resolveBindingIn(await listTmuxTargets(), binding);
   } catch {
-    return null;
+    return { ok: false, reason: "not-found" };
   }
 }
 

@@ -11,6 +11,7 @@ interface TmuxTargetPickerProps {
 interface TargetRow {
   session: string;
   windowIndex: string;
+  windowId: string;
   windowName: string;
   windowActive: boolean;
   paneId: string;
@@ -26,6 +27,7 @@ function flatten(sessions: TmuxSessionInfo[]): TargetRow[] {
         rows.push({
           session: s.name,
           windowIndex: w.index,
+          windowId: w.id,
           windowName: w.name,
           windowActive: w.windowActive,
           paneId: p.paneId,
@@ -102,6 +104,7 @@ export function TmuxTargetPicker({ onClose, onPick, mode = "send" }: TmuxTargetP
         paneId: row.paneId,
         session: row.session,
         window: row.windowName,
+        windowId: row.windowId,
         label: rowLabel(row, multiSession),
       });
     },

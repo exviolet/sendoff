@@ -46,9 +46,14 @@ export function useTmuxActions(textareaRef: RefObject<HTMLTextAreaElement | null
 
     // 1. Explicit — таб привязан к окну.
     if (binding) {
-      const pane = await resolveTmuxBinding(binding);
-      if (pane) {
-        void sendToTmux(text, { target: { mode: "pane", pane }, submit: tmuxAutoSubmit });
+      const res = await resolveTmuxBinding(binding);
+      if (res.ok) {
+        void sendToTmux(text, { target: { mode: "pane", pane: res.paneId }, submit: tmuxAutoSubmit });
+      } else if (res.reason === "ambiguous" && activeTabId) {
+        // Несколько окон с этим именем — не угадываем, куда слать. Зовём перепривязать:
+        // новый binding запомнит window_id и станет однозначным.
+        toast(`Несколько tmux-окон с именем «${binding.window}» — привяжи заново`, "error");
+        setTmuxPicker({ mode: "bind", tabId: activeTabId });
       } else {
         toast(`tmux-окно «${binding.window}» не найдено — выбери цель`, "info");
         setTmuxPicker({ mode: "send" });
@@ -74,7 +79,11 @@ export function useTmuxActions(textareaRef: RefObject<HTMLTextAreaElement | null
     if (!picker) return;
 
     if (picker.mode === "bind") {
-      useEditorStore.getState().setTabBinding(picker.tabId, { session: target.session, window: target.window });
+      useEditorStore.getState().setTabBinding(picker.tabId, {
+        session: target.session,
+        window: target.window,
+        windowId: target.windowId,
+      });
       toast(`Таб привязан к tmux-окну «${target.label}»`, "success");
       return;
     }

@@ -11,7 +11,8 @@ import {
 
 export interface TmuxBinding {
   session: string;
-  window: string;
+  window: string;   // имя окна: отображение + fallback, НЕ уникально
+  windowId?: string; // #{window_id} (@N) — первичный ключ резолва; опционален у легаси-привязок
 }
 
 export interface OrcaBinding {
