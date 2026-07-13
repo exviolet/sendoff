@@ -3,7 +3,7 @@ import type { Tab } from "../store/editorStore";
 const AUTO_TITLE_MAX_LENGTH = 48;
 const UNTITLED_RE = /^Untitled \d+$/;
 
-export function makeTab(n: number): Tab {
+export function makeTab(n: number, workspaceId: string): Tab {
   return {
     id: crypto.randomUUID(),
     title: `Untitled ${n}`,
@@ -12,7 +12,14 @@ export function makeTab(n: number): Tab {
     createdAt: Date.now(),
     updatedAt: Date.now(),
     titleSource: "auto",
+    workspaceId,
   };
+}
+
+// Табы активного workspace. Порядок сохраняется, поэтому глобальной partitionPinned
+// достаточно: внутри каждого workspace pinned остаются левее обычных.
+export function tabsOf(tabs: Tab[], workspaceId: string): Tab[] {
+  return tabs.filter((t) => t.workspaceId === workspaceId);
 }
 
 function firstContentLine(content: string) {

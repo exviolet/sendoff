@@ -3,10 +3,14 @@ import { useEditorStore } from "../../store/editorStore";
 interface StatusBarProps {
   onBindTmux: () => void;
   onBindOrca: () => void;
+  onWorkspaceSwitch: () => void;
 }
 
-export function StatusBar({ onBindTmux, onBindOrca }: StatusBarProps) {
+export function StatusBar({ onBindTmux, onBindOrca, onWorkspaceSwitch }: StatusBarProps) {
   const tab = useEditorStore((s) => s.tabs.find((t) => t.id === s.activeTabId));
+  const workspaceName = useEditorStore(
+    (s) => s.workspaces.find((w) => w.id === s.activeWorkspaceId)?.name,
+  );
 
   if (!tab) return null;
 
@@ -32,6 +36,18 @@ export function StatusBar({ onBindTmux, onBindOrca }: StatusBarProps) {
 
   return (
     <footer className="flex items-center h-6 px-3 bg-surface border-t border-border text-[10px] tracking-wide text-text-muted shrink-0 select-none gap-4">
+      <button
+        onClick={onWorkspaceSwitch}
+        title="Активный workspace — Ctrl+Shift+W переключить"
+        className="flex items-center gap-1 px-1.5 h-4 rounded-[3px] text-text-muted/60 hover:text-text hover:bg-surface-hover transition-colors max-w-[160px]"
+      >
+        <svg width="11" height="11" viewBox="0 0 16 16" fill="none">
+          <rect x="2" y="3" width="12" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.4" />
+          <path d="M2 6.5h12" stroke="currentColor" strokeWidth="1.4" />
+        </svg>
+        <span className="truncate">{workspaceName ?? "—"}</span>
+      </button>
+
       <button
         onClick={orcaBinding ? onBindOrca : onBindTmux}
         title={bindTitle}

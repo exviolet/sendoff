@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useEditorStore } from "../store/editorStore";
+import { tabsOf } from "../lib/tabUtils";
 
 interface ShortcutCallbacks {
   onFind?: () => void;
@@ -23,6 +24,7 @@ interface ShortcutCallbacks {
   onTabSwitcher?: () => void;
   onReferencePanel?: () => void;
   onGlobalSearch?: () => void;
+  onWorkspaceSwitcher?: () => void;
 }
 
 export function useKeyboardShortcuts(callbacks?: ShortcutCallbacks) {
@@ -79,7 +81,15 @@ export function useKeyboardShortcuts(callbacks?: ShortcutCallbacks) {
         return;
       }
 
-      if (ctrl && code === "KeyW") {
+      if (ctrl && e.shiftKey && code === "KeyW") {
+        e.preventDefault();
+        callbacks?.onWorkspaceSwitcher?.();
+        return;
+      }
+
+      // !e.shiftKey обязателен: иначе эта ветка перехватит Ctrl+Shift+W и закроет таб
+      // вместо открытия свитчера workspace.
+      if (ctrl && !e.shiftKey && code === "KeyW") {
         e.preventDefault();
         const { activeTabId, closeTab } = useEditorStore.getState();
         if (activeTabId) closeTab(activeTabId);
@@ -94,15 +104,17 @@ export function useKeyboardShortcuts(callbacks?: ShortcutCallbacks) {
 
       if (ctrl && (e.key === "Tab" || code === "PageDown" || code === "PageUp")) {
         e.preventDefault();
-        const { tabs, activeTabId, setActiveTab } =
+        const { tabs, activeTabId, activeWorkspaceId, setActiveTab } =
           useEditorStore.getState();
-        if (tabs.length < 2) return;
-        const currentIndex = tabs.findIndex((t) => t.id === activeTabId);
+        // Циклим только внутри активного workspace (изоляция).
+        const visible = tabsOf(tabs, activeWorkspaceId);
+        if (visible.length < 2) return;
+        const currentIndex = visible.findIndex((t) => t.id === activeTabId);
         const goBack = e.shiftKey || code === "PageUp";
         const nextIndex = goBack
-          ? (currentIndex - 1 + tabs.length) % tabs.length
-          : (currentIndex + 1) % tabs.length;
-        setActiveTab(tabs[nextIndex].id);
+          ? (currentIndex - 1 + visible.length) % visible.length
+          : (currentIndex + 1) % visible.length;
+        setActiveTab(visible[nextIndex].id);
         return;
       }
 

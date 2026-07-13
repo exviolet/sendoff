@@ -62,8 +62,12 @@ function highlightText(text: string, indices: number[]) {
 }
 
 export function GlobalSearchPanel({ onClose, onOpenMatch }: GlobalSearchPanelProps) {
+  // Намеренно кросс-workspace (в отличие от Ctrl+T): это escape hatch из изоляции.
+  // Выбор таба из чужого workspace переключит workspace — setActiveTab делает это сам.
   const tabs = useEditorStore((s) => s.tabs);
   const activeTabId = useEditorStore((s) => s.activeTabId);
+  const workspaces = useEditorStore((s) => s.workspaces);
+  const activeWorkspaceId = useEditorStore((s) => s.activeWorkspaceId);
   const [query, setQuery] = useState("");
   const [caseSensitive, setCaseSensitive] = useState(false);
   const [regex, setRegex] = useState(false);
@@ -201,6 +205,11 @@ export function GlobalSearchPanel({ onClose, onOpenMatch }: GlobalSearchPanelPro
               <div className="sticky top-0 z-10 flex items-center gap-2 px-4 py-2 bg-surface/95 border-b border-border/30">
                 <span className={`w-1.5 h-1.5 rounded-full ${group.tab.isDirty ? "bg-dirty" : group.tab.id === activeTabId ? "bg-accent" : "bg-border"}`} />
                 <span className="truncate text-[12px] text-text">{group.tab.title}</span>
+                {group.tab.workspaceId !== activeWorkspaceId && (
+                  <span className="shrink-0 text-[9px] px-1 py-px rounded-sm bg-surface-hover text-text-muted/70">
+                    {workspaces.find((w) => w.id === group.tab.workspaceId)?.name ?? "?"}
+                  </span>
+                )}
                 {group.tab.id === activeTabId && <span className="text-[10px] text-accent shrink-0">активный</span>}
                 <span className="ml-auto text-[10px] text-text-muted/50 tabular-nums shrink-0">
                   #{group.tabIndex + 1} · {group.matches.length}
