@@ -1,155 +1,216 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for AI agents (Claude Code, Codex) working in this repo.
+
+> **Это `web/` — SPA-часть.** Она подключена submodule'ом в `rewrite-desktop` (Tauri-обёртка).
+> Контракт сотрудничества, git-workflow, safety rails и позиционирование — в **корневом
+> `CLAUDE.md` десктоп-репо**. Здесь только то, что специфично для `web/`.
+>
+> Источники правды: продуктовые решения — `docs/ROADMAP.md` (десктоп-репо), активные спеки —
+> `tasks/NN-*.md` (десктоп-репо), backlog — GitHub Issues.
 
 ## Project Overview
 
-Rewrite is a fast, minimal browser-based personal text editor. The primary use case is pasting text and applying bulk replacements (e.g. converting formal "Вы/Ваш" tone to collaborative "Мы/Наш"). No backend, no API keys — everything runs client-side.
+**Rewrite — prompt-first редактор.** Цель: быстро формулировать LLM-промпты вне тесного input
+в Claude Code / Codex и неудобного скролла в tmux, и **отправлять их прямо в терминал агента**
+(`Ctrl+Enter` → tmux-pane или Orca-агент).
+
+Не pipeline-builder, не knowledge base, не code editor. Bulk find & replace и пресеты — не
+самоцель, а наследие исходного use-case (правка тона текста), которое осталось полезным.
+
+Всё локально: без бэкенда, без API-ключей, без сетевых вызовов из webview (см. security-границу
+в корневом `CLAUDE.md`).
 
 ## Commands
 
 ```bash
-# Development
-bun dev               # Start dev server
-bun tsc -b            # TypeScript type checking (must pass: zero errors)
-bun lint              # ESLint validation (must pass: zero warnings/errors)
-
-# Production
-bun run build
-bun run preview       # Test production build locally
+bun dev               # Vite dev server
+bun tsc -b            # типы (должно быть 0 ошибок)
+bun lint              # ESLint (должно быть 0)
+bun run build         # tsc -b && vite build
+bun run preview       # прод-сборка локально
 ```
 
-**After every phase**: run `bun tsc -b` and `bun lint` — both must be clean before proceeding.
-
-> ⚠️ Use `tsc -b`, **not** `tsc --noEmit`. The root `tsconfig.json` is a solution-style
-> stub (`"files": []` + project references), so `tsc --noEmit` against it checks **zero
-> files** and always passes — a hollow no-op. Only `-b` (build mode) follows the
-> references into `tsconfig.app.json` and actually type-checks `src/`. This is what
-> `bun run build` runs.
+> ⚠️ Только `tsc -b`, **не** `tsc --noEmit`. Корневой `tsconfig.json` — solution-stub
+> (`"files": []` + project references), поэтому `--noEmit` проверяет **ноль файлов** и всегда
+> зелёный. Реальный гейт — `-b` (идёт по references в `tsconfig.app.json`).
 
 ## Tech Stack
 
-| Layer | Technology |
-|-------|-----------|
+| Слой | Технология |
+|------|-----------|
 | Framework | React 19 + TypeScript strict |
 | Build | Vite + Bun |
-| Styling | Tailwind CSS v4 (`@tailwindcss/vite` plugin) |
-| Editor | Native `<textarea>` + custom hooks (no Monaco/CodeMirror) |
-| State | Zustand (`useEditorStore`, `usePresetsStore`, `usePromptTemplatesStore`, `useThemeStore`) |
-| Persistence | IndexedDB via `idb` (`rewrite-db` v3) |
+| Styling | Tailwind CSS v4 (`@tailwindcss/vite`, CSS-first `@theme` в `src/index.css`) |
+| Editor | Нативный `<textarea>` + кастомные хуки (без Monaco/CodeMirror) |
+| State | Zustand v5 |
+| Persistence | IndexedDB через `idb` — **`rewrite-db` v4** |
+| Desktop bridge | `@tauri-apps/api` + плагины `shell` / `fs` / `dialog` |
+
+Версии — в `package.json` (единственный источник правды, не дублировать сюда).
 
 ## Architecture
 
-### State Stores (`src/store/`)
-- `editorStore.ts` — tabs array, activeTabId, CRUD, reorderTab, undo/redo, markSaved, hydrate
-- `presetsStore.ts` — replace presets with apply action, hydrate
-- `promptTemplatesStore.ts` — AI prompt templates CRUD (with `order` field), hydrate with sorting
-- `themeStore.ts` — theme (`"dark"` | `"light"`), toggleTheme, persisted via IndexedDB meta
+### Stores (`src/store/`)
+- `editorStore.ts` — табы, `activeTabId`, CRUD, pin, reorder, undo/redo, bulk-close, `closedTabs`
+  (reopen), `pendingClose`, tmux/orca-привязки, `hydrate`. **Самый нагруженный стор.**
+- `editorHistory.ts` — undo/redo-стек (per-tab), вне Zustand.
+- `presetsStore.ts` — пресеты замен.
+- `triggerPhrasesStore.ts` — trigger phrases (`Ctrl+K`).
+- `themeStore.ts` — `dark | light | system`; в Tauri слушает нативную тему окна.
+- `settingsStore.ts` — `fontSize`, `wordWrap`, `tmuxAutoSubmit`, `fontFamily`.
+- `tmuxStore.ts` — последний выбранный tmux-таргет (**in-memory, НЕ персистится**: pane id эфемерны).
+- `referenceStore.ts` — текст/ширина reference-панели.
+- `toastStore.ts` — тосты (`toast(msg, type)`).
 
-### Core Logic (`src/lib/`) — pure functions, no side effects
-- `replaceEngine.ts` — findMatches, replaceAll, applyReplacePairs, previewReplacePairs (regex support, unicode `u` flag)
-- `promptBuilder.ts` — `PromptTemplate` type, `assemblePrompt()`, `hasInstructionPlaceholder()`; uses `{{TEXT}}`/`{{INSTRUCTION}}` placeholders
-- `db.ts` — `idb` schema v3 (stores: `tabs`, `presets`, `promptTemplates`, `meta`); includes v2→v3 migration
+### Pure logic (`src/lib/`) — без side effects
+- `replaceEngine.ts` — find/replace, пресеты, regex.
+- `tabUtils.ts` — `makeTab`, `makeAutoTitle`, `normalizeTab`, `partitionPinned`, `canCleanupTab`.
+- `tmuxResolve.ts` — парсинг топологии tmux + резолв привязки в pane (**критический путь**, см. Gotchas).
+- `db.ts` — схема IndexedDB (**и есть источник правды по схеме**, не дублировать в markdown).
+- `platform.ts` — `isTauri`.
 
 ### Hooks (`src/hooks/`)
-- `useSessionPersistence.ts` — debounced (500ms) IndexedDB sync; subscribes to all 3 stores; `isHydrated` flag prevents writes before restore completes
-- `useFileIO.ts` — `Ctrl+S` saves `.txt` via `<a download>`, `Ctrl+O` opens file picker; export/import includes all stores
-- `useKeyboardShortcuts.ts` — global `document` keyboard listener using `e.code` (not `e.key`)
+- `useSessionPersistence.ts` — дебаунс 500ms, синк всех сторов в IndexedDB; флаг `isHydrated`
+  блокирует запись до конца восстановления.
+- `useKeyboardShortcuts.ts` — глобальный `keydown`-листенер (по `e.code`, не `e.key`).
+- `useFileIO.ts` — сохранение/открытие файлов, export/import бэкапа.
+- `useCommands.ts` — каталог команд палитры.
+- `useTmuxSend.ts` / `useTmuxActions.ts` — отправка в tmux + цепочка резолва и picker.
+- `useOrcaSend.ts` / `useOrcaActions.ts` — то же для Orca-агентов.
 
-### Editor Component (`src/components/Editor/`)
-Native `<textarea>` cannot highlight text. The highlight overlay works as:
-- A `<div>` positioned exactly behind the textarea (same font, size, scroll sync)
-- The div renders `<mark>` elements at match positions
-- Textarea sits on top with `background: transparent`
+### Отправка промпта (`Ctrl+Enter`)
+Диспетчер в `App.tsx`: таб с `orcaBinding` → Orca-флоу, иначе tmux-флоу.
+tmux-цепочка: **Explicit** (привязка таба) → **Last** (последний выбор, in-memory) → **Modal** (picker).
 
-### Panel Architecture
-`App.tsx` manages panel state (find/replace, presets, AI prompt, command palette, shortcuts modal, distraction-free mode). Presets and AI Prompt panels are mutually exclusive (`absolute right-0`). `textareaRef` is lifted to `App` and passed via props to `Editor` and `AIPromptPanel`.
+### Editor (`src/components/Editor/`)
+`<textarea>` не умеет подсветку. Оверлей: `<div>` точно под текстареа (тот же шрифт/размер/скролл)
+рендерит `<mark>` на позициях совпадений; текстареа сверху с `background: transparent`.
 
-### Presets Panel (`src/components/Presets/`)
-Preset cards are expandable — click to reveal pairs list and action buttons (Export, Edit, Delete). Apply shows diff-preview before applying. Import/export via `.json` files with validation.
+### Panels
+`App.tsx` держит состояние панелей (find/replace, presets, settings, reference, trigger phrases,
+command palette, global search, shortcuts, distraction-free). Боковые панели взаимоисключимы.
+`textareaRef` поднят в `App` и прокидывается вниз пропом.
 
 ## Data Models
 
 ```ts
 interface Tab {
-  id: string;        // uuid
-  title: string;     // "Untitled N" or filename
+  id: string;                 // uuid
+  title: string;
   content: string;
   isDirty: boolean;
   createdAt: number;
   updatedAt: number;
+  pinned?: boolean;
+  titleSource?: "auto" | "manual" | "file";
+  tmuxBinding?: TmuxBinding;  // взаимоисключимы: один таргет на таб
+  orcaBinding?: OrcaBinding;
 }
 
-interface ReplacePair {
-  from: string;
-  to: string;
-  caseSensitive: boolean;
-  wholeWord: boolean;
+interface TmuxBinding {
+  session: string;
+  window: string;             // имя: отображение + fallback, НЕ уникально
+  windowId?: string;          // #{window_id} (@N) — первичный ключ резолва
 }
 
-interface ReplacePreset {
-  id: string;
-  name: string;
-  pairs: ReplacePair[];
+interface OrcaBinding {
+  worktree: string;
+  titleHint?: string;
 }
 
-interface PromptTemplate {
-  id: string;
-  name: string;
-  template: string;  // {{TEXT}} and optionally {{INSTRUCTION}} placeholders
-  order: number;
-}
+interface TriggerPhrase { id: string; label: string; body: string; order: number }
+interface ReplacePreset  { id: string; name: string; pairs: ReplacePair[] }
 ```
 
 ## Keyboard Shortcuts
 
-| Shortcut | Action |
-|----------|--------|
-| `Ctrl+N` | New tab |
-| `Ctrl+W` | Close tab |
-| `Ctrl+Tab` / `Ctrl+Shift+Tab` | Next / Previous tab |
-| `Ctrl+F` | Find panel |
-| `Ctrl+H` | Find & Replace panel |
-| `Ctrl+K` | AI Prompt panel |
-| `Ctrl+S` | Save (mark as saved) |
-| `Ctrl+O` | Open file |
-| `Ctrl+P` | Command palette |
-| `Ctrl+.` | Toggle sidebar (Presets) |
-| `Ctrl+M` | Markdown preview toggle |
-| `Ctrl+Shift+F` | Distraction-free mode |
-| `Ctrl+?` | Keyboard shortcuts modal |
-| `Escape` | Close panels |
+Все — по `e.code` (см. Gotchas). Актуальный список — `src/hooks/useKeyboardShortcuts.ts`.
+
+| Сочетание | Действие |
+|-----------|----------|
+| `Ctrl+Enter` | Отправить промпт (Orca-привязка → Orca, иначе tmux) |
+| `Ctrl+Shift+Enter` | tmux target picker |
+| `Ctrl+B` / `Ctrl+Shift+B` | Привязать / отвязать таб к tmux-окну |
+| `Ctrl+N` / `Ctrl+W` | Новый / закрыть таб |
+| `Ctrl+Shift+T` | Вернуть закрытый таб |
+| `Ctrl+Tab` / `Ctrl+Shift+Tab` | Следующий / предыдущий таб |
+| `Ctrl+T` | Tab switcher |
+| `Ctrl+Shift+D` | Global tab search |
+| `Ctrl+P` | **Закрепить/открепить таб** (не палитра!) |
+| `Ctrl+Shift+P` | Command palette |
+| `Ctrl+K` | Trigger phrases |
+| `Ctrl+F` / `Ctrl+H` | Find / Find & Replace |
+| `Ctrl+S` / `Ctrl+O` | Сохранить / открыть файл |
+| `Ctrl+Z` / `Ctrl+Shift+Z` | Undo / redo |
+| `Ctrl+R` | Reference panel |
+| `Ctrl+M` | Markdown preview |
+| `Ctrl+E` | Фокус в редактор |
+| `Ctrl+,` / `Ctrl+.` | Настройки / сайдбар (пресеты) |
+| `Ctrl+/` | Модалка хоткеев |
+| `Ctrl+Shift+F` | Distraction-free |
+| `Ctrl+Shift+A` | Доскроллить к активному табу (локальный листенер в `TabBar`) |
+| `Escape` | Закрыть панели |
 
 ## Critical Gotchas
 
-1. **Unicode word boundaries** — `\b` in JS regex doesn't work with Cyrillic. `replaceEngine.ts` uses Unicode-aware lookarounds: `(?<![\p{L}\p{N}])` / `(?![\p{L}\p{N}])` with flag `u`.
+1. **`e.code`, а не `e.key`.** На кириллической раскладке `e.key` для `Ctrl+S` вернёт `"ы"`.
+   Везде `e.code` (`"KeyS"`), кроме `Tab`/`Escape` (раскладконезависимы).
 
-2. **Keyboard shortcuts use `e.code`, not `e.key`** — on Cyrillic layout `e.key` for Ctrl+S returns `"ы"`, not `"s"`. All shortcuts use `e.code` (`"KeyS"`, `"KeyO"`, etc.), except `Tab` and `Escape` which are layout-independent.
+2. **Не угадывать при неоднозначности в путях «отправить промпт агенту».** Текст, улетевший
+   **не тому** агенту, хуже лишнего клика. `tmuxResolve.ts`: имя tmux-окна **не уникально**
+   (два окна `claude` — норма agentic-флоу), поэтому резолв идёт по `window_id` (`@N`), имя —
+   fallback; несколько совпадений → `ambiguous` → переспросить, **не отправлять**. Orca-резолв
+   держит тот же инвариант (`matches.length === 1 ? handle : null`). **Не откатывать к матчингу
+   только по имени** — это ровно тот баг, что чинили 2026-07-10.
 
-3. **ESLint React Compiler rules** — the project enables `react-hooks/refs`, `react-hooks/set-state-in-effect`, `react-hooks/preserve-manual-memoization`. Key constraints:
-   - No reading `ref.current` during render — only in event handlers and effects
-   - No synchronous `setState` in `useEffect` body
-   - `useCallback` deps must match compiler-inferred dependencies
+3. **Custom equality в Zustand-селекторах.** `TabBar` подписан через `tabsMetaEqual` — при
+   добавлении нового поля в `Tab`, влияющего на отрисовку полосы, **его надо добавить и в
+   `tabsMetaEqual`**, иначе полоса молча «замерзает» (так уже было с `orcaBinding`).
 
-4. **Persistence hydration** — all three stores have `hydrate()`. The `isHydrated` flag in `useSessionPersistence` prevents IndexedDB writes before restore completes.
+4. **Unicode word boundaries.** `\b` в JS-regex не работает с кириллицей. `replaceEngine.ts`
+   использует lookaround'ы `(?<![\p{L}\p{N}])` / `(?![\p{L}\p{N}])` с флагом `u`.
 
-5. **Undo/Redo debounce** — 500ms debounce; fast typing saves only first snapshot of a "series". Large changes (`lenDiff > 1`) are recorded immediately. `flushPending()` is called before `undo()`/`redo()`.
+5. **ESLint React Compiler.** Включены `react-hooks/refs`, `react-hooks/set-state-in-effect`,
+   `react-hooks/preserve-manual-memoization`: не читать `ref.current` в рендере; не звать
+   синхронный `setState` в теле `useEffect`; деп-листы `useCallback` должны совпадать с
+   выведенными компилятором.
 
-## Implementation Phases
+6. **Hydration guard.** Флаг `isHydrated` в `useSessionPersistence` блокирует запись в IndexedDB
+   до конца восстановления — иначе пустые дефолты затрут реальные данные. При провале чтения
+   флаг **сознательно остаётся false**.
 
-The project is built in phases — complete one fully before starting the next. See `docs/implementation-prompr.md` for full phase specifications.
+7. **Undo/redo дебаунс 500ms.** Быстрый набор пишет только первый снапшот «серии»; крупные
+   изменения (`lenDiff > 1`) — сразу. `flushPending()` вызывается перед `undo()`/`redo()`.
 
-1. **Phase 1** ✅ — Project scaffold + core editor (tabbed textarea, Zustand store)
-2. **Phase 2** ✅ — Find & Replace panel with real-time highlight overlay
-3. **Phase 3** ✅ — Replace Presets (core feature; default "Вы → Мы" preset)
-4. **Phase 4** ✅ — Session persistence (IndexedDB) + file export/import
-5. **Phase 5** ✅ — AI Prompt Builder (clipboard-based, no API calls)
-6. **Phase 6** ✅ — Polish: command palette, distraction-free mode, production build
-7. **Phase 7** (future) — Tauri v2 wrapper; zero frontend changes required
+8. **Реактивные индикаторы не дебаунсить** (StatusBar, dirty-метки). См. Safety Rails в корневом
+   `CLAUDE.md`.
+
+## Данные и IndexedDB — правила
+
+Схема — в `src/lib/db.ts` (типизирована через `RewriteDB extends DBSchema`). **Не дублировать
+её в markdown** — рукописная копия протухнет.
+
+Правила (их из кода не вывести):
+- **Миграций данных не вводим.** Ранняя стадия → clean sweep допустим (так `promptTemplates`
+  выпилили целиком в v4).
+- **НО: разрушающие изменения IndexedDB координировать со 2-м пользователем** — у него накоплены
+  данные. Это единственное место, где можно реально навредить чужому человеку.
+- **Аддитивные ключи в сторе `meta` не требуют bump версии БД** (так добавлен `fontFamily`).
+  Bump нужен только под новый object store / индекс.
 
 ## Code Quality Rules
 
-- TypeScript strict mode — no `any`, use `unknown` + type guards
-- All replace/search logic lives in `src/lib/` as pure functions
-- Components max ~150 lines — extract logic into custom hooks
-- Commit after each phase: `feat(scope): описание на русском` (Conventional Commits, Russian messages)
+- TypeScript strict — без `any`; `unknown` + type guards.
+- Логика без side effects — в `src/lib/` чистыми функциями (так вынесен `tmuxResolve.ts`, что
+  позволило проверить критический резолв без Tauri).
+- Компоненты ~150 строк максимум — логику выносить в хуки.
+- Коммиты — русские, Conventional Commits.
+
+## Known duplication (осознанная)
+
+`TabSwitcher`, `GlobalSearchPanel`, `TmuxTargetPicker`, `CommandPalette`, `OrcaTargetPicker` —
+пять вариаций **одного** паттерна «модалка со списком: query + фильтр + ↑↓ + Esc/Enter».
+Извлечение общего примитива отложено осознанно (не смешивать с текущей фичей). Новые модалки
+такого рода писать **по существующему паттерну**, не изобретая свой, — чтобы будущее извлечение
+осталось механическим.
