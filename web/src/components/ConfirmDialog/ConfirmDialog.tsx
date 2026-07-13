@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface ConfirmDialogProps {
   title: string;
@@ -6,7 +6,10 @@ interface ConfirmDialogProps {
   confirmLabel?: string;
   cancelLabel?: string;
   danger?: boolean;
-  onConfirm: () => void;
+  // Задан → диалог работает как prompt: показывает поле, значение уходит в onConfirm.
+  inputDefault?: string;
+  inputPlaceholder?: string;
+  onConfirm: (value: string) => void;
   onCancel: () => void;
 }
 
@@ -16,14 +19,24 @@ export function ConfirmDialog({
   confirmLabel = "Подтвердить",
   cancelLabel = "Отмена",
   danger = false,
+  inputDefault,
+  inputPlaceholder,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
   const confirmRef = useRef<HTMLButtonElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const isPrompt = inputDefault !== undefined;
+  const [value, setValue] = useState(inputDefault ?? "");
 
   useEffect(() => {
-    confirmRef.current?.focus();
-  }, []);
+    if (isPrompt) {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    } else {
+      confirmRef.current?.focus();
+    }
+  }, [isPrompt]);
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -34,12 +47,12 @@ export function ConfirmDialog({
       } else if (e.key === "Enter") {
         e.preventDefault();
         e.stopPropagation();
-        onConfirm();
+        onConfirm(value);
       }
     }
     document.addEventListener("keydown", handleKeyDown, true);
     return () => document.removeEventListener("keydown", handleKeyDown, true);
-  }, [onConfirm, onCancel]);
+  }, [onConfirm, onCancel, value]);
 
   const confirmClasses = danger
     ? "bg-danger/15 text-danger hover:bg-danger/25 border-danger/20"
@@ -55,6 +68,16 @@ export function ConfirmDialog({
         <div className="px-5 py-4">
           <h2 className="text-sm font-medium text-text mb-1.5">{title}</h2>
           <p className="text-xs text-text-muted">{message}</p>
+          {isPrompt && (
+            <input
+              ref={inputRef}
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              placeholder={inputPlaceholder}
+              spellCheck={false}
+              className="mt-3 w-full px-2.5 py-1.5 rounded-[6px] border border-border bg-bg text-[12px] text-text placeholder:text-text-muted/40 focus:outline-none focus:border-accent/50 transition-colors"
+            />
+          )}
         </div>
         <div className="flex gap-1.5 px-5 py-3 border-t border-border/50">
           <button
@@ -65,7 +88,7 @@ export function ConfirmDialog({
           </button>
           <button
             ref={confirmRef}
-            onClick={onConfirm}
+            onClick={() => onConfirm(value)}
             className={`flex-1 h-7 text-[11px] rounded-[3px] border transition-colors ${confirmClasses}`}
           >
             {confirmLabel}

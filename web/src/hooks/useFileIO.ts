@@ -86,10 +86,12 @@ export function useFileIO() {
   }
 
   async function exportAll() {
-    const { tabs } = useEditorStore.getState();
+    const { tabs, workspaces } = useEditorStore.getState();
     const { presets } = usePresetsStore.getState();
     const { phrases: triggerPhrases } = useTriggerPhrasesStore.getState();
-    const data = JSON.stringify({ tabs, presets, triggerPhrases }, null, 2);
+    // workspaces обязаны ехать вместе с табами — иначе восстановление молча схлопнет
+    // всю группировку в один «Default».
+    const data = JSON.stringify({ tabs, workspaces, presets, triggerPhrases }, null, 2);
 
     if (isTauri) {
       try {
@@ -166,10 +168,14 @@ export function useFileIO() {
 
 function hydrateFromBackup(data: Record<string, unknown>) {
   if (Array.isArray(data.tabs) && data.tabs.length > 0) {
+    // Старый бэкап (без workspaces) → hydrate сам создаст «Default» и сложит туда всё.
+    const workspaces = Array.isArray(data.workspaces) ? data.workspaces : [];
     useEditorStore.getState().hydrate(
       data.tabs,
       data.tabs[0].id,
-      data.tabs.length
+      data.tabs.length,
+      workspaces,
+      null,
     );
   }
   if (Array.isArray(data.presets) && data.presets.length > 0) {

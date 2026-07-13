@@ -1,8 +1,9 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useEditorStore } from "../../store/editorStore";
 import type { TmuxBinding, OrcaBinding } from "../../store/editorStore";
 import type { Theme } from "../../store/themeStore";
 import { isTauri } from "../../lib/platform";
+import { tabsOf } from "../../lib/tabUtils";
 import { toast } from "../../store/toastStore";
 
 type SidePanel = null | "presets" | "settings" | "reference";
@@ -18,6 +19,7 @@ interface TabBarProps {
   onCleanupEmptyTabs: () => void;
   onBindTmux: (tabId: string) => void;
   onBindOrca: (tabId: string) => void;
+  onMoveTabToWorkspace: (tabId: string) => void;
   onTriggerPhrases: () => void;
 }
 
@@ -28,6 +30,8 @@ function tabsMetaEqual(prev: ReturnType<typeof useEditorStore.getState>["tabs"],
     tab.title === next[i].title &&
     tab.isDirty === next[i].isDirty &&
     tab.pinned === next[i].pinned &&
+    // Без workspaceId полоса «замерзает» при переключении workspace / переносе таба.
+    tab.workspaceId === next[i].workspaceId &&
     tab.tmuxBinding?.session === next[i].tmuxBinding?.session &&
     tab.tmuxBinding?.window === next[i].tmuxBinding?.window &&
     tab.orcaBinding?.worktree === next[i].orcaBinding?.worktree &&
@@ -35,8 +39,11 @@ function tabsMetaEqual(prev: ReturnType<typeof useEditorStore.getState>["tabs"],
   );
 }
 
-export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAll, onImportBackup, theme, onThemeToggle, onCleanupEmptyTabs, onBindTmux, onBindOrca, onTriggerPhrases }: TabBarProps) {
-  const tabs = useEditorStore((s) => s.tabs, tabsMetaEqual);
+export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAll, onImportBackup, theme, onThemeToggle, onCleanupEmptyTabs, onBindTmux, onBindOrca, onMoveTabToWorkspace, onTriggerPhrases }: TabBarProps) {
+  const allTabs = useEditorStore((s) => s.tabs, tabsMetaEqual);
+  const activeWorkspaceId = useEditorStore((s) => s.activeWorkspaceId);
+  // Изоляция: в полосе — только табы активного workspace.
+  const tabs = useMemo(() => tabsOf(allTabs, activeWorkspaceId), [allTabs, activeWorkspaceId]);
   const activeTabId = useEditorStore((s) => s.activeTabId);
   const setActiveTab = useEditorStore((s) => s.setActiveTab);
   const closeTab = useEditorStore((s) => s.closeTab);
@@ -163,15 +170,19 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
     }
   }, []);
 
+  // Индексы тут — по ВИДИМОМУ (отфильтрованному) списку, поэтому резолвим в id:
+  // глобальные индексы стора с ними не совпадают.
   const handleTabDrop = useCallback((e: React.DragEvent, toIndex: number) => {
     e.preventDefault();
     const fromIndex = dragIndexRef.current;
     if (fromIndex !== null && fromIndex !== toIndex) {
-      reorderTab(fromIndex, toIndex);
+      const from = tabs[fromIndex];
+      const to = tabs[toIndex];
+      if (from && to) reorderTab(from.id, to.id);
     }
     dragIndexRef.current = null;
     setDragOverIndex(null);
-  }, [reorderTab]);
+  }, [reorderTab, tabs]);
 
   return (
     <header data-tauri-drag-region className="flex items-center h-10 bg-surface border-b border-border shrink-0 select-none">
@@ -494,6 +505,7 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
           orcaBinding={tabs.find((t) => t.id === ctxMenu.id)?.orcaBinding ?? null}
           onClose={() => setCtxMenu(null)}
           onTogglePin={() => togglePin(ctxMenu.id)}
+          onMoveToWorkspace={() => onMoveTabToWorkspace(ctxMenu.id)}
           onBindTmux={() => onBindTmux(ctxMenu.id)}
           onUnbindTmux={() => setTabBinding(ctxMenu.id, null)}
           onBindOrca={() => onBindOrca(ctxMenu.id)}
@@ -510,7 +522,7 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
 }
 
 function TabContextMenu({
-  x, y, pinned, binding, orcaBinding, onClose, onTogglePin, onBindTmux, onUnbindTmux, onBindOrca, onUnbindOrca, onCloseTab, onCloseOthers, onCloseRight, onCloseSaved, onCleanupEmpty,
+  x, y, pinned, binding, orcaBinding, onClose, onTogglePin, onMoveToWorkspace, onBindTmux, onUnbindTmux, onBindOrca, onUnbindOrca, onCloseTab, onCloseOthers, onCloseRight, onCloseSaved, onCleanupEmpty,
 }: {
   x: number; y: number;
   pinned: boolean;
@@ -518,6 +530,7 @@ function TabContextMenu({
   orcaBinding: OrcaBinding | null;
   onClose: () => void;
   onTogglePin: () => void;
+  onMoveToWorkspace: () => void;
   onBindTmux: () => void;
   onUnbindTmux: () => void;
   onBindOrca: () => void;
@@ -573,6 +586,7 @@ function TabContextMenu({
     >
       <div className="border-b border-border/40">
         {renderItem({ label: pinned ? "Открепить таб" : "Закрепить таб", action: onTogglePin, shortcut: "Ctrl+P" })}
+        {renderItem({ label: "Переместить в workspace…", action: onMoveToWorkspace })}
       </div>
       <div className="border-b border-border/40">{tmuxItems.map(renderItem)}</div>
       <div className="border-b border-border/40">{orcaItems.map(renderItem)}</div>

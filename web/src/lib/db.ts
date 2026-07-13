@@ -1,5 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
-import type { Tab } from "../store/editorStore";
+import type { Tab, Workspace } from "../store/editorStore";
 import type { ReplacePreset } from "../store/presetsStore";
 import type { TriggerPhrase } from "../store/triggerPhrasesStore";
 
@@ -16,6 +16,10 @@ interface RewriteDB extends DBSchema {
     key: string;
     value: TriggerPhrase;
   };
+  workspaces: {
+    key: string;
+    value: Workspace;
+  };
   meta: {
     key: string;
     value: string | number | boolean | string[];
@@ -23,7 +27,7 @@ interface RewriteDB extends DBSchema {
 }
 
 const DB_NAME = "rewrite-db";
-const DB_VERSION = 4;
+const DB_VERSION = 5;
 
 function getDB() {
   return openDB<RewriteDB>(DB_NAME, DB_VERSION, {
@@ -53,16 +57,24 @@ function getDB() {
           db.createObjectStore("triggerPhrases", { keyPath: "id" });
         }
       }
+
+      // v5: workspaces. Чисто аддитивно — существующие сторы не трогаем, миграции данных
+      // нет. Табам без workspaceId «Default» присваивается при гидрации (editorStore).
+      if (oldVersion < 5) {
+        if (!db.objectStoreNames.contains("workspaces")) {
+          db.createObjectStore("workspaces", { keyPath: "id" });
+        }
+      }
     },
   });
 }
 
-// Reorder tabs to match the persisted id sequence. Tabs missing from the list
-// (e.g. written before tabOrder existed) keep getAll's key order at the end.
-function orderTabs(tabs: Tab[], order: string[] | undefined): Tab[] {
-  if (!order || order.length === 0) return tabs;
+// Reorder records to match the persisted id sequence. Records missing from the list
+// (e.g. written before the order key existed) keep getAll's key order at the end.
+function orderById<T extends { id: string }>(items: T[], order: string[] | undefined): T[] {
+  if (!order || order.length === 0) return items;
   const rank = new Map(order.map((id, i) => [id, i]));
-  return [...tabs].sort(
+  return [...items].sort(
     (a, b) => (rank.get(a.id) ?? Infinity) - (rank.get(b.id) ?? Infinity),
   );
 }
@@ -73,10 +85,14 @@ export async function loadSession() {
   // the user's arrangement (incl. DnD reorder) from the persisted tabOrder list.
   const storedTabs = await db.getAll("tabs");
   const tabOrder = (await db.get("meta", "tabOrder")) as string[] | undefined;
-  const tabs = orderTabs(storedTabs, tabOrder);
+  const tabs = orderById(storedTabs, tabOrder);
+  const storedWorkspaces = await db.getAll("workspaces");
+  const workspaceOrder = (await db.get("meta", "workspaceOrder")) as string[] | undefined;
+  const workspaces = orderById(storedWorkspaces, workspaceOrder);
   const presets = await db.getAll("presets");
   const triggerPhrases = await db.getAll("triggerPhrases");
   const activeTabId = (await db.get("meta", "activeTabId")) as string | undefined;
+  const activeWorkspaceId = (await db.get("meta", "activeWorkspaceId")) as string | undefined;
   const tabCounter = (await db.get("meta", "tabCounter")) as number | undefined;
   const theme = (await db.get("meta", "theme")) as string | undefined;
   const fontSize = (await db.get("meta", "fontSize")) as number | undefined;
@@ -86,8 +102,9 @@ export async function loadSession() {
   const referenceText = (await db.get("meta", "referenceText")) as string | undefined;
   const referenceWidth = (await db.get("meta", "referenceWidth")) as number | undefined;
   return {
-    tabs, presets, triggerPhrases,
+    tabs, presets, triggerPhrases, workspaces,
     activeTabId: activeTabId ?? null,
+    activeWorkspaceId: activeWorkspaceId ?? null,
     tabCounter: tabCounter ?? 0,
     theme: theme ?? "dark",
     fontSize: fontSize ?? 13,
@@ -99,28 +116,61 @@ export async function loadSession() {
   };
 }
 
+// Объектом, а не позиционными аргументами: их уже 14 — позиционный вызов стал бы
+// нечитаемым и хрупким (перепутанный порядок тихо запишет не туда).
+export interface SessionSnapshot {
+  tabs: Tab[];
+  activeTabId: string | null;
+  tabCounter: number;
+  workspaces: Workspace[];
+  activeWorkspaceId: string;
+  presets: ReplacePreset[];
+  triggerPhrases: TriggerPhrase[];
+  theme: string;
+  fontSize: number;
+  wordWrap: boolean;
+  tmuxAutoSubmit: boolean;
+  fontFamily: string;
+  referenceText: string;
+  referenceWidth: number;
+}
+
 export async function saveSession(
-  tabs: Tab[],
-  activeTabId: string | null,
-  tabCounter: number,
-  presets: ReplacePreset[],
-  triggerPhrases: TriggerPhrase[],
-  theme: string,
-  fontSize: number,
-  wordWrap: boolean,
-  tmuxAutoSubmit: boolean,
-  fontFamily: string,
-  referenceText: string,
-  referenceWidth: number,
+  {
+    tabs,
+    activeTabId,
+    tabCounter,
+    workspaces,
+    activeWorkspaceId,
+    presets,
+    triggerPhrases,
+    theme,
+    fontSize,
+    wordWrap,
+    tmuxAutoSubmit,
+    fontFamily,
+    referenceText,
+    referenceWidth,
+  }: SessionSnapshot,
 ) {
   const db = await getDB();
-  const tx = db.transaction(["tabs", "presets", "triggerPhrases", "meta"], "readwrite");
+  const tx = db.transaction(
+    ["tabs", "presets", "triggerPhrases", "workspaces", "meta"],
+    "readwrite",
+  );
 
   // Clear and rewrite tabs
   const tabStore = tx.objectStore("tabs");
   await tabStore.clear();
   for (const tab of tabs) {
     await tabStore.put(tab);
+  }
+
+  // Clear and rewrite workspaces
+  const workspaceStore = tx.objectStore("workspaces");
+  await workspaceStore.clear();
+  for (const ws of workspaces) {
+    await workspaceStore.put(ws);
   }
 
   // Clear and rewrite presets
@@ -140,7 +190,9 @@ export async function saveSession(
   // Meta
   const metaStore = tx.objectStore("meta");
   await metaStore.put(tabs.map((t) => t.id), "tabOrder");
+  await metaStore.put(workspaces.map((w) => w.id), "workspaceOrder");
   await metaStore.put(activeTabId ?? "", "activeTabId");
+  await metaStore.put(activeWorkspaceId, "activeWorkspaceId");
   await metaStore.put(tabCounter, "tabCounter");
   await metaStore.put(theme, "theme");
   await metaStore.put(fontSize, "fontSize");

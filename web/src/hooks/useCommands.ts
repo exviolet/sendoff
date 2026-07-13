@@ -38,6 +38,10 @@ export interface CommandDeps {
   setOrcaPicker: Dispatch<SetStateAction<OrcaPicker>>;
   bindActiveTabOrca: () => void;
   unbindActiveTabOrca: () => void;
+  openWorkspaceSwitcher: () => void;
+  moveActiveTabToWorkspace: () => void;
+  renameActiveWorkspace: () => void;
+  deleteActiveWorkspace: () => void;
 }
 
 export function useCommands(deps: CommandDeps): Command[] {
@@ -48,6 +52,7 @@ export function useCommands(deps: CommandDeps): Command[] {
     markdownPreview, focusEditor, cleanupEmptyTabs, toggleActivePin,
     handleTmuxSend, setTmuxPicker, bindActiveTab, unbindActiveTab,
     setOrcaPicker, bindActiveTabOrca, unbindActiveTabOrca,
+    openWorkspaceSwitcher, moveActiveTabToWorkspace, renameActiveWorkspace, deleteActiveWorkspace,
   } = deps;
 
   return useMemo(() => [
@@ -72,6 +77,10 @@ export function useCommands(deps: CommandDeps): Command[] {
       const n = closeTabsToRight(activeTabId);
       toast(n === 0 ? "Нечего закрывать" : `Закрыто: ${n}`, n === 0 ? "info" : "success");
     }},
+    { id: "workspace-switch", label: "Workspace: переключить / создать…", shortcut: "Ctrl+Shift+W", action: openWorkspaceSwitcher },
+    { id: "workspace-move-tab", label: "Workspace: переместить таб…", action: moveActiveTabToWorkspace },
+    { id: "workspace-rename", label: "Workspace: переименовать…", action: renameActiveWorkspace },
+    { id: "workspace-delete", label: "Workspace: удалить…", action: deleteActiveWorkspace },
     { id: "toggle-pin", label: "Закрепить/открепить таб", shortcut: "Ctrl+P", action: toggleActivePin },
     { id: "cleanup-empty-tabs", label: "Очистить пустые табы", action: cleanupEmptyTabs },
     { id: "reopen-tab", label: "Восстановить закрытый таб", shortcut: "Ctrl+Shift+T", action: () => useEditorStore.getState().reopenTab() },
@@ -103,5 +112,5 @@ export function useCommands(deps: CommandDeps): Command[] {
     { id: "toggle-md-preview", label: markdownPreview ? "Редактор" : "Markdown превью", shortcut: "Ctrl+M", action: () => setMarkdownPreview((v) => !v) },
     { id: "settings", label: "Настройки", shortcut: "Ctrl+,", action: () => toggleSidePanel("settings") },
     { id: "focus-editor", label: "Фокус в редактор", shortcut: "Ctrl+E", action: focusEditor },
-  ], [saveCurrentTab, openFile, downloadCurrentTab, exportAll, importBackup, toggleDistractionFree, toggleSidePanel, setSidePanel, setPanelMode, setTheme, setTabSwitcherOpen, setGlobalSearchOpen, setTriggerPhrasesOpen, setShortcutsOpen, setMarkdownPreview, markdownPreview, focusEditor, cleanupEmptyTabs, toggleActivePin, handleTmuxSend, setTmuxPicker, bindActiveTab, unbindActiveTab, setOrcaPicker, bindActiveTabOrca, unbindActiveTabOrca]);
+  ], [saveCurrentTab, openFile, downloadCurrentTab, exportAll, importBackup, toggleDistractionFree, toggleSidePanel, setSidePanel, setPanelMode, setTheme, setTabSwitcherOpen, setGlobalSearchOpen, setTriggerPhrasesOpen, setShortcutsOpen, setMarkdownPreview, markdownPreview, focusEditor, cleanupEmptyTabs, toggleActivePin, handleTmuxSend, setTmuxPicker, bindActiveTab, unbindActiveTab, setOrcaPicker, bindActiveTabOrca, unbindActiveTabOrca, openWorkspaceSwitcher, moveActiveTabToWorkspace, renameActiveWorkspace, deleteActiveWorkspace]);
 }

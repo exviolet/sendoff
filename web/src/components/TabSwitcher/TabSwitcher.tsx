@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useEditorStore } from "../../store/editorStore";
 import type { Tab } from "../../store/editorStore";
+import { tabsOf } from "../../lib/tabUtils";
 
 interface TabSwitcherProps {
   onClose: () => void;
@@ -161,7 +162,10 @@ function makePreviewContext(tab: Tab, result: TabResult | undefined, query: stri
 }
 
 export function TabSwitcher({ onClose }: TabSwitcherProps) {
-  const tabs = useEditorStore((s) => s.tabs);
+  const allTabs = useEditorStore((s) => s.tabs);
+  const activeWorkspaceId = useEditorStore((s) => s.activeWorkspaceId);
+  // Скоуп активного workspace: кросс-workspace поиск — это Ctrl+Shift+D (global search).
+  const tabs = useMemo(() => tabsOf(allTabs, activeWorkspaceId), [allTabs, activeWorkspaceId]);
   const activeTabId = useEditorStore((s) => s.activeTabId);
   const pendingClose = useEditorStore((s) => s.pendingClose);
   const setActiveTab = useEditorStore((s) => s.setActiveTab);

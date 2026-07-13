@@ -13,6 +13,7 @@ import { TabSwitcher } from "./components/TabSwitcher/TabSwitcher";
 import { GlobalSearchPanel } from "./components/GlobalSearch/GlobalSearchPanel";
 import { TmuxTargetPicker } from "./components/TmuxPicker/TmuxTargetPicker";
 import { OrcaTargetPicker } from "./components/OrcaPicker/OrcaTargetPicker";
+import { WorkspaceSwitcher } from "./components/WorkspaceSwitcher/WorkspaceSwitcher";
 import type { MatchResult } from "./lib/replaceEngine";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useSessionPersistence } from "./hooks/useSessionPersistence";
@@ -37,6 +38,11 @@ function App() {
   const [distractionFree, setDistractionFree] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [tabSwitcherOpen, setTabSwitcherOpen] = useState(false);
+  // null = закрыт; move хранит id таба, который переносим.
+  const [workspacePicker, setWorkspacePicker] = useState<
+    null | { mode: "switch" } | { mode: "move"; tabId: string }
+  >(null);
+  const [workspaceDialog, setWorkspaceDialog] = useState<null | "rename" | "delete">(null);
   const [globalSearchOpen, setGlobalSearchOpen] = useState(false);
   const [triggerPhrasesOpen, setTriggerPhrasesOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
@@ -148,6 +154,13 @@ function App() {
     if (id) useEditorStore.getState().togglePin(id);
   }, []);
 
+  const openWorkspaceSwitcher = useCallback(() => setWorkspacePicker({ mode: "switch" }), []);
+
+  const moveActiveTabToWorkspace = useCallback(() => {
+    const id = useEditorStore.getState().activeTabId;
+    if (id) setWorkspacePicker({ mode: "move", tabId: id });
+  }, []);
+
   const openGlobalMatch = useCallback((tabId: string, match: MatchResult) => {
     useEditorStore.getState().setActiveTab(tabId);
     setPanelMode(null);
@@ -164,6 +177,10 @@ function App() {
     markdownPreview, focusEditor, cleanupEmptyTabs, toggleActivePin,
     handleTmuxSend: handleSend, setTmuxPicker, bindActiveTab, unbindActiveTab,
     setOrcaPicker, bindActiveTabOrca, unbindActiveTabOrca,
+    openWorkspaceSwitcher: openWorkspaceSwitcher,
+    moveActiveTabToWorkspace: moveActiveTabToWorkspace,
+    renameActiveWorkspace: () => setWorkspaceDialog("rename"),
+    deleteActiveWorkspace: () => setWorkspaceDialog("delete"),
   });
 
   useKeyboardShortcuts({
@@ -172,7 +189,7 @@ function App() {
     onClosePanels: () => {
       if (distractionFree) {
         setDistractionFree(false);
-      } else if (commandPaletteOpen || shortcutsOpen || tabSwitcherOpen || globalSearchOpen || triggerPhrasesOpen || tmuxPicker || orcaPicker) {
+      } else if (commandPaletteOpen || shortcutsOpen || tabSwitcherOpen || globalSearchOpen || triggerPhrasesOpen || tmuxPicker || orcaPicker || workspacePicker) {
         // handled by their own listeners
       } else if (panelMode || sidePanel) {
         closePanel();
@@ -199,6 +216,7 @@ function App() {
     onTabSwitcher: () => setTabSwitcherOpen((v) => !v),
     onReferencePanel: () => toggleSidePanel("reference"),
     onGlobalSearch: () => setGlobalSearchOpen((v) => !v),
+    onWorkspaceSwitcher: () => setWorkspacePicker((v) => (v ? null : { mode: "switch" })),
   });
 
   return (
@@ -215,6 +233,7 @@ function App() {
           onCleanupEmptyTabs={cleanupEmptyTabs}
           onBindTmux={openBindPicker}
           onBindOrca={openBindPickerOrca}
+          onMoveTabToWorkspace={(tabId) => setWorkspacePicker({ mode: "move", tabId })}
           onTriggerPhrases={() => setTriggerPhrasesOpen(true)}
         />
       )}
@@ -242,7 +261,13 @@ function App() {
         {!distractionFree && sidePanel === "reference" && <ReferencePanel onClose={() => setSidePanel(null)} textareaRef={textareaRef} />}
         {!distractionFree && sidePanel === "settings" && <SettingsPanel onClose={() => setSidePanel(null)} />}
       </div>
-      {!distractionFree && <StatusBar onBindTmux={bindActiveTab} onBindOrca={bindActiveTabOrca} />}
+      {!distractionFree && (
+        <StatusBar
+          onBindTmux={bindActiveTab}
+          onBindOrca={bindActiveTabOrca}
+          onWorkspaceSwitch={() => setWorkspacePicker({ mode: "switch" })}
+        />
+      )}
 
       {commandPaletteOpen && (
         <CommandPalette
@@ -281,6 +306,64 @@ function App() {
           onPick={handleOrcaPick}
         />
       )}
+      {workspacePicker && (
+        <WorkspaceSwitcher
+          mode={workspacePicker.mode}
+          onClose={() => setWorkspacePicker(null)}
+          onPick={(workspaceId) => {
+            const picker = workspacePicker;
+            setWorkspacePicker(null);
+            const store = useEditorStore.getState();
+            if (picker.mode === "move") {
+              store.moveTabToWorkspace(picker.tabId, workspaceId);
+              toast("Таб перемещён в другой workspace", "success");
+            } else {
+              store.setActiveWorkspace(workspaceId);
+            }
+          }}
+        />
+      )}
+      {workspaceDialog === "rename" && (() => {
+        const s = useEditorStore.getState();
+        const ws = s.workspaces.find((w) => w.id === s.activeWorkspaceId);
+        return (
+          <ConfirmDialog
+            title="Переименовать workspace"
+            message="Новое имя активного workspace."
+            confirmLabel="Переименовать"
+            inputDefault={ws?.name ?? ""}
+            inputPlaceholder="Имя workspace"
+            onConfirm={(value) => {
+              if (ws) useEditorStore.getState().renameWorkspace(ws.id, value);
+              setWorkspaceDialog(null);
+            }}
+            onCancel={() => setWorkspaceDialog(null)}
+          />
+        );
+      })()}
+      {workspaceDialog === "delete" && (() => {
+        const s = useEditorStore.getState();
+        const ws = s.workspaces.find((w) => w.id === s.activeWorkspaceId);
+        const target = s.workspaces.find((w) => w.id !== s.activeWorkspaceId);
+        const count = s.tabs.filter((t) => t.workspaceId === s.activeWorkspaceId).length;
+        return (
+          <ConfirmDialog
+            title={`Удалить workspace «${ws?.name ?? ""}»?`}
+            message={
+              target
+                ? `${count} таб(ов) переедут в «${target.name}» — ничего не будет удалено.`
+                : "Нельзя удалить единственный workspace."
+            }
+            confirmLabel="Удалить"
+            danger
+            onConfirm={() => {
+              if (ws && target) useEditorStore.getState().deleteWorkspace(ws.id);
+              setWorkspaceDialog(null);
+            }}
+            onCancel={() => setWorkspaceDialog(null)}
+          />
+        );
+      })()}
       {shortcutsOpen && <ShortcutsModal onClose={() => setShortcutsOpen(false)} />}
       {pendingClose && (
         <ConfirmDialog
