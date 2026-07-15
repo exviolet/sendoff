@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { ReactNode } from "react";
 import { useEditorStore } from "../../store/editorStore";
 import type { Tab } from "../../store/editorStore";
 import { tabsOf } from "../../lib/tabUtils";
+import { fuzzyMatch } from "../../lib/fuzzyMatch";
+import { highlightMatches } from "../../lib/highlight";
 
 interface TabSwitcherProps {
   onClose: () => void;
@@ -45,59 +46,24 @@ function makePreview(tab: Tab) {
   return line.length > 80 ? `${line.slice(0, 77)}...` : line;
 }
 
-function fuzzyMatch(query: string, text: string, baseScore = 0, source: MatchResult["source"]): MatchResult {
-  const q = query.toLowerCase();
-  const t = text.toLowerCase();
-  const indices: number[] = [];
-  let qi = 0;
-  let score = baseScore;
-  let lastMatchIndex = -1;
-
-  for (let ti = 0; ti < t.length && qi < q.length; ti++) {
-    if (t[ti] === q[qi]) {
-      indices.push(ti);
-      if (lastMatchIndex === ti - 1) score += 2;
-      if (ti === 0 || t[ti - 1] === " " || t[ti - 1] === "-" || t[ti - 1] === "_") score += 3;
-      score += 1;
-      lastMatchIndex = ti;
-      qi++;
-    }
-  }
-
-  return { match: qi === q.length, score, indices, source };
+// Обёртка над lib/fuzzyMatch: добавляет source (концерн этого компонента, не lib).
+function scored(query: string, text: string, baseScore: number, source: MatchResult["source"]): MatchResult {
+  return { ...fuzzyMatch(query, text, baseScore), source };
 }
 
 function bestMatch(query: string, tab: Tab) {
-  const title = fuzzyMatch(query, tab.title, 20, "title");
+  const title = scored(query, tab.title, 20, "title");
   const label = bindingLabel(tab);
   // Привязка участвует в поиске: печатаешь `work:claude` или просто `claude` —
   // привязанный таб всплывает. Балл между title и preview.
   const binding: MatchResult = label
-    ? fuzzyMatch(query, label, 16, "binding")
+    ? scored(query, label, 16, "binding")
     : { match: false, score: 0, indices: [], source: "binding" };
-  const preview = fuzzyMatch(query, makePreview(tab), 8, "preview");
-  const content = fuzzyMatch(query, tab.content, 0, "content");
+  const preview = scored(query, makePreview(tab), 8, "preview");
+  const content = scored(query, tab.content, 0, "content");
   const matches = [title, binding, preview, content].filter((result) => result.match);
   if (matches.length === 0) return null;
   return matches.sort((a, b) => b.score - a.score)[0];
-}
-
-function highlightText(text: string, indices: number[]) {
-  if (indices.length === 0) return text;
-
-  const parts: ReactNode[] = [];
-  const indexSet = new Set(indices);
-  let start = 0;
-
-  for (let i = 0; i < text.length; i++) {
-    if (!indexSet.has(i)) continue;
-    if (start < i) parts.push(<span key={`t-${start}`}>{text.slice(start, i)}</span>);
-    parts.push(<span key={`h-${i}`} className="text-accent font-semibold">{text[i]}</span>);
-    start = i + 1;
-  }
-
-  if (start < text.length) parts.push(<span key={`t-${start}`}>{text.slice(start)}</span>);
-  return parts;
 }
 
 function lineStartAt(text: string, index: number) {
@@ -151,7 +117,7 @@ function makePreviewContext(tab: Tab, result: TabResult | undefined, query: stri
     .slice(0, 14);
 
   const text = lines.join("\n");
-  const previewMatch = normalizedQuery ? fuzzyMatch(normalizedQuery, text, 0, "preview") : null;
+  const previewMatch = normalizedQuery ? fuzzyMatch(normalizedQuery, text, 0) : null;
 
   return {
     text,
@@ -360,7 +326,7 @@ export function TabSwitcher({ onClose }: TabSwitcherProps) {
                   <span className={`w-1.5 h-1.5 rounded-full ${item.tab.isDirty ? "bg-dirty" : isActive ? "bg-accent" : "bg-border"}`} />
                   <span className="min-w-0">
                     <span className="flex items-center gap-2 min-w-0">
-                      <span className="truncate text-[13px] text-text">{highlightText(item.tab.title, item.source === "title" ? item.indices : [])}</span>
+                      <span className="truncate text-[13px] text-text">{highlightMatches(item.tab.title, item.source === "title" ? item.indices : [])}</span>
                       {isActive && <span className="text-[10px] text-accent shrink-0">активный</span>}
                       {item.tab.tmuxBinding && (
                         <span
@@ -368,7 +334,7 @@ export function TabSwitcher({ onClose }: TabSwitcherProps) {
                           title={`tmux → ${bindingLabel(item.tab)}`}
                         >
                           {item.source === "binding"
-                            ? highlightText(bindingLabel(item.tab), item.indices)
+                            ? highlightMatches(bindingLabel(item.tab), item.indices)
                             : bindingLabel(item.tab)}
                         </span>
                       )}
@@ -416,7 +382,7 @@ export function TabSwitcher({ onClose }: TabSwitcherProps) {
                     <div className="h-full overflow-hidden rounded-md border border-border/70 bg-bg/40">
                       <div className="h-full overflow-hidden whitespace-pre-wrap break-words px-4 py-3 text-[12px] leading-5 text-text-muted font-mono">
                         {previewContext.before && <span className="block text-text-muted/40">...</span>}
-                        <span>{highlightText(previewContext.text, previewContext.indices)}</span>
+                        <span>{highlightMatches(previewContext.text, previewContext.indices)}</span>
                         {previewContext.after && <span className="block text-text-muted/40">...</span>}
                       </div>
                     </div>

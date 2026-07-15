@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { fuzzyMatch } from "../../lib/fuzzyMatch";
+import { highlightMatches } from "../../lib/highlight";
 
 export interface Command {
   id: string;
@@ -10,57 +12,6 @@ export interface Command {
 interface CommandPaletteProps {
   commands: Command[];
   onClose: () => void;
-}
-
-function fuzzyMatch(query: string, text: string): { match: boolean; score: number; indices: number[] } {
-  const q = query.toLowerCase();
-  const t = text.toLowerCase();
-  const indices: number[] = [];
-  let qi = 0;
-  let score = 0;
-  let lastMatchIndex = -1;
-
-  for (let ti = 0; ti < t.length && qi < q.length; ti++) {
-    if (t[ti] === q[qi]) {
-      indices.push(ti);
-      // Consecutive matches get bonus
-      if (lastMatchIndex === ti - 1) score += 2;
-      // Start-of-word bonus
-      if (ti === 0 || t[ti - 1] === " ") score += 3;
-      score += 1;
-      lastMatchIndex = ti;
-      qi++;
-    }
-  }
-
-  return { match: qi === q.length, score, indices };
-}
-
-function highlightText(text: string, indices: number[]) {
-  if (indices.length === 0) return <span>{text}</span>;
-
-  const parts: React.ReactNode[] = [];
-  let lastIdx = 0;
-  const indexSet = new Set(indices);
-
-  for (let i = 0; i < text.length; i++) {
-    if (indexSet.has(i)) {
-      if (lastIdx < i) {
-        parts.push(<span key={`t-${lastIdx}`}>{text.slice(lastIdx, i)}</span>);
-      }
-      parts.push(
-        <span key={`h-${i}`} className="text-accent font-semibold">
-          {text[i]}
-        </span>
-      );
-      lastIdx = i + 1;
-    }
-  }
-  if (lastIdx < text.length) {
-    parts.push(<span key={`t-${lastIdx}`}>{text.slice(lastIdx)}</span>);
-  }
-
-  return <>{parts}</>;
 }
 
 export function CommandPalette({ commands, onClose }: CommandPaletteProps) {
@@ -185,7 +136,7 @@ export function CommandPalette({ commands, onClose }: CommandPaletteProps) {
                 }
               `}
             >
-              <span>{highlightText(item.cmd.label, item.indices)}</span>
+              <span>{highlightMatches(item.cmd.label, item.indices)}</span>
               {item.cmd.shortcut && (
                 <kbd className="text-[10px] text-text-muted/60 bg-surface-hover px-1.5 py-0.5 rounded border border-border/50 font-mono">
                   {item.cmd.shortcut}

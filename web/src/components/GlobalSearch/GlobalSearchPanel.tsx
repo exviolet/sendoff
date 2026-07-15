@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { findMatches, type MatchResult } from "../../lib/replaceEngine";
+import { highlightMatches } from "../../lib/highlight";
 import { useEditorStore } from "../../store/editorStore";
 import type { Tab } from "../../store/editorStore";
 
@@ -41,24 +42,6 @@ function makeSnippet(content: string, match: MatchResult) {
     before: start > 0,
     after: end < content.length,
   };
-}
-
-function highlightText(text: string, indices: number[]) {
-  if (indices.length === 0) return text;
-
-  const parts: ReactNode[] = [];
-  const indexSet = new Set(indices);
-  let start = 0;
-
-  for (let i = 0; i < text.length; i++) {
-    if (!indexSet.has(i)) continue;
-    if (start < i) parts.push(<span key={`t-${start}`}>{text.slice(start, i)}</span>);
-    parts.push(<span key={`h-${i}`} className="text-accent font-semibold">{text[i]}</span>);
-    start = i + 1;
-  }
-
-  if (start < text.length) parts.push(<span key={`t-${start}`}>{text.slice(start)}</span>);
-  return parts;
 }
 
 export function GlobalSearchPanel({ onClose, onOpenMatch }: GlobalSearchPanelProps) {
@@ -238,7 +221,7 @@ export function GlobalSearchPanel({ onClose, onOpenMatch }: GlobalSearchPanelPro
                       </span>
                       <span className="min-w-0 whitespace-pre-wrap break-words text-[11px] leading-5 text-text-muted">
                         {snippet.before && <span className="text-text-muted/40">... </span>}
-                        {highlightText(snippet.text, snippet.indices)}
+                        {highlightMatches(snippet.text, snippet.indices)}
                         {snippet.after && <span className="text-text-muted/40"> ...</span>}
                       </span>
                       <span className="pt-0.5 text-[10px] text-text-muted/45 tabular-nums">
