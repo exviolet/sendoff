@@ -130,7 +130,10 @@ export function ReferencePanel({ onClose, textareaRef }: ReferencePanelProps) {
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder="Временный контекст, требования, ошибка, факты для промпта..."
-          className="flex-1 min-h-0 resize-none bg-bg border border-border rounded px-2.5 py-2 text-[12px] leading-relaxed text-text outline-none focus:border-accent/50 placeholder:text-text-muted/45"
+          // Шаг меньше редактора — панель остаётся вторичной поверхностью, но следует
+          // настройке размера (раньше была прибита к 12px и не менялась вовсе).
+          style={{ fontSize: "calc(var(--editor-font-size, 13px) - 1px)" }}
+          className="flex-1 min-h-0 resize-none bg-bg border border-border rounded px-2.5 py-2 leading-relaxed text-text outline-none focus:border-accent/50 placeholder:text-text-muted/45"
         />
 
         <div className="grid grid-cols-2 gap-1.5">

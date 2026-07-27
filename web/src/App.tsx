@@ -80,6 +80,13 @@ function App() {
     }
   }, [fontFamily]);
 
+  // Размер шрифта — как CSS-переменная, чтобы за настройкой следовали ВСЕ поверхности с
+  // текстом документа, а не только редактор: markdown-превью (CSS-класс) и reference-панель.
+  // Раньше они были прибиты к 13px/12px и при fontSize=18 выглядели чужеродно.
+  useEffect(() => {
+    document.documentElement.style.setProperty("--editor-font-size", `${fontSize}px`);
+  }, [fontSize]);
+
   useSessionPersistence();
   const { saveCurrentTab, downloadCurrentTab, openFile, exportAll, importBackup } = useFileIO();
   const {

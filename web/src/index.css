@@ -158,7 +158,8 @@ textarea {
 /* Markdown preview styles */
 .prose-markdown {
   font-family: var(--font-mono);
-  font-size: 13px;
+  /* Следует настройке размера шрифта (App.tsx выставляет переменную); 13px — дефолт до гидрации. */
+  font-size: var(--editor-font-size, 13px);
   line-height: 1.7;
   letter-spacing: 0.025em;
 }
