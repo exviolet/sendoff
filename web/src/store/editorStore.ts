@@ -72,6 +72,9 @@ interface EditorStore {
   workspaces: Workspace[];
   activeWorkspaceId: string;
   tabGroups: TabGroup[];
+  // Ctrl+клик по табам. Эфемерно: НЕ персистится (в saveSession не попадает) — выделение
+  // переживать перезапуск не должно, это состояние текущего жеста, а не данные.
+  selectedTabIds: string[];
   createTab: () => void;
   closeTab: (id: string) => void;
   confirmPendingClose: () => void;
@@ -102,6 +105,11 @@ interface EditorStore {
   setTabGroupColor: (id: string, color: TabGroupColor) => void;
   toggleTabGroupCollapsed: (id: string) => void;
   assignTabToGroup: (tabId: string, groupId: string | null) => void;
+  assignTabsToGroup: (tabIds: string[], groupId: string | null) => void;
+  moveTabsToWorkspace: (tabIds: string[], workspaceId: string) => void;
+  reorderTabGroup: (groupId: string, toTabId: string) => void;
+  toggleTabSelection: (tabId: string) => void;
+  clearTabSelection: () => void;
   ungroupTabGroup: (id: string) => void;
   closeTabGroup: (id: string) => number;
   hydrate: (
@@ -154,6 +162,13 @@ export const useEditorStore = create<EditorStore>((set, get) => {
     return { tabs: [...remaining, fresh], activeTabId: fresh.id, tabCounter: next };
   }
 
+  // Выделение не должно держать id закрытых табов: иначе следующая пачечная операция
+  // молча промахнётся мимо несуществующих табов.
+  function keepSelection(remaining: Tab[]) {
+    const alive = new Set(remaining.map((t) => t.id));
+    return get().selectedTabIds.filter((id) => alive.has(id));
+  }
+
   function performClose(id: string) {
     const { tabs, activeTabId, closedTabs, activeWorkspaceId, tabCounter, workspaces } = get();
     const tab = tabs.find((t) => t.id === id);
@@ -169,6 +184,7 @@ export const useEditorStore = create<EditorStore>((set, get) => {
         closedTabs: newClosedTabs,
         workspaces: rememberActive(workspaces, activeWorkspaceId, refill.activeTabId),
         tabGroups: pruneGroups(refill.tabs, get().tabGroups),
+        selectedTabIds: keepSelection(refill.tabs),
       });
       return;
     }
@@ -188,6 +204,7 @@ export const useEditorStore = create<EditorStore>((set, get) => {
       closedTabs: newClosedTabs,
       workspaces: rememberActive(workspaces, activeWorkspaceId, newActiveId),
       tabGroups: pruneGroups(remaining, get().tabGroups),
+      selectedTabIds: keepSelection(remaining),
     });
   }
 
@@ -212,6 +229,7 @@ export const useEditorStore = create<EditorStore>((set, get) => {
         closedTabs: newClosedTabs,
         workspaces: rememberActive(workspaces, activeWorkspaceId, refill.activeTabId),
         tabGroups: pruneGroups(refill.tabs, get().tabGroups),
+        selectedTabIds: keepSelection(refill.tabs),
       });
       return closing.length;
     }
@@ -232,6 +250,7 @@ export const useEditorStore = create<EditorStore>((set, get) => {
       closedTabs: newClosedTabs,
       workspaces: rememberActive(workspaces, activeWorkspaceId, newActiveId),
       tabGroups: pruneGroups(remaining, get().tabGroups),
+      selectedTabIds: keepSelection(remaining),
     });
     return closing.length;
   }
@@ -246,6 +265,7 @@ export const useEditorStore = create<EditorStore>((set, get) => {
   workspaces: [initialWorkspace],
   activeWorkspaceId: initialWorkspace.id,
   tabGroups: [],
+  selectedTabIds: [],
 
   createTab: () => {
     const next = get().tabCounter + 1;
@@ -507,6 +527,8 @@ export const useEditorStore = create<EditorStore>((set, get) => {
       const workspaces = rememberActive(s.workspaces, s.activeWorkspaceId, s.activeTabId);
       const pick = pickActiveIn(s.tabs, target, id);
 
+      // Выделение скоуплено workspace'ом: унести его в другой набор табов — значит
+      // применить пачечную операцию к тому, чего пользователь уже не видит.
       // Пустой workspace → материализуем свежий таб (инвариант «активный непуст»).
       if (!pick) {
         const next = s.tabCounter + 1;
@@ -517,6 +539,7 @@ export const useEditorStore = create<EditorStore>((set, get) => {
           tabCounter: next,
           activeWorkspaceId: id,
           workspaces: rememberActive(workspaces, id, fresh.id),
+          selectedTabIds: [],
         };
       }
 
@@ -524,6 +547,7 @@ export const useEditorStore = create<EditorStore>((set, get) => {
         activeTabId: pick,
         activeWorkspaceId: id,
         workspaces: rememberActive(workspaces, id, pick),
+        selectedTabIds: [],
       };
     }),
 
@@ -719,6 +743,56 @@ export const useEditorStore = create<EditorStore>((set, get) => {
       );
       return { tabs: arrangeTabs(tabs), tabGroups: pruneGroups(tabs, s.tabGroups) };
     }),
+
+  // Тот же инвариант, что у одиночной версии, но одним set: поштучный цикл прогнал бы
+  // arrangeTabs на каждый таб и дал бы промежуточные перерисовки полосы.
+  assignTabsToGroup: (tabIds, groupId) =>
+    set((s) => {
+      const ids = new Set(tabIds);
+      const group = groupId ? s.tabGroups.find((g) => g.id === groupId) : null;
+      if (groupId && !group) return {};
+      const tabs = s.tabs.map((t) => {
+        if (!ids.has(t.id)) return t;
+        // Таб из чужого workspace в эту группу не пускаем — молча пропускаем его.
+        if (group && group.workspaceId !== t.workspaceId) return t;
+        return { ...t, groupId: groupId ?? undefined, pinned: groupId ? false : t.pinned };
+      });
+      return { tabs: arrangeTabs(tabs), tabGroups: pruneGroups(tabs, s.tabGroups), selectedTabIds: [] };
+    }),
+
+  // Переезд пачкой идёт через одиночный moveTabToWorkspace: в нём вся логика выбора нового
+  // активного таба и добивки опустевшего workspace, дублировать её нельзя.
+  moveTabsToWorkspace: (tabIds, workspaceId) => {
+    for (const id of tabIds) get().moveTabToWorkspace(id, workspaceId);
+    set({ selectedTabIds: [] });
+  },
+
+  // Перетаскивание группы целиком: run уезжает к позиции целевого таба, порядок внутри
+  // сохраняется. Реализовано переносом ПЕРВОГО члена — arrangeTabs подтянет остальных
+  // (позиция run'а задаётся его первым табом), поэтому отдельной логики для хвоста нет.
+  reorderTabGroup: (groupId, toTabId) =>
+    set((s) => {
+      const members = s.tabs.filter((t) => t.groupId === groupId);
+      if (members.length === 0) return {};
+      const target = s.tabs.find((t) => t.id === toTabId);
+      // Бросок на собственного члена — no-op, иначе run «прыгнул» бы сам в себя.
+      if (!target || target.groupId === groupId) return {};
+
+      const rest = s.tabs.filter((t) => t.groupId !== groupId);
+      const at = rest.findIndex((t) => t.id === toTabId);
+      if (at < 0) return {};
+      const tabs = [...rest.slice(0, at), ...members, ...rest.slice(at)];
+      return { tabs: arrangeTabs(tabs) };
+    }),
+
+  toggleTabSelection: (tabId) =>
+    set((s) => ({
+      selectedTabIds: s.selectedTabIds.includes(tabId)
+        ? s.selectedTabIds.filter((id) => id !== tabId)
+        : [...s.selectedTabIds, tabId],
+    })),
+
+  clearTabSelection: () => set((s) => (s.selectedTabIds.length === 0 ? {} : { selectedTabIds: [] })),
 
   // Расформировать ≠ закрыть: табы остаются, исчезает только сама группа.
   ungroupTabGroup: (id) =>

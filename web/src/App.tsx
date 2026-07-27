@@ -330,8 +330,17 @@ function App() {
             setWorkspacePicker(null);
             const store = useEditorStore.getState();
             if (picker.mode === "move") {
-              store.moveTabToWorkspace(picker.tabId, workspaceId);
-              toast("Таб перемещён в другой workspace", "success");
+              // Пачка — только если перенос затеян с выделенного таба; иначе двигаем
+              // ровно тот, по которому кликнули.
+              const selected = store.selectedTabIds;
+              const batch = selected.includes(picker.tabId) ? selected : [picker.tabId];
+              store.moveTabsToWorkspace(batch, workspaceId);
+              toast(
+                batch.length > 1
+                  ? `Перемещено табов: ${batch.length}`
+                  : "Таб перемещён в другой workspace",
+                "success",
+              );
             } else {
               store.setActiveWorkspace(workspaceId);
             }

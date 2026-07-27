@@ -55,6 +55,11 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
   const ungroupTabGroup = useEditorStore((s) => s.ungroupTabGroup);
   const closeTabGroup = useEditorStore((s) => s.closeTabGroup);
   const assignTabToGroup = useEditorStore((s) => s.assignTabToGroup);
+  const assignTabsToGroup = useEditorStore((s) => s.assignTabsToGroup);
+  const reorderTabGroup = useEditorStore((s) => s.reorderTabGroup);
+  const selectedTabIds = useEditorStore((s) => s.selectedTabIds);
+  const toggleTabSelection = useEditorStore((s) => s.toggleTabSelection);
+  const clearTabSelection = useEditorStore((s) => s.clearTabSelection);
   // Изоляция: в полосе — только табы активного workspace.
   const tabs = useMemo(() => tabsOf(allTabs, activeWorkspaceId), [allTabs, activeWorkspaceId]);
   const groups = useMemo(() => groupsOf(allGroups, activeWorkspaceId), [allGroups, activeWorkspaceId]);
@@ -95,6 +100,9 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
   const [groupEditValue, setGroupEditValue] = useState("");
   const [activeOff, setActiveOff] = useState<null | "left" | "right">(null);
   const dragIdRef = useRef<string | null>(null);
+  // Тащим группу целиком — держим отдельно от dragIdRef: у дропа разные обработчики,
+  // и перепутать «таб внутрь группы» с «группа к позиции» нельзя.
+  const dragGroupIdRef = useRef<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const activeTabRef = useRef<HTMLDivElement>(null);
   const navRef = useRef<HTMLElement>(null);
@@ -207,17 +215,26 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
 
   const handleTabDrop = useCallback((e: React.DragEvent, toId: string) => {
     e.preventDefault();
-    const fromId = dragIdRef.current;
-    if (fromId !== null && fromId !== toId) reorderTab(fromId, toId);
+    // Группа имеет приоритет: если тащили run, бросок на таб перемещает всю группу,
+    // а не сводит её к одному табу.
+    const groupId = dragGroupIdRef.current;
+    if (groupId) {
+      reorderTabGroup(groupId, toId);
+    } else {
+      const fromId = dragIdRef.current;
+      if (fromId !== null && fromId !== toId) reorderTab(fromId, toId);
+    }
     dragIdRef.current = null;
+    dragGroupIdRef.current = null;
     setDragOverId(null);
-  }, [reorderTab]);
+  }, [reorderTab, reorderTabGroup]);
 
   // Отрисовка одного таба. Вынесена из map: таб рисуется и внутри group-run'а, и вне его.
   function renderTab(tab: Tab) {
     const isActive = tab.id === activeTabId;
     const isEditing = tab.id === editingId;
     const isDragTarget = dragOverId === tab.id;
+    const isSelected = selectedTabIds.includes(tab.id);
 
     return (
       <div
@@ -226,7 +243,17 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
         role="tab"
         aria-selected={isActive}
         draggable={!isEditing}
-        onClick={() => setActiveTab(tab.id)}
+        onClick={(e) => {
+          // Ctrl+клик набирает выделение и НЕ переключает активный таб: иначе каждый
+          // клик утаскивал бы редактор на другой таб посреди набора пачки.
+          if (e.ctrlKey || e.metaKey) {
+            e.preventDefault();
+            toggleTabSelection(tab.id);
+            return;
+          }
+          clearTabSelection();
+          setActiveTab(tab.id);
+        }}
         onDoubleClick={() => startRename(tab.id, tab.title)}
         onAuxClick={(e) => {
           if (e.button === 1) {
@@ -250,6 +277,7 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
             ? "bg-surface-hover text-text shadow-[inset_0_0_0_1px_rgba(124,110,240,0.15)]"
             : "text-text-muted hover:text-text hover:bg-surface-hover/50"
           }
+          ${isSelected ? "ring-1 ring-accent bg-accent/10" : ""}
           ${isDragTarget ? "ring-1 ring-accent/40" : ""}
         `}
       >
@@ -363,6 +391,19 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
           return (
             <div
               key={group.id}
+              // Тащим run за чип (см. draggable ниже): группа переезжает целиком, порядок
+              // внутри сохраняется. Дроп ловят табы и чипы других групп.
+              onDragOver={(e) => { if (dragGroupIdRef.current) e.preventDefault(); }}
+              onDrop={(e) => {
+                const dragged = dragGroupIdRef.current;
+                if (!dragged || dragged === group.id) return;
+                e.preventDefault();
+                e.stopPropagation();
+                const first = seg.tabs[0];
+                dragGroupIdRef.current = null;
+                setDragOverId(null);
+                if (first) reorderTabGroup(dragged, first.id);
+              }}
               className={`
                 flex items-center gap-px h-8 pl-1 pr-1 rounded-[6px] shrink-0
                 ${i > 0 ? "ml-1" : ""}
@@ -375,6 +416,13 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
               }}
             >
               <button
+                draggable={renamingGroupId !== group.id}
+                onDragStart={(e) => {
+                  dragGroupIdRef.current = group.id;
+                  e.dataTransfer.effectAllowed = "move";
+                  e.dataTransfer.setData("text/plain", group.id);
+                }}
+                onDragEnd={() => { dragGroupIdRef.current = null; setDragOverId(null); }}
                 onClick={() => toggleTabGroupCollapsed(group.id)}
                 onContextMenu={(e) => {
                   e.preventDefault();
@@ -384,6 +432,9 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
                 // свёрнутую группу мышью (её табов в полосе нет).
                 onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; }}
                 onDrop={(e) => {
+                  // Тащат группу — это дело контейнера (перестановка run'ов), чип не
+                  // вмешивается: иначе группа «легла бы внутрь себя».
+                  if (dragGroupIdRef.current) return;
                   e.preventDefault();
                   const id = dragIdRef.current;
                   dragIdRef.current = null;
@@ -615,12 +666,19 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
           y={ctxMenu.y}
           pinned={tabs.find((t) => t.id === ctxMenu.id)?.pinned ?? false}
           grouped={Boolean(tabs.find((t) => t.id === ctxMenu.id)?.groupId)}
+          // Пачка применяется, только если ПКМ пришёлся по выделенному табу: клик по
+          // невыделенному — обычное одиночное действие, иначе меню молча трогало бы
+          // не то, на что нажали.
+          selectedCount={selectedTabIds.includes(ctxMenu.id) ? selectedTabIds.length : 0}
           binding={tabs.find((t) => t.id === ctxMenu.id)?.tmuxBinding ?? null}
           orcaBinding={tabs.find((t) => t.id === ctxMenu.id)?.orcaBinding ?? null}
           onClose={() => setCtxMenu(null)}
           onTogglePin={() => togglePin(ctxMenu.id)}
           onGroupTab={() => onGroupTab(ctxMenu.id)}
-          onUngroupTab={() => assignTabToGroup(ctxMenu.id, null)}
+          onUngroupTab={() => {
+            if (selectedTabIds.includes(ctxMenu.id)) assignTabsToGroup(selectedTabIds, null);
+            else assignTabToGroup(ctxMenu.id, null);
+          }}
           onMoveToWorkspace={() => onMoveTabToWorkspace(ctxMenu.id)}
           onBindTmux={() => onBindTmux(ctxMenu.id)}
           onUnbindTmux={() => setTabBinding(ctxMenu.id, null)}
@@ -711,11 +769,13 @@ function GroupContextMenu({
 }
 
 function TabContextMenu({
-  x, y, pinned, grouped, binding, orcaBinding, onClose, onTogglePin, onGroupTab, onUngroupTab, onMoveToWorkspace, onBindTmux, onUnbindTmux, onBindOrca, onUnbindOrca, onCloseTab, onCloseOthers, onCloseRight, onCloseSaved, onCleanupEmpty,
+  x, y, pinned, grouped, selectedCount, binding, orcaBinding, onClose, onTogglePin, onGroupTab, onUngroupTab, onMoveToWorkspace, onBindTmux, onUnbindTmux, onBindOrca, onUnbindOrca, onCloseTab, onCloseOthers, onCloseRight, onCloseSaved, onCleanupEmpty,
 }: {
   x: number; y: number;
   pinned: boolean;
   grouped: boolean;
+  // 0 = действуем на один таб; >1 = на выделенную пачку (подписи это показывают).
+  selectedCount: number;
   binding: TmuxBinding | null;
   orcaBinding: OrcaBinding | null;
   onClose: () => void;
@@ -784,9 +844,21 @@ function TabContextMenu({
           action: onTogglePin,
           shortcut: "Ctrl+P",
         })}
-        {renderItem({ label: "В группу…", action: onGroupTab, shortcut: "Ctrl+G" })}
-        {grouped && renderItem({ label: "Убрать из группы", action: onUngroupTab })}
-        {renderItem({ label: "Переместить в workspace…", action: onMoveToWorkspace })}
+        {renderItem({
+          label: selectedCount > 1 ? `В группу… (${selectedCount} таба)` : "В группу…",
+          action: onGroupTab,
+          shortcut: "Ctrl+G",
+        })}
+        {grouped && renderItem({
+          label: selectedCount > 1 ? `Убрать из группы (${selectedCount})` : "Убрать из группы",
+          action: onUngroupTab,
+        })}
+        {renderItem({
+          label: selectedCount > 1
+            ? `Переместить в workspace… (${selectedCount} таба)`
+            : "Переместить в workspace…",
+          action: onMoveToWorkspace,
+        })}
       </div>
       <div className="border-b border-border/40">{tmuxItems.map(renderItem)}</div>
       <div className="border-b border-border/40">{orcaItems.map(renderItem)}</div>
