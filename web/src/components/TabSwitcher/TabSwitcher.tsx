@@ -1,8 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { ReactNode } from "react";
+import { useCallback, useMemo, useState } from "react";
+import type { Dispatch, SetStateAction } from "react";
 import { useEditorStore } from "../../store/editorStore";
 import type { Tab } from "../../store/editorStore";
 import { tabsOf } from "../../lib/tabUtils";
+import { fuzzyMatch } from "../../lib/fuzzyMatch";
+import { highlightMatches } from "../../lib/highlight";
+import { usePickerModal, type PickerKeyContext } from "../../hooks/usePickerModal";
+import { PickerModal, PickerHeader, PickerHint } from "../PickerModal/PickerModal";
 
 interface TabSwitcherProps {
   onClose: () => void;
@@ -45,59 +49,24 @@ function makePreview(tab: Tab) {
   return line.length > 80 ? `${line.slice(0, 77)}...` : line;
 }
 
-function fuzzyMatch(query: string, text: string, baseScore = 0, source: MatchResult["source"]): MatchResult {
-  const q = query.toLowerCase();
-  const t = text.toLowerCase();
-  const indices: number[] = [];
-  let qi = 0;
-  let score = baseScore;
-  let lastMatchIndex = -1;
-
-  for (let ti = 0; ti < t.length && qi < q.length; ti++) {
-    if (t[ti] === q[qi]) {
-      indices.push(ti);
-      if (lastMatchIndex === ti - 1) score += 2;
-      if (ti === 0 || t[ti - 1] === " " || t[ti - 1] === "-" || t[ti - 1] === "_") score += 3;
-      score += 1;
-      lastMatchIndex = ti;
-      qi++;
-    }
-  }
-
-  return { match: qi === q.length, score, indices, source };
+// Обёртка над lib/fuzzyMatch: добавляет source (концерн этого компонента, не lib).
+function scored(query: string, text: string, baseScore: number, source: MatchResult["source"]): MatchResult {
+  return { ...fuzzyMatch(query, text, baseScore), source };
 }
 
 function bestMatch(query: string, tab: Tab) {
-  const title = fuzzyMatch(query, tab.title, 20, "title");
+  const title = scored(query, tab.title, 20, "title");
   const label = bindingLabel(tab);
   // Привязка участвует в поиске: печатаешь `work:claude` или просто `claude` —
   // привязанный таб всплывает. Балл между title и preview.
   const binding: MatchResult = label
-    ? fuzzyMatch(query, label, 16, "binding")
+    ? scored(query, label, 16, "binding")
     : { match: false, score: 0, indices: [], source: "binding" };
-  const preview = fuzzyMatch(query, makePreview(tab), 8, "preview");
-  const content = fuzzyMatch(query, tab.content, 0, "content");
+  const preview = scored(query, makePreview(tab), 8, "preview");
+  const content = scored(query, tab.content, 0, "content");
   const matches = [title, binding, preview, content].filter((result) => result.match);
   if (matches.length === 0) return null;
   return matches.sort((a, b) => b.score - a.score)[0];
-}
-
-function highlightText(text: string, indices: number[]) {
-  if (indices.length === 0) return text;
-
-  const parts: ReactNode[] = [];
-  const indexSet = new Set(indices);
-  let start = 0;
-
-  for (let i = 0; i < text.length; i++) {
-    if (!indexSet.has(i)) continue;
-    if (start < i) parts.push(<span key={`t-${start}`}>{text.slice(start, i)}</span>);
-    parts.push(<span key={`h-${i}`} className="text-accent font-semibold">{text[i]}</span>);
-    start = i + 1;
-  }
-
-  if (start < text.length) parts.push(<span key={`t-${start}`}>{text.slice(start)}</span>);
-  return parts;
 }
 
 function lineStartAt(text: string, index: number) {
@@ -151,7 +120,7 @@ function makePreviewContext(tab: Tab, result: TabResult | undefined, query: stri
     .slice(0, 14);
 
   const text = lines.join("\n");
-  const previewMatch = normalizedQuery ? fuzzyMatch(normalizedQuery, text, 0, "preview") : null;
+  const previewMatch = normalizedQuery ? fuzzyMatch(normalizedQuery, text, 0) : null;
 
   return {
     text,
@@ -172,22 +141,17 @@ export function TabSwitcher({ onClose }: TabSwitcherProps) {
   const closeTab = useEditorStore((s) => s.closeTab);
   const [query, setQuery] = useState("");
   const [boundOnly, setBoundOnly] = useState(sessionBoundOnly);
-  const [selectedIndex, setSelectedIndex] = useState(0);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const listRef = useRef<HTMLDivElement>(null);
 
   const boundCount = useMemo(() => tabs.filter((t) => t.tmuxBinding).length, [tabs]);
 
-  useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
-
-  const toggleBoundOnly = useCallback(() => {
+  // setIndex приходит аргументом — обе точки вызова (клавиша до хука, кнопка после)
+  // передают его сами, см. PickerKeyContext.
+  const toggleBoundOnly = useCallback((setIndex: Dispatch<SetStateAction<number>>) => {
     setBoundOnly((v) => {
       sessionBoundOnly = !v;
       return !v;
     });
-    setSelectedIndex(0);
+    setIndex(0);
   }, []);
 
   const results = useMemo(() => {
@@ -215,234 +179,210 @@ export function TabSwitcher({ onClose }: TabSwitcherProps) {
       .sort((a, b) => b.score - a.score || b.tab.updatedAt - a.tab.updatedAt);
   }, [query, tabs, boundOnly]);
 
-  const selectedResult = results[selectedIndex];
-  const previewContext = selectedResult
-    ? makePreviewContext(selectedResult.tab, selectedResult, query)
-    : null;
-
   const selectResult = useCallback((id: string) => {
     setActiveTab(id);
     onClose();
   }, [onClose, setActiveTab]);
 
-  const executeSelected = useCallback(() => {
-    const item = results[selectedIndex];
-    if (item) selectResult(item.tab.id);
-  }, [results, selectedIndex, selectResult]);
-
-  const closeSelected = useCallback(() => {
-    const item = results[selectedIndex];
+  const closeSelected = useCallback((index: number, setIndex: Dispatch<SetStateAction<number>>) => {
+    const item = results[index];
     if (!item) return;
 
-    const nextIndex = Math.min(selectedIndex, Math.max(0, results.length - 2));
+    const nextIndex = Math.min(index, Math.max(0, results.length - 2));
     closeTab(item.tab.id);
-    setSelectedIndex(nextIndex);
-  }, [closeTab, results, selectedIndex]);
+    setIndex(nextIndex);
+  }, [closeTab, results]);
 
-  useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      if (pendingClose) return;
-
-      if (e.key === "Escape") {
-        e.preventDefault();
-        e.stopPropagation();
-        onClose();
-        return;
-      }
-
-      if (e.key === "Tab") {
-        e.preventDefault();
-        e.stopPropagation();
-        toggleBoundOnly();
-        return;
-      }
-
-      if (e.key === "ArrowDown") {
-        e.preventDefault();
-        setSelectedIndex((i) => Math.min(i + 1, results.length - 1));
-        return;
-      }
-
-      if (e.key === "ArrowUp") {
-        e.preventDefault();
-        setSelectedIndex((i) => Math.max(i - 1, 0));
-        return;
-      }
-
-      // Только Ctrl+Del закрывает таб. Ctrl+Backspace НЕ перехватываем — это
-      // стандартное «удалить слово» в инпуте поиска.
-      if ((e.ctrlKey || e.metaKey) && e.key === "Delete") {
-        e.preventDefault();
-        e.stopPropagation();
-        closeSelected();
-        return;
-      }
-
-      if (e.key === "Enter") {
-        e.preventDefault();
-        executeSelected();
-      }
+  // Клавиши сверх дефолтной навигации примитива: гасим их сами (true) и оставляем
+  // bespoke-поведение здесь — примитив про них не знает.
+  const onKeyDown = useCallback((e: KeyboardEvent, { index, setIndex }: PickerKeyContext) => {
+    if (e.key === "Tab") {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleBoundOnly(setIndex);
+      return true;
     }
 
-    document.addEventListener("keydown", handleKeyDown, true);
-    return () => document.removeEventListener("keydown", handleKeyDown, true);
-  }, [closeSelected, executeSelected, onClose, pendingClose, results.length, toggleBoundOnly]);
+    // Только Ctrl+Del закрывает таб. Ctrl+Backspace НЕ перехватываем — это
+    // стандартное «удалить слово» в инпуте поиска.
+    if ((e.ctrlKey || e.metaKey) && e.key === "Delete") {
+      e.preventDefault();
+      e.stopPropagation();
+      closeSelected(index, setIndex);
+      return true;
+    }
 
-  useEffect(() => {
-    const list = listRef.current;
-    if (!list) return;
-    const item = list.children[selectedIndex] as HTMLElement | undefined;
-    item?.scrollIntoView({ block: "nearest" });
-  }, [selectedIndex]);
+    return false;
+  }, [closeSelected, toggleBoundOnly]);
+
+  const onEnter = useCallback((index: number) => {
+    const item = results[index];
+    if (item) selectResult(item.tab.id);
+  }, [results, selectResult]);
+
+  const { selectedIndex, setSelectedIndex, inputRef, listRef } = usePickerModal({
+    count: results.length,
+    onEnter,
+    onClose,
+    onKeyDown,
+    // Подтверждение закрытия таба открыто — модалка не должна перехватывать клавиши.
+    disabled: pendingClose !== null,
+  });
+
+  const selectedResult = results[selectedIndex];
+  const previewContext = selectedResult
+    ? makePreviewContext(selectedResult.tab, selectedResult, query)
+    : null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-start justify-center pt-[12vh]" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
-
-      <div
-        className="relative w-[min(92vw,980px)] bg-surface border border-border rounded-lg shadow-2xl overflow-hidden animate-slide-down"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" className="text-text-muted shrink-0">
-            <path d="M3 4h10M3 8h7M3 12h9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-          </svg>
-          <input
-            ref={inputRef}
-            value={query}
-            onChange={(e) => {
-              setQuery(e.target.value);
-              setSelectedIndex(0);
-            }}
-            placeholder={boundOnly ? "Найти привязанный таб..." : "Найти таб..."}
-            className="flex-1 bg-transparent text-text text-sm outline-none placeholder:text-text-muted/50"
-          />
-          <button
-            type="button"
-            onClick={toggleBoundOnly}
-            title="Только привязанные к tmux (Tab)"
-            className={`shrink-0 px-2 py-0.5 rounded-[3px] border text-[10px] font-medium transition-colors ${
-              boundOnly
-                ? "border-accent/30 bg-accent/15 text-accent"
-                : "border-border text-text-muted hover:text-text"
-            }`}
-          >
-            tmux
-          </button>
-          <span className="text-[10px] text-text-muted/50 tabular-nums shrink-0">
-            {results.length}/{boundOnly ? boundCount : tabs.length}
-          </span>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-[minmax(260px,0.92fr)_minmax(340px,1.08fr)]">
-          <div ref={listRef} className="max-h-[52vh] overflow-y-auto py-1 md:border-r md:border-border">
-            {results.length === 0 && (
-              <div className="px-4 py-8 text-center text-text-muted text-xs">
-                {boundOnly && boundCount === 0 ? "Нет привязанных табов" : "Ничего не найдено"}
-              </div>
-            )}
-            {results.map((item, i) => {
-              const isSelected = i === selectedIndex;
-              const isActive = item.tab.id === activeTabId;
-              const preview = makePreview(item.tab);
-
-              return (
-                <button
-                  key={item.tab.id}
-                  onClick={() => selectResult(item.tab.id)}
-                  onMouseEnter={() => setSelectedIndex(i)}
-                  className={`
-                    w-full grid grid-cols-[auto_1fr_auto] items-center gap-3 px-4 py-2.5 text-left
-                    transition-colors duration-75
-                    ${isSelected ? "bg-accent/10 text-text" : "text-text-muted hover:text-text hover:bg-surface-hover/50"}
-                  `}
-                >
-                  <span className={`w-1.5 h-1.5 rounded-full ${item.tab.isDirty ? "bg-dirty" : isActive ? "bg-accent" : "bg-border"}`} />
-                  <span className="min-w-0">
-                    <span className="flex items-center gap-2 min-w-0">
-                      <span className="truncate text-[13px] text-text">{highlightText(item.tab.title, item.source === "title" ? item.indices : [])}</span>
-                      {isActive && <span className="text-[10px] text-accent shrink-0">активный</span>}
-                      {item.tab.tmuxBinding && (
-                        <span
-                          className="shrink-0 px-1.5 py-0.5 rounded-[3px] bg-accent/10 text-accent text-[9px] font-mono leading-none"
-                          title={`tmux → ${bindingLabel(item.tab)}`}
-                        >
-                          {item.source === "binding"
-                            ? highlightText(bindingLabel(item.tab), item.indices)
-                            : bindingLabel(item.tab)}
-                        </span>
-                      )}
-                    </span>
-                    <span className="block truncate text-[11px] text-text-muted/70 mt-0.5">{preview}</span>
-                  </span>
-                  <span className="text-[10px] text-text-muted/50 tabular-nums">#{item.index + 1}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          <aside className="hidden md:flex min-h-[52vh] max-h-[52vh] flex-col bg-surface/60">
-            {selectedResult && previewContext ? (
-              <>
-                <div className="px-4 py-3 border-b border-border">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${selectedResult.tab.isDirty ? "bg-dirty" : selectedResult.tab.id === activeTabId ? "bg-accent" : "bg-border"}`} />
-                    <h2 className="truncate text-sm font-medium text-text">{selectedResult.tab.title}</h2>
-                    {selectedResult.tab.tmuxBinding && (
-                      <span className="shrink-0 px-1.5 py-0.5 rounded-[3px] bg-accent/10 text-accent text-[10px] font-mono leading-none">
-                        {bindingLabel(selectedResult.tab)}
-                      </span>
-                    )}
-                    <span className="ml-auto text-[10px] text-text-muted/50 tabular-nums shrink-0">#{selectedResult.index + 1}</span>
-                    <button
-                      type="button"
-                      onClick={closeSelected}
-                      className="h-6 px-2 rounded-[3px] border border-danger/20 bg-danger/10 text-[10px] text-danger hover:bg-danger/20 transition-colors shrink-0"
-                      title="Закрыть выбранный таб"
-                    >
-                      Закрыть
-                    </button>
-                  </div>
-                  <div className="mt-1 flex items-center gap-2 text-[10px] text-text-muted/50">
-                    {selectedResult.tab.id === activeTabId && <span className="text-accent">активный</span>}
-                    {selectedResult.tab.isDirty && <span className="text-dirty">изменён</span>}
-                    {selectedResult.source === "content" && <span>совпадение в тексте</span>}
-                    {selectedResult.source === "binding" && <span>совпадение в привязке</span>}
-                  </div>
-                </div>
-
-                <div className="flex-1 overflow-hidden p-4">
-                  {previewContext.text ? (
-                    <div className="h-full overflow-hidden rounded-md border border-border/70 bg-bg/40">
-                      <div className="h-full overflow-hidden whitespace-pre-wrap break-words px-4 py-3 text-[12px] leading-5 text-text-muted font-mono">
-                        {previewContext.before && <span className="block text-text-muted/40">...</span>}
-                        <span>{highlightText(previewContext.text, previewContext.indices)}</span>
-                        {previewContext.after && <span className="block text-text-muted/40">...</span>}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="h-full flex items-center justify-center rounded-md border border-dashed border-border text-xs text-text-muted/60">
-                      Пустой таб
-                    </div>
-                  )}
-                </div>
-              </>
-            ) : (
-              <div className="flex flex-1 items-center justify-center text-xs text-text-muted/60">
-                Выберите таб
-              </div>
-            )}
-          </aside>
-        </div>
-
-        <div className="flex items-center gap-3 px-4 py-2 border-t border-border text-[10px] text-text-muted/50">
+    <PickerModal
+      onClose={onClose}
+      width="min(92vw, 980px)"
+      footer={
+        <PickerHint>
           <span>↑↓ навигация</span>
           <span>↵ открыть</span>
           <span>Tab только tmux</span>
           <span>Ctrl+Del закрыть</span>
           <span>Esc закрыть</span>
+        </PickerHint>
+      }
+    >
+      <PickerHeader
+        inputRef={inputRef}
+        value={query}
+        onChange={(v) => {
+          setQuery(v);
+          setSelectedIndex(0);
+        }}
+        placeholder={boundOnly ? "Найти привязанный таб..." : "Найти таб..."}
+        prefix={
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" className="text-text-muted shrink-0">
+            <path d="M3 4h10M3 8h7M3 12h9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+          </svg>
+        }
+        suffix={
+          <>
+            <button
+              type="button"
+              onClick={() => toggleBoundOnly(setSelectedIndex)}
+              title="Только привязанные к tmux (Tab)"
+              className={`shrink-0 px-2 py-0.5 rounded-[3px] border text-[10px] font-medium transition-colors ${
+                boundOnly
+                  ? "border-accent/30 bg-accent/15 text-accent"
+                  : "border-border text-text-muted hover:text-text"
+              }`}
+            >
+              tmux
+            </button>
+            <span className="text-[10px] text-text-muted/50 tabular-nums shrink-0">
+              {results.length}/{boundOnly ? boundCount : tabs.length}
+            </span>
+          </>
+        }
+      />
+
+      <div className="grid grid-cols-1 md:grid-cols-[minmax(260px,0.92fr)_minmax(340px,1.08fr)]">
+        <div ref={listRef} className="max-h-[52vh] overflow-y-auto py-1 md:border-r md:border-border">
+          {results.length === 0 && (
+            <div className="px-4 py-8 text-center text-text-muted text-xs">
+              {boundOnly && boundCount === 0 ? "Нет привязанных табов" : "Ничего не найдено"}
+            </div>
+          )}
+          {results.map((item, i) => {
+            const isSelected = i === selectedIndex;
+            const isActive = item.tab.id === activeTabId;
+            const preview = makePreview(item.tab);
+
+            return (
+              <button
+                key={item.tab.id}
+                data-picker-index={i}
+                onClick={() => selectResult(item.tab.id)}
+                onMouseEnter={() => setSelectedIndex(i)}
+                className={`
+                  w-full grid grid-cols-[auto_1fr_auto] items-center gap-3 px-4 py-2.5 text-left
+                  transition-colors duration-75
+                  ${isSelected ? "bg-accent/10 text-text" : "text-text-muted hover:text-text hover:bg-surface-hover/50"}
+                `}
+              >
+                <span className={`w-1.5 h-1.5 rounded-full ${item.tab.isDirty ? "bg-dirty" : isActive ? "bg-accent" : "bg-border"}`} />
+                <span className="min-w-0">
+                  <span className="flex items-center gap-2 min-w-0">
+                    <span className="truncate text-[13px] text-text">{highlightMatches(item.tab.title, item.source === "title" ? item.indices : [])}</span>
+                    {isActive && <span className="text-[10px] text-accent shrink-0">активный</span>}
+                    {item.tab.tmuxBinding && (
+                      <span
+                        className="shrink-0 px-1.5 py-0.5 rounded-[3px] bg-accent/10 text-accent text-[9px] font-mono leading-none"
+                        title={`tmux → ${bindingLabel(item.tab)}`}
+                      >
+                        {item.source === "binding"
+                          ? highlightMatches(bindingLabel(item.tab), item.indices)
+                          : bindingLabel(item.tab)}
+                      </span>
+                    )}
+                  </span>
+                  <span className="block truncate text-[11px] text-text-muted/70 mt-0.5">{preview}</span>
+                </span>
+                <span className="text-[10px] text-text-muted/50 tabular-nums">#{item.index + 1}</span>
+              </button>
+            );
+          })}
         </div>
+
+        <aside className="hidden md:flex min-h-[52vh] max-h-[52vh] flex-col bg-surface/60">
+          {selectedResult && previewContext ? (
+            <>
+              <div className="px-4 py-3 border-b border-border">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${selectedResult.tab.isDirty ? "bg-dirty" : selectedResult.tab.id === activeTabId ? "bg-accent" : "bg-border"}`} />
+                  <h2 className="truncate text-sm font-medium text-text">{selectedResult.tab.title}</h2>
+                  {selectedResult.tab.tmuxBinding && (
+                    <span className="shrink-0 px-1.5 py-0.5 rounded-[3px] bg-accent/10 text-accent text-[10px] font-mono leading-none">
+                      {bindingLabel(selectedResult.tab)}
+                    </span>
+                  )}
+                  <span className="ml-auto text-[10px] text-text-muted/50 tabular-nums shrink-0">#{selectedResult.index + 1}</span>
+                  <button
+                    type="button"
+                    onClick={() => closeSelected(selectedIndex, setSelectedIndex)}
+                    className="h-6 px-2 rounded-[3px] border border-danger/20 bg-danger/10 text-[10px] text-danger hover:bg-danger/20 transition-colors shrink-0"
+                    title="Закрыть выбранный таб"
+                  >
+                    Закрыть
+                  </button>
+                </div>
+                <div className="mt-1 flex items-center gap-2 text-[10px] text-text-muted/50">
+                  {selectedResult.tab.id === activeTabId && <span className="text-accent">активный</span>}
+                  {selectedResult.tab.isDirty && <span className="text-dirty">изменён</span>}
+                  {selectedResult.source === "content" && <span>совпадение в тексте</span>}
+                  {selectedResult.source === "binding" && <span>совпадение в привязке</span>}
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-hidden p-4">
+                {previewContext.text ? (
+                  <div className="h-full overflow-hidden rounded-md border border-border/70 bg-bg/40">
+                    <div className="h-full overflow-hidden whitespace-pre-wrap break-words px-4 py-3 text-[12px] leading-5 text-text-muted font-mono">
+                      {previewContext.before && <span className="block text-text-muted/40">...</span>}
+                      <span>{highlightMatches(previewContext.text, previewContext.indices)}</span>
+                      {previewContext.after && <span className="block text-text-muted/40">...</span>}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="h-full flex items-center justify-center rounded-md border border-dashed border-border text-xs text-text-muted/60">
+                    Пустой таб
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            <div className="flex flex-1 items-center justify-center text-xs text-text-muted/60">
+              Выберите таб
+            </div>
+          )}
+        </aside>
       </div>
-    </div>
+    </PickerModal>
   );
 }
