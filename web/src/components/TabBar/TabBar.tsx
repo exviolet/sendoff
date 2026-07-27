@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useEditorStore } from "../../store/editorStore";
-import type { TmuxBinding, OrcaBinding } from "../../store/editorStore";
+import type { TmuxBinding, OrcaBinding, Tab, TabGroup } from "../../store/editorStore";
 import type { Theme } from "../../store/themeStore";
 import { isTauri } from "../../lib/platform";
-import { tabsOf } from "../../lib/tabUtils";
+import { tabsOf, groupsOf } from "../../lib/tabUtils";
 import { toast } from "../../store/toastStore";
 
 type SidePanel = null | "presets" | "settings" | "reference";
@@ -32,6 +32,8 @@ function tabsMetaEqual(prev: ReturnType<typeof useEditorStore.getState>["tabs"],
     tab.pinned === next[i].pinned &&
     // Без workspaceId полоса «замерзает» при переключении workspace / переносе таба.
     tab.workspaceId === next[i].workspaceId &&
+    // Без groupId — то же самое при добавлении таба в группу и выносе из неё.
+    tab.groupId === next[i].groupId &&
     tab.tmuxBinding?.session === next[i].tmuxBinding?.session &&
     tab.tmuxBinding?.window === next[i].tmuxBinding?.window &&
     tab.orcaBinding?.worktree === next[i].orcaBinding?.worktree &&
@@ -42,8 +44,28 @@ function tabsMetaEqual(prev: ReturnType<typeof useEditorStore.getState>["tabs"],
 export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAll, onImportBackup, theme, onThemeToggle, onCleanupEmptyTabs, onBindTmux, onBindOrca, onMoveTabToWorkspace, onTriggerPhrases }: TabBarProps) {
   const allTabs = useEditorStore((s) => s.tabs, tabsMetaEqual);
   const activeWorkspaceId = useEditorStore((s) => s.activeWorkspaceId);
+  // Имя/цвет/collapsed живут НЕ в табах — на группы нужна отдельная подписка, иначе
+  // переименование или сворачивание не перерисует полосу (tabsMetaEqual их не видит).
+  const allGroups = useEditorStore((s) => s.tabGroups);
+  const toggleTabGroupCollapsed = useEditorStore((s) => s.toggleTabGroupCollapsed);
   // Изоляция: в полосе — только табы активного workspace.
   const tabs = useMemo(() => tabsOf(allTabs, activeWorkspaceId), [allTabs, activeWorkspaceId]);
+  const groups = useMemo(() => groupsOf(allGroups, activeWorkspaceId), [allGroups, activeWorkspaceId]);
+
+  // Полоса рисуется сегментами: подряд идущие табы одной группы — один run под общим
+  // чипом (непрерывность гарантирует arrangeTabs), остальные — сами по себе.
+  // Свёрнутый run отдаёт только чип: члены живы, но не рисуются.
+  const segments = useMemo(() => {
+    const byId = new Map(groups.map((g) => [g.id, g]));
+    const out: { group: TabGroup | null; tabs: Tab[] }[] = [];
+    for (const tab of tabs) {
+      const group = tab.groupId ? byId.get(tab.groupId) ?? null : null;
+      const last = out[out.length - 1];
+      if (group && last?.group?.id === group.id) last.tabs.push(tab);
+      else out.push({ group, tabs: [tab] });
+    }
+    return out;
+  }, [tabs, groups]);
   const activeTabId = useEditorStore((s) => s.activeTabId);
   const setActiveTab = useEditorStore((s) => s.setActiveTab);
   const closeTab = useEditorStore((s) => s.closeTab);
@@ -59,10 +81,10 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
-  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [ctxMenu, setCtxMenu] = useState<{ id: string; x: number; y: number } | null>(null);
   const [activeOff, setActiveOff] = useState<null | "left" | "right">(null);
-  const dragIndexRef = useRef<number | null>(null);
+  const dragIdRef = useRef<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const activeTabRef = useRef<HTMLDivElement>(null);
   const navRef = useRef<HTMLElement>(null);
@@ -149,40 +171,157 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
     setEditingId(null);
   }
 
-  const handleTabDragStart = useCallback((e: React.DragEvent, index: number) => {
-    dragIndexRef.current = index;
+  // Всё перетаскивание — по id, без индексов вообще: полоса рисуется сегментами, а
+  // члены свёрнутых групп в неё не попадают, поэтому позиция в разметке больше не
+  // совпадает ни с индексом видимого списка, ни тем более с глобальным.
+  const handleTabDragStart = useCallback((e: React.DragEvent, id: string) => {
+    dragIdRef.current = id;
     e.dataTransfer.effectAllowed = "move";
-    e.dataTransfer.setData("text/plain", String(index));
+    e.dataTransfer.setData("text/plain", id);
     (e.currentTarget as HTMLElement).style.opacity = "0.4";
   }, []);
 
   const handleTabDragEnd = useCallback((e: React.DragEvent) => {
     (e.currentTarget as HTMLElement).style.opacity = "";
-    dragIndexRef.current = null;
-    setDragOverIndex(null);
+    dragIdRef.current = null;
+    setDragOverId(null);
   }, []);
 
-  const handleTabDragOver = useCallback((e: React.DragEvent, index: number) => {
+  const handleTabDragOver = useCallback((e: React.DragEvent, id: string) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
-    if (dragIndexRef.current !== null && dragIndexRef.current !== index) {
-      setDragOverIndex(index);
+    if (dragIdRef.current !== null && dragIdRef.current !== id) {
+      setDragOverId(id);
     }
   }, []);
 
-  // Индексы тут — по ВИДИМОМУ (отфильтрованному) списку, поэтому резолвим в id:
-  // глобальные индексы стора с ними не совпадают.
-  const handleTabDrop = useCallback((e: React.DragEvent, toIndex: number) => {
+  const handleTabDrop = useCallback((e: React.DragEvent, toId: string) => {
     e.preventDefault();
-    const fromIndex = dragIndexRef.current;
-    if (fromIndex !== null && fromIndex !== toIndex) {
-      const from = tabs[fromIndex];
-      const to = tabs[toIndex];
-      if (from && to) reorderTab(from.id, to.id);
-    }
-    dragIndexRef.current = null;
-    setDragOverIndex(null);
-  }, [reorderTab, tabs]);
+    const fromId = dragIdRef.current;
+    if (fromId !== null && fromId !== toId) reorderTab(fromId, toId);
+    dragIdRef.current = null;
+    setDragOverId(null);
+  }, [reorderTab]);
+
+  // Отрисовка одного таба. Вынесена из map: таб рисуется и внутри group-run'а, и вне его.
+  function renderTab(tab: Tab) {
+    const isActive = tab.id === activeTabId;
+    const isEditing = tab.id === editingId;
+    const isDragTarget = dragOverId === tab.id;
+
+    return (
+      <div
+        key={tab.id}
+        ref={isActive ? activeTabRef : undefined}
+        role="tab"
+        aria-selected={isActive}
+        draggable={!isEditing}
+        onClick={() => setActiveTab(tab.id)}
+        onDoubleClick={() => startRename(tab.id, tab.title)}
+        onAuxClick={(e) => {
+          if (e.button === 1) {
+            e.preventDefault();
+            closeTab(tab.id);
+          }
+        }}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          setCtxMenu({ id: tab.id, x: e.clientX, y: e.clientY });
+        }}
+        onDragStart={(e) => handleTabDragStart(e, tab.id)}
+        onDragEnd={handleTabDragEnd}
+        onDragOver={(e) => handleTabDragOver(e, tab.id)}
+        onDrop={(e) => handleTabDrop(e, tab.id)}
+        className={`
+          group relative flex items-center gap-1.5 h-7 px-2.5 rounded-[4px] cursor-pointer
+          text-[11px] tracking-wide whitespace-nowrap
+          transition-all duration-150 ease-out
+          ${isActive
+            ? "bg-surface-hover text-text shadow-[inset_0_0_0_1px_rgba(124,110,240,0.15)]"
+            : "text-text-muted hover:text-text hover:bg-surface-hover/50"
+          }
+          ${isDragTarget ? "ring-1 ring-accent/40" : ""}
+        `}
+      >
+        {/* Dirty indicator */}
+        {tab.isDirty && (
+          <span className="w-1.5 h-1.5 rounded-full bg-dirty shrink-0" />
+        )}
+
+        {/* Pinned indicator */}
+        {tab.pinned && (
+          <span className="shrink-0 text-accent" title="Закреплён">
+            <svg width="11" height="11" viewBox="0 0 16 16" fill="none">
+              <path d="M5.5 2.5h5l-.8 4 2.3 2.3v1.2H8.7L8 14l-.7-4H4V8.8l2.3-2.3-.8-4z" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </span>
+        )}
+
+        {/* tmux binding indicator */}
+        {tab.tmuxBinding && (
+          <span
+            className="shrink-0 text-accent"
+            title={`tmux → ${tab.tmuxBinding.session}:${tab.tmuxBinding.window}`}
+          >
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+              <path d="M6.5 9.5l3-3M7 4.5l1-1a2.5 2.5 0 0 1 3.5 3.5l-1 1M9 11.5l-1 1a2.5 2.5 0 0 1-3.5-3.5l1-1" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </span>
+        )}
+
+        {/* Orca binding indicator (терминал-глиф, отличается от tmux-«линка») */}
+        {tab.orcaBinding && (
+          <span
+            className="shrink-0 text-accent"
+            title={`orca → ${tab.orcaBinding.titleHint ?? tab.orcaBinding.worktree}`}
+          >
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+              <rect x="2" y="3" width="12" height="10" rx="2" stroke="currentColor" strokeWidth="1.4" />
+              <path d="M5 6.5L7 8l-2 1.5M8.5 9.5H11" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </span>
+        )}
+
+        {/* Title — editable or static */}
+        {isEditing ? (
+          <input
+            ref={inputRef}
+            value={editValue}
+            onChange={(e) => setEditValue(e.target.value)}
+            onBlur={commitRename}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") commitRename();
+              if (e.key === "Escape") setEditingId(null);
+            }}
+            className="bg-transparent outline-none text-text text-[11px] tracking-wide w-20 border-b border-accent"
+            onClick={(e) => e.stopPropagation()}
+          />
+        ) : (
+          <span className="truncate max-w-[120px]">{tab.title}</span>
+        )}
+
+        {/* Close button */}
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            closeTab(tab.id);
+          }}
+          className={`
+            flex items-center justify-center w-4 h-4 rounded-[3px] shrink-0
+            transition-all duration-100
+            ${isActive
+              ? "opacity-40 hover:opacity-100 hover:bg-danger/20 hover:text-danger"
+              : "opacity-0 group-hover:opacity-40 hover:!opacity-100 hover:bg-danger/20 hover:text-danger"
+            }
+          `}
+        >
+          <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+            <path d="M1.5 1.5l5 5M6.5 1.5l-5 5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+          </svg>
+        </button>
+      </div>
+    );
+  }
 
   return (
     <header data-tauri-drag-region className="flex items-center h-10 bg-surface border-b border-border shrink-0 select-none">
@@ -207,121 +346,51 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
           el.scrollLeft += e.deltaY;
         }}
       >
-        {tabs.map((tab, index) => {
-          const isActive = tab.id === activeTabId;
-          const isEditing = tab.id === editingId;
-          const isDragTarget = dragOverIndex === index;
-
+        {segments.map((seg, i) => {
+          if (!seg.group) return seg.tabs.map(renderTab);
+          const group = seg.group;
+          const hasActive = seg.tabs.some((t) => t.id === activeTabId);
           return (
             <div
-              key={tab.id}
-              ref={isActive ? activeTabRef : undefined}
-              role="tab"
-              aria-selected={isActive}
-              draggable={!isEditing}
-              onClick={() => setActiveTab(tab.id)}
-              onDoubleClick={() => startRename(tab.id, tab.title)}
-              onAuxClick={(e) => {
-                if (e.button === 1) {
-                  e.preventDefault();
-                  closeTab(tab.id);
-                }
-              }}
-              onContextMenu={(e) => {
-                e.preventDefault();
-                setCtxMenu({ id: tab.id, x: e.clientX, y: e.clientY });
-              }}
-              onDragStart={(e) => handleTabDragStart(e, index)}
-              onDragEnd={handleTabDragEnd}
-              onDragOver={(e) => handleTabDragOver(e, index)}
-              onDrop={(e) => handleTabDrop(e, index)}
+              key={group.id}
               className={`
-                group relative flex items-center gap-1.5 h-7 px-2.5 rounded-[4px] cursor-pointer
-                text-[11px] tracking-wide whitespace-nowrap
-                transition-all duration-150 ease-out
-                ${isActive
-                  ? "bg-surface-hover text-text shadow-[inset_0_0_0_1px_rgba(124,110,240,0.15)]"
-                  : "text-text-muted hover:text-text hover:bg-surface-hover/50"
-                }
-                ${isDragTarget ? "ring-1 ring-accent/40" : ""}
+                flex items-center gap-px h-8 pl-1 pr-1 rounded-[6px] shrink-0
+                ${i > 0 ? "ml-1" : ""}
               `}
+              style={{
+                // Цвет группы — только фон/обводка. Текст таба остаётся штатным, иначе
+                // активный таб перестал бы отличаться от остальных внутри run'а.
+                background: `color-mix(in srgb, var(--color-group-${group.color}) 12%, transparent)`,
+                boxShadow: `inset 0 0 0 1px color-mix(in srgb, var(--color-group-${group.color}) 30%, transparent)`,
+              }}
             >
-              {/* Dirty indicator */}
-              {tab.isDirty && (
-                <span className="w-1.5 h-1.5 rounded-full bg-dirty shrink-0" />
-              )}
-
-              {/* Pinned indicator */}
-              {tab.pinned && (
-                <span className="shrink-0 text-accent" title="Закреплён">
-                  <svg width="11" height="11" viewBox="0 0 16 16" fill="none">
-                    <path d="M5.5 2.5h5l-.8 4 2.3 2.3v1.2H8.7L8 14l-.7-4H4V8.8l2.3-2.3-.8-4z" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </span>
-              )}
-
-              {/* tmux binding indicator */}
-              {tab.tmuxBinding && (
-                <span
-                  className="shrink-0 text-accent"
-                  title={`tmux → ${tab.tmuxBinding.session}:${tab.tmuxBinding.window}`}
-                >
-                  <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
-                    <path d="M6.5 9.5l3-3M7 4.5l1-1a2.5 2.5 0 0 1 3.5 3.5l-1 1M9 11.5l-1 1a2.5 2.5 0 0 1-3.5-3.5l1-1" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </span>
-              )}
-
-              {/* Orca binding indicator (терминал-глиф, отличается от tmux-«линка») */}
-              {tab.orcaBinding && (
-                <span
-                  className="shrink-0 text-accent"
-                  title={`orca → ${tab.orcaBinding.titleHint ?? tab.orcaBinding.worktree}`}
-                >
-                  <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
-                    <rect x="2" y="3" width="12" height="10" rx="2" stroke="currentColor" strokeWidth="1.4" />
-                    <path d="M5 6.5L7 8l-2 1.5M8.5 9.5H11" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </span>
-              )}
-
-              {/* Title — editable or static */}
-              {isEditing ? (
-                <input
-                  ref={inputRef}
-                  value={editValue}
-                  onChange={(e) => setEditValue(e.target.value)}
-                  onBlur={commitRename}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") commitRename();
-                    if (e.key === "Escape") setEditingId(null);
-                  }}
-                  className="bg-transparent outline-none text-text text-[11px] tracking-wide w-20 border-b border-accent"
-                  onClick={(e) => e.stopPropagation()}
-                />
-              ) : (
-                <span className="truncate max-w-[120px]">{tab.title}</span>
-              )}
-
-              {/* Close button */}
               <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  closeTab(tab.id);
-                }}
-                className={`
-                  flex items-center justify-center w-4 h-4 rounded-[3px] shrink-0
-                  transition-all duration-100
-                  ${isActive
-                    ? "opacity-40 hover:opacity-100 hover:bg-danger/20 hover:text-danger"
-                    : "opacity-0 group-hover:opacity-40 hover:!opacity-100 hover:bg-danger/20 hover:text-danger"
-                  }
-                `}
+                onClick={() => toggleTabGroupCollapsed(group.id)}
+                title={group.collapsed ? `Развернуть «${group.name}»` : `Свернуть «${group.name}»`}
+                className="flex items-center gap-1.5 h-6 px-1.5 rounded-[4px] shrink-0 transition-colors duration-100 hover:bg-surface-hover/60"
               >
-                <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
-                  <path d="M1.5 1.5l5 5M6.5 1.5l-5 5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-                </svg>
+                <span
+                  className="w-2 h-2 rounded-full shrink-0"
+                  style={{ background: `var(--color-group-${group.color})` }}
+                />
+                <span
+                  className="truncate max-w-[120px] text-[10px] tracking-wide"
+                  style={{ color: `var(--color-group-${group.color})` }}
+                >
+                  {group.name}
+                </span>
+                {/* Свёрнутая группа обязана показывать, сколько табов спрятала — иначе
+                    они выглядят потерянными. Активный внутри помечаем точкой. */}
+                {group.collapsed && (
+                  <span className="flex items-center gap-1 shrink-0 text-[9px] text-text-muted tabular-nums">
+                    {seg.tabs.length}
+                    {hasActive && (
+                      <span className="w-1 h-1 rounded-full bg-accent" title="Активный таб внутри" />
+                    )}
+                  </span>
+                )}
               </button>
+              {!group.collapsed && seg.tabs.map(renderTab)}
             </div>
           );
         })}
