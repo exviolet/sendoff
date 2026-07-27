@@ -86,12 +86,12 @@ export function useFileIO() {
   }
 
   async function exportAll() {
-    const { tabs, workspaces } = useEditorStore.getState();
+    const { tabs, workspaces, tabGroups } = useEditorStore.getState();
     const { presets } = usePresetsStore.getState();
     const { phrases: triggerPhrases } = useTriggerPhrasesStore.getState();
-    // workspaces обязаны ехать вместе с табами — иначе восстановление молча схлопнет
-    // всю группировку в один «Default».
-    const data = JSON.stringify({ tabs, workspaces, presets, triggerPhrases }, null, 2);
+    // workspaces и tabGroups обязаны ехать вместе с табами — иначе восстановление молча
+    // схлопнет всю группировку (в один «Default» и в «вне групп» соответственно).
+    const data = JSON.stringify({ tabs, workspaces, tabGroups, presets, triggerPhrases }, null, 2);
 
     if (isTauri) {
       try {
@@ -168,14 +168,17 @@ export function useFileIO() {
 
 function hydrateFromBackup(data: Record<string, unknown>) {
   if (Array.isArray(data.tabs) && data.tabs.length > 0) {
-    // Старый бэкап (без workspaces) → hydrate сам создаст «Default» и сложит туда всё.
+    // Старый бэкап (без workspaces / без tabGroups) → hydrate сам создаст «Default»,
+    // а табы без живой группы окажутся вне групп. Оба случая штатные, не повреждение.
     const workspaces = Array.isArray(data.workspaces) ? data.workspaces : [];
+    const tabGroups = Array.isArray(data.tabGroups) ? data.tabGroups : [];
     useEditorStore.getState().hydrate(
       data.tabs,
       data.tabs[0].id,
       data.tabs.length,
       workspaces,
       null,
+      tabGroups,
     );
   }
   if (Array.isArray(data.presets) && data.presets.length > 0) {
