@@ -1,4 +1,13 @@
 import { useEffect, useRef, useState } from "react";
+import type { Dispatch, SetStateAction } from "react";
+
+// Выделение приходит аргументом, а не через замыкание: консьюмер объявляет свои
+// клавиши ДО вызова хука, а выделением владеет хук — без этого зависимость
+// закольцевалась бы (TabSwitcher: Ctrl+Del закрывает строку под курсором).
+export interface PickerKeyContext {
+  index: number;
+  setIndex: Dispatch<SetStateAction<number>>;
+}
 
 interface UsePickerModalOptions {
   // Длина плоского списка (включая синтетические строки вроде create-row).
@@ -8,7 +17,7 @@ interface UsePickerModalOptions {
   onClose: () => void;
   // Вызывается ПЕРВЫМ в keydown; вернул true → дефолтная навигация пропускается
   // (так консьюмер вешает свои клавиши — напр. TabSwitcher: Tab, Ctrl+Del).
-  onKeyDown?: (e: KeyboardEvent) => boolean | void;
+  onKeyDown?: (e: KeyboardEvent, ctx: PickerKeyContext) => boolean | void;
   // Ранний return из keydown (напр. TabSwitcher: pendingClose гасит все клавиши).
   disabled?: boolean;
   // Стартовое выделение (useState-семантика: учитывается только на маунте).
@@ -39,7 +48,7 @@ export function usePickerModal({
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (disabled) return;
-      if (onKeyDown?.(e)) return;
+      if (onKeyDown?.(e, { index: selectedIndex, setIndex: setSelectedIndex })) return;
 
       if (e.key === "Escape") {
         e.preventDefault();
