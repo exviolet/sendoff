@@ -16,11 +16,11 @@ export function useSessionPersistence() {
     if (hasRestored.current) return;
     hasRestored.current = true;
 
-    loadSession().then(({ tabs, presets, triggerPhrases, workspaces, activeTabId, activeWorkspaceId, tabCounter, theme, fontSize, wordWrap, tmuxAutoSubmit, fontFamily, referenceText, referenceWidth }) => {
+    loadSession().then(({ tabs, presets, triggerPhrases, workspaces, tabGroups, activeTabId, activeWorkspaceId, tabCounter, theme, fontSize, wordWrap, tmuxAutoSubmit, fontFamily, referenceText, referenceWidth }) => {
       // hydrate зовём и при пустых табах: он поднимает workspaces и держит инвариант
       // «активный workspace непуст» (создаст свежий таб, если надо).
       if (tabs.length > 0 || workspaces.length > 0) {
-        useEditorStore.getState().hydrate(tabs, activeTabId, tabCounter, workspaces, activeWorkspaceId);
+        useEditorStore.getState().hydrate(tabs, activeTabId, tabCounter, workspaces, activeWorkspaceId, tabGroups);
       } else {
         useEditorStore.setState({ isHydrated: true });
       }
@@ -87,14 +87,14 @@ export function useSessionPersistence() {
     });
 
     function persist() {
-      const { tabs, activeTabId, tabCounter, workspaces, activeWorkspaceId } = useEditorStore.getState();
+      const { tabs, activeTabId, tabCounter, workspaces, activeWorkspaceId, tabGroups } = useEditorStore.getState();
       const { presets } = usePresetsStore.getState();
       const { phrases } = useTriggerPhrasesStore.getState();
       const { theme } = useThemeStore.getState();
       const { fontSize, wordWrap, tmuxAutoSubmit, fontFamily } = useSettingsStore.getState();
       const { text: referenceText, width: referenceWidth } = useReferenceStore.getState();
       saveSession({
-        tabs, activeTabId, tabCounter, workspaces, activeWorkspaceId,
+        tabs, activeTabId, tabCounter, workspaces, activeWorkspaceId, tabGroups,
         presets, triggerPhrases: phrases, theme,
         fontSize, wordWrap, tmuxAutoSubmit, fontFamily, referenceText, referenceWidth,
       })

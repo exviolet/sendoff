@@ -1,5 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
-import type { Tab, Workspace } from "../store/editorStore";
+import type { Tab, Workspace, TabGroup } from "../store/editorStore";
 import type { ReplacePreset } from "../store/presetsStore";
 import type { TriggerPhrase } from "../store/triggerPhrasesStore";
 
@@ -20,6 +20,10 @@ interface RewriteDB extends DBSchema {
     key: string;
     value: Workspace;
   };
+  tabGroups: {
+    key: string;
+    value: TabGroup;
+  };
   meta: {
     key: string;
     value: string | number | boolean | string[];
@@ -27,7 +31,7 @@ interface RewriteDB extends DBSchema {
 }
 
 const DB_NAME = "rewrite-db";
-const DB_VERSION = 5;
+const DB_VERSION = 6;
 
 function getDB() {
   return openDB<RewriteDB>(DB_NAME, DB_VERSION, {
@@ -65,6 +69,16 @@ function getDB() {
           db.createObjectStore("workspaces", { keyPath: "id" });
         }
       }
+
+      // v6: группы табов. Тоже чисто аддитивно: существующие сторы не трогаем, миграции
+      // нет. У старых табов groupId отсутствует — это валидное «вне групп», нормализуется
+      // при гидрации. Порядок групп НЕ храним: он выводится из позиции первого таба группы
+      // в tabOrder, отдельный ключ разъехался бы с реальной полосой.
+      if (oldVersion < 6) {
+        if (!db.objectStoreNames.contains("tabGroups")) {
+          db.createObjectStore("tabGroups", { keyPath: "id" });
+        }
+      }
     },
   });
 }
@@ -89,6 +103,7 @@ export async function loadSession() {
   const storedWorkspaces = await db.getAll("workspaces");
   const workspaceOrder = (await db.get("meta", "workspaceOrder")) as string[] | undefined;
   const workspaces = orderById(storedWorkspaces, workspaceOrder);
+  const tabGroups = await db.getAll("tabGroups");
   const presets = await db.getAll("presets");
   const triggerPhrases = await db.getAll("triggerPhrases");
   const activeTabId = (await db.get("meta", "activeTabId")) as string | undefined;
@@ -102,7 +117,7 @@ export async function loadSession() {
   const referenceText = (await db.get("meta", "referenceText")) as string | undefined;
   const referenceWidth = (await db.get("meta", "referenceWidth")) as number | undefined;
   return {
-    tabs, presets, triggerPhrases, workspaces,
+    tabs, presets, triggerPhrases, workspaces, tabGroups,
     activeTabId: activeTabId ?? null,
     activeWorkspaceId: activeWorkspaceId ?? null,
     tabCounter: tabCounter ?? 0,
@@ -124,6 +139,7 @@ export interface SessionSnapshot {
   tabCounter: number;
   workspaces: Workspace[];
   activeWorkspaceId: string;
+  tabGroups: TabGroup[];
   presets: ReplacePreset[];
   triggerPhrases: TriggerPhrase[];
   theme: string;
@@ -142,6 +158,7 @@ export async function saveSession(
     tabCounter,
     workspaces,
     activeWorkspaceId,
+    tabGroups,
     presets,
     triggerPhrases,
     theme,
@@ -155,7 +172,7 @@ export async function saveSession(
 ) {
   const db = await getDB();
   const tx = db.transaction(
-    ["tabs", "presets", "triggerPhrases", "workspaces", "meta"],
+    ["tabs", "presets", "triggerPhrases", "workspaces", "tabGroups", "meta"],
     "readwrite",
   );
 
@@ -171,6 +188,13 @@ export async function saveSession(
   await workspaceStore.clear();
   for (const ws of workspaces) {
     await workspaceStore.put(ws);
+  }
+
+  // Clear and rewrite tab groups
+  const groupStore = tx.objectStore("tabGroups");
+  await groupStore.clear();
+  for (const group of tabGroups) {
+    await groupStore.put(group);
   }
 
   // Clear and rewrite presets
