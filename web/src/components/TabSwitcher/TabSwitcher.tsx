@@ -305,8 +305,13 @@ export function TabSwitcher({ onClose }: TabSwitcherProps) {
                 data-picker-index={i}
                 onClick={() => selectResult(item.tab.id)}
                 onMouseEnter={() => setSelectedIndex(i)}
+                // Цвет группы — полосой слева: читается периферийным зрением при
+                // проматывании списка, в отличие от метки в конце плотной строки.
+                style={groupOf(item.tab)
+                  ? { borderLeft: `2px solid var(--color-group-${groupOf(item.tab)!.color})` }
+                  : { borderLeft: "2px solid transparent" }}
                 className={`
-                  w-full grid grid-cols-[auto_1fr_auto] items-center gap-3 px-4 py-2.5 text-left
+                  w-full grid grid-cols-[auto_1fr_auto] items-center gap-3 pl-3 pr-4 py-2.5 text-left
                   transition-colors duration-75
                   ${isSelected ? "bg-accent/10 text-text" : "text-text-muted hover:text-text hover:bg-surface-hover/50"}
                 `}
@@ -319,18 +324,14 @@ export function TabSwitcher({ onClose }: TabSwitcherProps) {
                     {/* Метка группы: только цвет и имя, БЕЗ участия в fuzzy-скоринге —
                         иначе bestMatch пришлось бы расширять пятым источником
                         (tasks/14, решение 7). */}
+                    {/* Цвет уже несёт полоса слева — здесь только имя, без второй точки. */}
                     {groupOf(item.tab) && (
                       <span
-                        className="shrink-0 flex items-center gap-1 text-[9px] leading-none"
+                        className="shrink-0 truncate max-w-[90px] text-[9px] leading-none"
+                        style={{ color: `var(--color-group-${groupOf(item.tab)!.color})` }}
                         title={`группа → ${groupOf(item.tab)!.name}`}
                       >
-                        <span
-                          className="w-1.5 h-1.5 rounded-full"
-                          style={{ background: `var(--color-group-${groupOf(item.tab)!.color})` }}
-                        />
-                        <span className="truncate max-w-[90px]" style={{ color: `var(--color-group-${groupOf(item.tab)!.color})` }}>
-                          {groupOf(item.tab)!.name}
-                        </span>
+                        {groupOf(item.tab)!.name}
                       </span>
                     )}
                     {item.tab.tmuxBinding && (

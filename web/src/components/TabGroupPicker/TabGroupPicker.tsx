@@ -10,11 +10,13 @@ interface TabGroupPickerProps {
   tabId: string;
 }
 
-// Цвет новой группы берём по кругу от числа уже существующих: две подряд созданные
-// группы не окажутся одного цвета, а выбирать его вручную на этом шаге — лишний клик
-// в горячем пути (переименование и смена цвета есть в контекст-меню).
-function nextColor(count: number): TabGroupColor {
-  return TAB_GROUP_COLORS[count % TAB_GROUP_COLORS.length];
+// Первый НЕзанятый цвет: считать по количеству групп мало — новая группа легко получала
+// бы цвет уже существующей, и в полосе две разные группы выглядели бы одинаково.
+// Когда свободных не осталось — по кругу (6 цветов, дальше повтор неизбежен).
+// Выбирать цвет вручную на этом шаге не просим: это лишний клик в горячем пути,
+// смена цвета есть в контекст-меню группы.
+function nextColor(used: readonly TabGroupColor[]): TabGroupColor {
+  return TAB_GROUP_COLORS.find((c) => !used.includes(c)) ?? TAB_GROUP_COLORS[used.length % TAB_GROUP_COLORS.length];
 }
 
 export function TabGroupPicker({ onClose, tabId }: TabGroupPickerProps) {
@@ -22,6 +24,16 @@ export function TabGroupPicker({ onClose, tabId }: TabGroupPickerProps) {
   const allGroups = useEditorStore((s) => s.tabGroups);
   const createTabGroup = useEditorStore((s) => s.createTabGroup);
   const assignTabToGroup = useEditorStore((s) => s.assignTabToGroup);
+  const assignTabsToGroup = useEditorStore((s) => s.assignTabsToGroup);
+  const selectedTabIds = useEditorStore((s) => s.selectedTabIds);
+
+  // Пачка — только если пикер открыт с выделенного таба. Открыли с невыделенного (или
+  // выделения нет) — работаем ровно с ним, чтобы жест не задевал невидимое глазу.
+  // useMemo обязателен: без него массив новый на каждый рендер и пере-подписывает keynav.
+  const batch = useMemo(
+    () => (selectedTabIds.includes(tabId) ? selectedTabIds : [tabId]),
+    [selectedTabIds, tabId],
+  );
 
   const tab = tabs.find((t) => t.id === tabId);
   const groups = useMemo(
@@ -56,21 +68,29 @@ export function TabGroupPicker({ onClose, tabId }: TabGroupPickerProps) {
   const pick = useCallback(
     (index: number) => {
       if (index === createIndex) {
-        createTabGroup(trimmed, nextColor(allGroups.length), tabId);
+        // Группа создаётся с первым табом пачки (пустая тут же умерла бы от pruneGroups),
+        // остальные досыпаем одним вызовом.
+        createTabGroup(trimmed, nextColor(groups.map((g) => g.color)), batch[0]);
+        if (batch.length > 1) {
+          const created = useEditorStore.getState().tabGroups.at(-1);
+          if (created) assignTabsToGroup(batch.slice(1), created.id);
+        }
         onClose();
         return;
       }
       if (index === ungroupIndex) {
-        assignTabToGroup(tabId, null);
+        if (batch.length > 1) assignTabsToGroup(batch, null);
+        else assignTabToGroup(tabId, null);
         onClose();
         return;
       }
       const row: TabGroup | undefined = rows[index];
       if (!row) return;
-      assignTabToGroup(tabId, row.id);
+      if (batch.length > 1) assignTabsToGroup(batch, row.id);
+      else assignTabToGroup(tabId, row.id);
       onClose();
     },
-    [createIndex, ungroupIndex, createTabGroup, assignTabToGroup, trimmed, allGroups.length, tabId, onClose, rows],
+    [createIndex, ungroupIndex, createTabGroup, assignTabToGroup, assignTabsToGroup, trimmed, groups, batch, tabId, onClose, rows],
   );
 
   // Стартуем на текущей группе таба, если она есть.
@@ -102,7 +122,7 @@ export function TabGroupPicker({ onClose, tabId }: TabGroupPickerProps) {
           setQuery(v);
           setSelectedIndex(0);
         }}
-        placeholder="Положить таб в группу или создать..."
+        placeholder={batch.length > 1 ? `Положить ${batch.length} таба в группу или создать...` : "Положить таб в группу или создать..."}
         prefix={<span className="text-[11px] font-mono text-accent shrink-0">группа</span>}
         suffix={<span className="text-[10px] text-text-muted/50 tabular-nums shrink-0">{rows.length}</span>}
       />
