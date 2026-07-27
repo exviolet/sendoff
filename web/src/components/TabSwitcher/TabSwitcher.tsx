@@ -132,6 +132,11 @@ function makePreviewContext(tab: Tab, result: TabResult | undefined, query: stri
 
 export function TabSwitcher({ onClose }: TabSwitcherProps) {
   const allTabs = useEditorStore((s) => s.tabs);
+  const tabGroups = useEditorStore((s) => s.tabGroups);
+  const groupOf = useCallback(
+    (tab: Tab) => (tab.groupId ? tabGroups.find((g) => g.id === tab.groupId) : undefined),
+    [tabGroups],
+  );
   const activeWorkspaceId = useEditorStore((s) => s.activeWorkspaceId);
   // Скоуп активного workspace: кросс-workspace поиск — это Ctrl+Shift+D (global search).
   const tabs = useMemo(() => tabsOf(allTabs, activeWorkspaceId), [allTabs, activeWorkspaceId]);
@@ -311,6 +316,23 @@ export function TabSwitcher({ onClose }: TabSwitcherProps) {
                   <span className="flex items-center gap-2 min-w-0">
                     <span className="truncate text-[13px] text-text">{highlightMatches(item.tab.title, item.source === "title" ? item.indices : [])}</span>
                     {isActive && <span className="text-[10px] text-accent shrink-0">активный</span>}
+                    {/* Метка группы: только цвет и имя, БЕЗ участия в fuzzy-скоринге —
+                        иначе bestMatch пришлось бы расширять пятым источником
+                        (tasks/14, решение 7). */}
+                    {groupOf(item.tab) && (
+                      <span
+                        className="shrink-0 flex items-center gap-1 text-[9px] leading-none"
+                        title={`группа → ${groupOf(item.tab)!.name}`}
+                      >
+                        <span
+                          className="w-1.5 h-1.5 rounded-full"
+                          style={{ background: `var(--color-group-${groupOf(item.tab)!.color})` }}
+                        />
+                        <span className="truncate max-w-[90px]" style={{ color: `var(--color-group-${groupOf(item.tab)!.color})` }}>
+                          {groupOf(item.tab)!.name}
+                        </span>
+                      </span>
+                    )}
                     {item.tab.tmuxBinding && (
                       <span
                         className="shrink-0 px-1.5 py-0.5 rounded-[3px] bg-accent/10 text-accent text-[9px] font-mono leading-none"

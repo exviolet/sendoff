@@ -14,6 +14,7 @@ import { GlobalSearchPanel } from "./components/GlobalSearch/GlobalSearchPanel";
 import { TmuxTargetPicker } from "./components/TmuxPicker/TmuxTargetPicker";
 import { OrcaTargetPicker } from "./components/OrcaPicker/OrcaTargetPicker";
 import { WorkspaceSwitcher } from "./components/WorkspaceSwitcher/WorkspaceSwitcher";
+import { TabGroupPicker } from "./components/TabGroupPicker/TabGroupPicker";
 import type { MatchResult } from "./lib/replaceEngine";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useSessionPersistence } from "./hooks/useSessionPersistence";
@@ -43,6 +44,8 @@ function App() {
     null | { mode: "switch" } | { mode: "move"; tabId: string }
   >(null);
   const [workspaceDialog, setWorkspaceDialog] = useState<null | "rename" | "delete">(null);
+  // null = закрыт; иначе id таба, который кладём в группу.
+  const [groupPickerTabId, setGroupPickerTabId] = useState<string | null>(null);
   const [globalSearchOpen, setGlobalSearchOpen] = useState(false);
   const [triggerPhrasesOpen, setTriggerPhrasesOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
@@ -196,7 +199,7 @@ function App() {
     onClosePanels: () => {
       if (distractionFree) {
         setDistractionFree(false);
-      } else if (commandPaletteOpen || shortcutsOpen || tabSwitcherOpen || globalSearchOpen || triggerPhrasesOpen || tmuxPicker || orcaPicker || workspacePicker) {
+      } else if (commandPaletteOpen || shortcutsOpen || tabSwitcherOpen || globalSearchOpen || triggerPhrasesOpen || tmuxPicker || orcaPicker || workspacePicker || groupPickerTabId) {
         // handled by their own listeners
       } else if (panelMode || sidePanel) {
         closePanel();
@@ -224,6 +227,10 @@ function App() {
     onReferencePanel: () => toggleSidePanel("reference"),
     onGlobalSearch: () => setGlobalSearchOpen((v) => !v),
     onWorkspaceSwitcher: () => setWorkspacePicker((v) => (v ? null : { mode: "switch" })),
+    onTabGroupPicker: () => {
+      const id = useEditorStore.getState().activeTabId;
+      setGroupPickerTabId((v) => (v ? null : id));
+    },
   });
 
   return (
@@ -241,6 +248,7 @@ function App() {
           onBindTmux={openBindPicker}
           onBindOrca={openBindPickerOrca}
           onMoveTabToWorkspace={(tabId) => setWorkspacePicker({ mode: "move", tabId })}
+          onGroupTab={(tabId) => setGroupPickerTabId(tabId)}
           onTriggerPhrases={() => setTriggerPhrasesOpen(true)}
         />
       )}
@@ -328,6 +336,12 @@ function App() {
               store.setActiveWorkspace(workspaceId);
             }
           }}
+        />
+      )}
+      {groupPickerTabId && (
+        <TabGroupPicker
+          tabId={groupPickerTabId}
+          onClose={() => setGroupPickerTabId(null)}
         />
       )}
       {workspaceDialog === "rename" && (() => {

@@ -25,6 +25,7 @@ interface ShortcutCallbacks {
   onReferencePanel?: () => void;
   onGlobalSearch?: () => void;
   onWorkspaceSwitcher?: () => void;
+  onTabGroupPicker?: () => void;
 }
 
 export function useKeyboardShortcuts(callbacks?: ShortcutCallbacks) {
@@ -84,6 +85,15 @@ export function useKeyboardShortcuts(callbacks?: ShortcutCallbacks) {
       if (ctrl && e.shiftKey && code === "KeyW") {
         e.preventDefault();
         callbacks?.onWorkspaceSwitcher?.();
+        return;
+      }
+
+      // Ctrl+G — положить активный таб в группу (пикер со строкой создания).
+      // Сворачивание остаётся на клике по чипу: пока не видно, что этот жест
+      // повторяется чаще (tasks/14, решение 6). Ctrl+Shift+G оставлен свободным.
+      if (ctrl && !e.shiftKey && code === "KeyG") {
+        e.preventDefault();
+        callbacks?.onTabGroupPicker?.();
         return;
       }
 

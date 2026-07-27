@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useEditorStore } from "../../store/editorStore";
-import type { TmuxBinding, OrcaBinding, Tab, TabGroup } from "../../store/editorStore";
+import { TAB_GROUP_COLORS } from "../../store/editorStore";
+import type { TmuxBinding, OrcaBinding, Tab, TabGroup, TabGroupColor } from "../../store/editorStore";
 import type { Theme } from "../../store/themeStore";
 import { isTauri } from "../../lib/platform";
 import { tabsOf, groupsOf } from "../../lib/tabUtils";
@@ -20,6 +21,7 @@ interface TabBarProps {
   onBindTmux: (tabId: string) => void;
   onBindOrca: (tabId: string) => void;
   onMoveTabToWorkspace: (tabId: string) => void;
+  onGroupTab: (tabId: string) => void;
   onTriggerPhrases: () => void;
 }
 
@@ -41,13 +43,18 @@ function tabsMetaEqual(prev: ReturnType<typeof useEditorStore.getState>["tabs"],
   );
 }
 
-export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAll, onImportBackup, theme, onThemeToggle, onCleanupEmptyTabs, onBindTmux, onBindOrca, onMoveTabToWorkspace, onTriggerPhrases }: TabBarProps) {
+export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAll, onImportBackup, theme, onThemeToggle, onCleanupEmptyTabs, onBindTmux, onBindOrca, onMoveTabToWorkspace, onGroupTab, onTriggerPhrases }: TabBarProps) {
   const allTabs = useEditorStore((s) => s.tabs, tabsMetaEqual);
   const activeWorkspaceId = useEditorStore((s) => s.activeWorkspaceId);
   // Имя/цвет/collapsed живут НЕ в табах — на группы нужна отдельная подписка, иначе
   // переименование или сворачивание не перерисует полосу (tabsMetaEqual их не видит).
   const allGroups = useEditorStore((s) => s.tabGroups);
   const toggleTabGroupCollapsed = useEditorStore((s) => s.toggleTabGroupCollapsed);
+  const renameTabGroup = useEditorStore((s) => s.renameTabGroup);
+  const setTabGroupColor = useEditorStore((s) => s.setTabGroupColor);
+  const ungroupTabGroup = useEditorStore((s) => s.ungroupTabGroup);
+  const closeTabGroup = useEditorStore((s) => s.closeTabGroup);
+  const assignTabToGroup = useEditorStore((s) => s.assignTabToGroup);
   // Изоляция: в полосе — только табы активного workspace.
   const tabs = useMemo(() => tabsOf(allTabs, activeWorkspaceId), [allTabs, activeWorkspaceId]);
   const groups = useMemo(() => groupsOf(allGroups, activeWorkspaceId), [allGroups, activeWorkspaceId]);
@@ -83,6 +90,9 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
   const [editValue, setEditValue] = useState("");
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [ctxMenu, setCtxMenu] = useState<{ id: string; x: number; y: number } | null>(null);
+  const [groupMenu, setGroupMenu] = useState<{ id: string; x: number; y: number } | null>(null);
+  const [renamingGroupId, setRenamingGroupId] = useState<string | null>(null);
+  const [groupEditValue, setGroupEditValue] = useState("");
   const [activeOff, setActiveOff] = useState<null | "left" | "right">(null);
   const dragIdRef = useRef<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -90,16 +100,16 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
   const navRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
-    if (!ctxMenu) return;
-    function handleClick() { setCtxMenu(null); }
-    function handleKey(e: KeyboardEvent) { if (e.key === "Escape") setCtxMenu(null); }
-    document.addEventListener("mousedown", handleClick);
+    if (!ctxMenu && !groupMenu) return;
+    function closeAll() { setCtxMenu(null); setGroupMenu(null); }
+    function handleKey(e: KeyboardEvent) { if (e.key === "Escape") closeAll(); }
+    document.addEventListener("mousedown", closeAll);
     document.addEventListener("keydown", handleKey);
     return () => {
-      document.removeEventListener("mousedown", handleClick);
+      document.removeEventListener("mousedown", closeAll);
       document.removeEventListener("keydown", handleKey);
     };
-  }, [ctxMenu]);
+  }, [ctxMenu, groupMenu]);
 
   function reportClosed(n: number) {
     if (n === 0) toast("Нечего закрывать (несохранённые не трогаются)", "info");
@@ -366,6 +376,20 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
             >
               <button
                 onClick={() => toggleTabGroupCollapsed(group.id)}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setGroupMenu({ id: group.id, x: e.clientX, y: e.clientY });
+                }}
+                // Дроп на чип кладёт таб в группу — единственный способ попасть в
+                // свёрнутую группу мышью (её табов в полосе нет).
+                onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const id = dragIdRef.current;
+                  dragIdRef.current = null;
+                  setDragOverId(null);
+                  if (id) assignTabToGroup(id, group.id);
+                }}
                 title={group.collapsed ? `Развернуть «${group.name}»` : `Свернуть «${group.name}»`}
                 className="flex items-center gap-1.5 h-6 px-1.5 rounded-[4px] shrink-0 transition-colors duration-100 hover:bg-surface-hover/60"
               >
@@ -373,12 +397,32 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
                   className="w-2 h-2 rounded-full shrink-0"
                   style={{ background: `var(--color-group-${group.color})` }}
                 />
-                <span
-                  className="truncate max-w-[120px] text-[10px] tracking-wide"
-                  style={{ color: `var(--color-group-${group.color})` }}
-                >
-                  {group.name}
-                </span>
+                {renamingGroupId === group.id ? (
+                  <input
+                    autoFocus
+                    value={groupEditValue}
+                    onChange={(e) => setGroupEditValue(e.target.value)}
+                    onClick={(e) => e.stopPropagation()}
+                    onBlur={() => {
+                      if (groupEditValue.trim()) renameTabGroup(group.id, groupEditValue.trim());
+                      setRenamingGroupId(null);
+                    }}
+                    onKeyDown={(e) => {
+                      e.stopPropagation();
+                      if (e.key === "Enter") e.currentTarget.blur();
+                      if (e.key === "Escape") setRenamingGroupId(null);
+                    }}
+                    className="w-20 bg-transparent outline-none text-[10px] tracking-wide border-b"
+                    style={{ color: `var(--color-group-${group.color})`, borderColor: `var(--color-group-${group.color})` }}
+                  />
+                ) : (
+                  <span
+                    className="truncate max-w-[120px] text-[10px] tracking-wide"
+                    style={{ color: `var(--color-group-${group.color})` }}
+                  >
+                    {group.name}
+                  </span>
+                )}
                 {/* Свёрнутая группа обязана показывать, сколько табов спрятала — иначе
                     они выглядят потерянными. Активный внутри помечаем точкой. */}
                 {group.collapsed && (
@@ -570,10 +614,13 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
           x={ctxMenu.x}
           y={ctxMenu.y}
           pinned={tabs.find((t) => t.id === ctxMenu.id)?.pinned ?? false}
+          grouped={Boolean(tabs.find((t) => t.id === ctxMenu.id)?.groupId)}
           binding={tabs.find((t) => t.id === ctxMenu.id)?.tmuxBinding ?? null}
           orcaBinding={tabs.find((t) => t.id === ctxMenu.id)?.orcaBinding ?? null}
           onClose={() => setCtxMenu(null)}
           onTogglePin={() => togglePin(ctxMenu.id)}
+          onGroupTab={() => onGroupTab(ctxMenu.id)}
+          onUngroupTab={() => assignTabToGroup(ctxMenu.id, null)}
           onMoveToWorkspace={() => onMoveTabToWorkspace(ctxMenu.id)}
           onBindTmux={() => onBindTmux(ctxMenu.id)}
           onUnbindTmux={() => setTabBinding(ctxMenu.id, null)}
@@ -586,19 +633,95 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
           onCleanupEmpty={onCleanupEmptyTabs}
         />
       )}
+      {groupMenu && (() => {
+        const group = groups.find((g) => g.id === groupMenu.id);
+        if (!group) return null;
+        return (
+          <GroupContextMenu
+            x={groupMenu.x}
+            y={groupMenu.y}
+            group={group}
+            onClose={() => setGroupMenu(null)}
+            onToggleCollapsed={() => toggleTabGroupCollapsed(group.id)}
+            onRename={() => {
+              setGroupEditValue(group.name);
+              setRenamingGroupId(group.id);
+            }}
+            onColor={(color) => setTabGroupColor(group.id, color)}
+            onUngroup={() => ungroupTabGroup(group.id)}
+            onCloseGroup={() => reportClosed(closeTabGroup(group.id))}
+          />
+        );
+      })()}
     </header>
   );
 }
 
+function GroupContextMenu({
+  x, y, group, onClose, onToggleCollapsed, onRename, onColor, onUngroup, onCloseGroup,
+}: {
+  x: number; y: number;
+  group: TabGroup;
+  onClose: () => void;
+  onToggleCollapsed: () => void;
+  onRename: () => void;
+  onColor: (color: TabGroupColor) => void;
+  onUngroup: () => void;
+  onCloseGroup: () => void;
+}) {
+  const items = [
+    { label: group.collapsed ? "Развернуть группу" : "Свернуть группу", action: onToggleCollapsed },
+    { label: "Переименовать группу", action: onRename },
+    // Расформировать ≠ закрыть: подписи обязаны различаться однозначно, иначе
+    // пользователь однажды снесёт табы, думая что просто убирает группировку.
+    { label: "Расформировать (табы останутся)", action: onUngroup },
+    { label: "Закрыть все табы группы", action: onCloseGroup },
+  ];
+
+  return (
+    <div
+      className="fixed z-50 min-w-[210px] bg-surface border border-border rounded-[6px] shadow-lg overflow-hidden animate-slide-down"
+      style={{ left: x, top: y }}
+      onMouseDown={(e) => e.stopPropagation()}
+    >
+      <div className="flex items-center gap-1.5 px-3 py-2 border-b border-border/40">
+        {TAB_GROUP_COLORS.map((color) => (
+          <button
+            key={color}
+            onClick={() => { onColor(color); onClose(); }}
+            title={color}
+            className={`w-4 h-4 rounded-full transition-transform hover:scale-110 ${
+              group.color === color ? "ring-2 ring-offset-1 ring-offset-surface ring-text-muted/50" : ""
+            }`}
+            style={{ background: `var(--color-group-${color})` }}
+          />
+        ))}
+      </div>
+      {items.map((it) => (
+        <button
+          key={it.label}
+          onClick={() => { it.action(); onClose(); }}
+          className="flex items-center w-full px-3 py-1.5 text-[11px] tracking-wide text-text-muted hover:text-text hover:bg-surface-hover transition-colors whitespace-nowrap"
+        >
+          {it.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function TabContextMenu({
-  x, y, pinned, binding, orcaBinding, onClose, onTogglePin, onMoveToWorkspace, onBindTmux, onUnbindTmux, onBindOrca, onUnbindOrca, onCloseTab, onCloseOthers, onCloseRight, onCloseSaved, onCleanupEmpty,
+  x, y, pinned, grouped, binding, orcaBinding, onClose, onTogglePin, onGroupTab, onUngroupTab, onMoveToWorkspace, onBindTmux, onUnbindTmux, onBindOrca, onUnbindOrca, onCloseTab, onCloseOthers, onCloseRight, onCloseSaved, onCleanupEmpty,
 }: {
   x: number; y: number;
   pinned: boolean;
+  grouped: boolean;
   binding: TmuxBinding | null;
   orcaBinding: OrcaBinding | null;
   onClose: () => void;
   onTogglePin: () => void;
+  onGroupTab: () => void;
+  onUngroupTab: () => void;
   onMoveToWorkspace: () => void;
   onBindTmux: () => void;
   onUnbindTmux: () => void;
@@ -654,7 +777,15 @@ function TabContextMenu({
       onMouseDown={(e) => e.stopPropagation()}
     >
       <div className="border-b border-border/40">
-        {renderItem({ label: pinned ? "Открепить таб" : "Закрепить таб", action: onTogglePin, shortcut: "Ctrl+P" })}
+        {renderItem({
+          // Пин и группа взаимоисключимы: подсказываем это прямо в подписи, чтобы
+          // «таб выпрыгнул из группы» не выглядело сбоем (tasks/14, решение 1).
+          label: pinned ? "Открепить таб" : grouped ? "Закрепить таб (выйдет из группы)" : "Закрепить таб",
+          action: onTogglePin,
+          shortcut: "Ctrl+P",
+        })}
+        {renderItem({ label: "В группу…", action: onGroupTab, shortcut: "Ctrl+G" })}
+        {grouped && renderItem({ label: "Убрать из группы", action: onUngroupTab })}
         {renderItem({ label: "Переместить в workspace…", action: onMoveToWorkspace })}
       </div>
       <div className="border-b border-border/40">{tmuxItems.map(renderItem)}</div>
