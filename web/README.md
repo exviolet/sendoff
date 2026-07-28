@@ -59,7 +59,7 @@ agent's reply pinned in the reference panel while you write the next one.
   active `tmux` pane without leaving the keyboard.
 - **tmux target picker** (`Ctrl+Shift+Enter`) — choose the destination
   session / window / pane by name instead of relying on the active pane.
-- **tmux tab-binding** (`Ctrl+B` / `Ctrl+Shift+B`) — bind a tab to a specific
+- **tmux tab-binding** (`Ctrl+Alt+B` / `Ctrl+Alt+Shift+B`) — bind a tab to a specific
   tmux window by `windowId`; the status bar shows the live binding so
   `Ctrl+Enter` always lands in the right place. When two windows share a name,
   Rewrite asks instead of guessing — a prompt in the wrong agent is worse than
@@ -78,12 +78,20 @@ agent's reply pinned in the reference panel while you write the next one.
 - Tabs auto-name themselves from the first line; empty tabs auto-clean.
 - **Workspaces** (`Ctrl+Shift+W`) — group tabs by project; the tab bar shows
   only the active workspace, and pins are per-workspace.
+- **Tab groups** (`Ctrl+G`) — colour-coded, named runs inside a workspace; collapse
+  a group to a single chip, drag it as a whole, or act on several tabs at once with
+  `Ctrl`+click. Collapsing only hides — it never closes anything.
 - **Tab switcher** (`Ctrl+T`) with a live content preview.
 - **Global tab search** (`Ctrl+Shift+D`) — full-text search across every tab,
   deliberately cross-workspace (the escape hatch out of isolation).
 - **Pin tabs** (`Ctrl+P`) — keep important drafts pinned at the front of the tab bar.
 
 **Text tooling**
+- **Markdown editing** — `Ctrl+B` / `Ctrl+I` wrap (and unwrap) the selection or the
+  word under the cursor; `Tab` / `Shift+Tab` indent and nest list items; `Enter`
+  continues lists, numbering, checkboxes and blockquotes, and clears the marker on
+  an empty item; brackets, quotes and backticks close around a selection, and a
+  third backtick opens a fenced code block.
 - Find & Replace with a real-time highlight overlay.
 - Bulk find & replace with a diff preview before applying.
 - **Replace presets** — reusable bulk-replacement rule sets (the original use
@@ -119,11 +127,14 @@ bun run preview    # serve the production build locally
 |----------|--------|
 | `Ctrl+Enter` | Send buffer to bound / active tmux pane |
 | `Ctrl+Shift+Enter` | tmux target picker |
-| `Ctrl+B` / `Ctrl+Shift+B` | Bind / unbind tab to tmux window |
+| `Ctrl+Alt+B` / `Ctrl+Alt+Shift+B` | Bind / unbind tab to tmux window |
+| `Ctrl+B` / `Ctrl+I` | Bold / italic (selection or word under the cursor) |
+| `Tab` / `Shift+Tab` | Indent / outdent — nests list items |
 | `Ctrl+R` | Toggle reference panel |
 | `Ctrl+K` | Trigger phrases |
 | `Ctrl+T` | Tab switcher (with preview) |
 | `Ctrl+Shift+W` | Workspace switcher |
+| `Ctrl+G` | Put the tab into a group (picker with a create row) |
 | `Ctrl+Shift+D` | Global tab search |
 | `Ctrl+P` | Pin / unpin current tab |
 | `Ctrl+N` / `Ctrl+W` | New / close tab |

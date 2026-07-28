@@ -67,6 +67,8 @@ bun run preview       # прод-сборка локально
 - `replaceEngine.ts` — find/replace, пресеты, regex.
 - `tabUtils.ts` — `makeTab`, `makeAutoTitle`, `normalizeTab`, `partitionPinned`, `canCleanupTab`.
 - `tmuxResolve.ts` — парсинг топологии tmux + резолв привязки в pane (**критический путь**, см. Gotchas).
+- `markdownEdit.ts` — отступы, продолжение списков, обёртки `**`/`*`, автопары. Каждая операция
+  возвращает `EditPatch | null` (`null` = отдать клавишу браузеру), DOM не трогает.
 - `db.ts` — схема IndexedDB (**и есть источник правды по схеме**, не дублировать в markdown).
 - `platform.ts` — `isTauri`.
 
@@ -74,6 +76,8 @@ bun run preview       # прод-сборка локально
 - `useSessionPersistence.ts` — дебаунс 500ms, синк всех сторов в IndexedDB; флаг `isHydrated`
   блокирует запись до конца восстановления.
 - `useKeyboardShortcuts.ts` — глобальный `keydown`-листенер (по `e.code`, не `e.key`).
+- `useEditorKeymap.ts` — `keydown` **самой textarea** (Tab/Enter/Ctrl+B/Ctrl+I/автопары).
+  Живёт локально, а не в глобальном листенере: операции работают с выделением textarea.
 - `useFileIO.ts` — сохранение/открытие файлов, export/import бэкапа.
 - `useCommands.ts` — каталог команд палитры.
 - `useTmuxSend.ts` / `useTmuxActions.ts` — отправка в tmux + цепочка резолва и picker.
@@ -86,6 +90,10 @@ tmux-цепочка: **Explicit** (привязка таба) → **Last** (по
 ### Editor (`src/components/Editor/`)
 `<textarea>` не умеет подсветку. Оверлей: `<div>` точно под текстареа (тот же шрифт/размер/скролл)
 рендерит `<mark>` на позициях совпадений; текстареа сверху с `background: transparent`.
+
+Клавиатурные правки (`useEditorKeymap` → `applyPatch`) идут **мимо `onChange`**: патч кладётся
+через `setRangeText`, потом руками зовётся `updateContent`. Обязательный шаг — **отменить висящий
+`rafRef`**: он держит значение, снятое ДО патча, и, сработав следом, откатил бы правку.
 
 ### Panels
 `App.tsx` держит состояние панелей (find/replace, presets, settings, reference, trigger phrases,
@@ -125,13 +133,18 @@ interface ReplacePreset  { id: string; name: string; pairs: ReplacePair[] }
 
 ## Keyboard Shortcuts
 
-Все — по `e.code` (см. Gotchas). Актуальный список — `src/hooks/useKeyboardShortcuts.ts`.
+Все — по `e.code` (см. Gotchas). Актуальный список — `src/hooks/useKeyboardShortcuts.ts`
+(глобальные) и `src/hooks/useEditorKeymap.ts` (только когда фокус в редакторе).
 
 | Сочетание | Действие |
 |-----------|----------|
 | `Ctrl+Enter` | Отправить промпт (Orca-привязка → Orca, иначе tmux) |
 | `Ctrl+Shift+Enter` | tmux target picker |
-| `Ctrl+B` / `Ctrl+Shift+B` | Привязать / отвязать таб к tmux-окну |
+| `Ctrl+Alt+B` / `Ctrl+Alt+Shift+B` | Привязать / отвязать таб к tmux-окну |
+| `Ctrl+B` / `Ctrl+I` | **Редактор:** жирный / курсив |
+| `Tab` / `Shift+Tab` | **Редактор:** отступ / убрать отступ (вкладывает пункт списка) |
+| `Ctrl+G` | Положить таб в группу (пикер) |
+| `Ctrl+Shift+W` | Workspace: переключить / создать |
 | `Ctrl+N` / `Ctrl+W` | Новый / закрыть таб |
 | `Ctrl+Shift+T` | Вернуть закрытый таб |
 | `Ctrl+Tab` / `Ctrl+Shift+Tab` | Следующий / предыдущий таб |
