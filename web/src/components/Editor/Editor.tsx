@@ -2,6 +2,8 @@ import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { marked } from "marked";
 import { useEditorStore } from "../../store/editorStore";
 import { isTauri } from "../../lib/platform";
+import { useEditorKeymap } from "../../hooks/useEditorKeymap";
+import type { EditPatch } from "../../lib/markdownEdit";
 
 interface HighlightMatch {
   index: number;
@@ -115,6 +117,34 @@ export function Editor({ highlights = [], activeHighlight = -1, textareaRef, mar
     return () => { unlisten?.(); };
   }, [addTabFromFile]);
 
+  // Правки клавиатурных операций идут мимо onChange, поэтому стор обновляем руками.
+  // Висящий RAF от предыдущего ввода обязателен к отмене: он держит значение,
+  // снятое ДО патча, и, сработав следом, откатил бы результат.
+  const applyPatch = useCallback(
+    (patch: EditPatch) => {
+      const ta = textareaRef.current;
+      if (!ta) return;
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+
+      const before = ta.value;
+      ta.setRangeText(patch.text, patch.from, patch.to, "preserve");
+      ta.setSelectionRange(patch.selStart, patch.selEnd);
+
+      // setRangeText не доскролливает каретку (нативный ввод — доскролливает), поэтому
+      // Enter в конце длинного текста уводил бы её за кадр. Пере-фокус заставляет браузер
+      // показать каретку и ничего не двигает, когда она и так видна.
+      ta.blur();
+      ta.focus();
+
+      if (ta.value === before) return;
+      prevStoreContent.current = ta.value;
+      if (activeTabId) updateContent(activeTabId, ta.value);
+    },
+    [textareaRef, activeTabId, updateContent]
+  );
+
+  const handleKeyDown = useEditorKeymap(applyPatch);
+
   const syncScroll = useCallback(() => {
     if (textareaRef.current && backdropRef.current) {
       backdropRef.current.scrollTop = textareaRef.current.scrollTop;
@@ -210,6 +240,7 @@ export function Editor({ highlights = [], activeHighlight = -1, textareaRef, mar
               if (rafRef.current) cancelAnimationFrame(rafRef.current);
               rafRef.current = requestAnimationFrame(() => { if (id) updateContent(id, value); });
             }}
+            onKeyDown={handleKeyDown}
             onScroll={syncScroll}
             placeholder="Start typing or paste text..."
             spellCheck={false}
