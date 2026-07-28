@@ -142,7 +142,9 @@ interface ReplacePreset  { id: string; name: string; pairs: ReplacePair[] }
 | `Ctrl+Shift+Enter` | tmux target picker |
 | `Ctrl+Alt+B` / `Ctrl+Alt+Shift+B` | Привязать / отвязать таб к tmux-окну |
 | `Ctrl+B` / `Ctrl+I` | **Редактор:** жирный / курсив |
+| `Ctrl+M` / `Ctrl+Shift+M` | **Редактор:** инлайн-код / блок кода |
 | `Tab` / `Shift+Tab` | **Редактор:** отступ / убрать отступ (вкладывает пункт списка) |
+| `Ctrl+Shift+PgUp` / `PgDn` | Сдвинуть таб влево / вправо по полосе |
 | `Ctrl+G` | Положить таб в группу (пикер) |
 | `Ctrl+Shift+W` | Workspace: переключить / создать |
 | `Ctrl+N` / `Ctrl+W` | Новый / закрыть таб |
@@ -157,7 +159,7 @@ interface ReplacePreset  { id: string; name: string; pairs: ReplacePair[] }
 | `Ctrl+S` / `Ctrl+O` | Сохранить / открыть файл |
 | `Ctrl+Z` / `Ctrl+Shift+Z` | Undo / redo |
 | `Ctrl+R` | Reference panel |
-| `Ctrl+M` | Markdown preview |
+| `Alt+M` | Markdown preview |
 | `Ctrl+E` | Фокус в редактор |
 | `Ctrl+,` / `Ctrl+.` | Настройки / сайдбар (пресеты) |
 | `Ctrl+/` | Модалка хоткеев |

@@ -5,6 +5,7 @@ import {
   deletePair,
   indentSelection,
   outdentSelection,
+  toggleCodeFence,
   toggleWrap,
   type EditPatch,
 } from "../lib/markdownEdit";
@@ -48,6 +49,12 @@ export function useEditorKeymap(applyPatch: (patch: EditPatch) => void) {
 
       if (ctrl && !e.altKey && !e.shiftKey && e.code === "KeyI") {
         run(toggleWrap(value, start, end, "*"));
+        return;
+      }
+
+      // M — моноширинный: Ctrl+M инлайном, Ctrl+Shift+M забором. Превью переехало на Alt+M.
+      if (ctrl && !e.altKey && e.code === "KeyM") {
+        run(e.shiftKey ? toggleCodeFence(value, start, end) : toggleWrap(value, start, end, "`"));
         return;
       }
 

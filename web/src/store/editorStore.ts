@@ -11,6 +11,7 @@ import {
   isAutoTitled,
   canCleanupTab,
   tabsOf,
+  stepTab,
 } from "../lib/tabUtils";
 
 export interface Workspace {
@@ -92,6 +93,7 @@ interface EditorStore {
   setOrcaBinding: (id: string, binding: OrcaBinding | null) => void;
   togglePin: (id: string) => void;
   reorderTab: (fromId: string, toId: string) => void;
+  moveTabStep: (id: string, dir: -1 | 1) => void;
   undo: (id: string) => void;
   redo: (id: string) => void;
   addTabFromFile: (title: string, content: string) => void;
@@ -434,6 +436,14 @@ export const useEditorStore = create<EditorStore>((set, get) => {
       const landed = moved.pinned ? moved : { ...moved, groupId: tabs[to].groupId };
       tabs.splice(to, 0, landed);
       return { tabs: arrangeTabs(tabs), tabGroups: pruneGroups(tabs, s.tabGroups) };
+    }),
+
+  // Клавиатурный сдвиг таба на соседнюю видимую позицию (Ctrl+Shift+PgUp/PgDn).
+  moveTabStep: (id, dir) =>
+    set((s) => {
+      const next = stepTab(s.tabs, s.tabGroups, id, dir);
+      if (!next) return {};
+      return { tabs: arrangeTabs(next), tabGroups: pruneGroups(next, s.tabGroups) };
     }),
 
   undo: (id) => {

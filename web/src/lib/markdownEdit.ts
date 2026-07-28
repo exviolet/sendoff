@@ -203,6 +203,45 @@ export function toggleWrap(value: string, start: number, end: number, marker: st
   };
 }
 
+// Забор кода вокруг задетых строк — и снятие, если он уже стоит. Работает построчно:
+// ``` обязаны жить на своих строках, иначе markdown их не увидит.
+export function toggleCodeFence(value: string, start: number, end: number): EditPatch {
+  const from = lineStart(value, start);
+  const to = lineEnd(value, end);
+  const block = value.slice(from, to);
+  const lines = block.split("\n");
+
+  // Забор попал в выделение целиком.
+  if (lines.length >= 2 && lines[0].startsWith("```") && lines[lines.length - 1].trim() === "```") {
+    const inner = lines.slice(1, -1).join("\n");
+    return { from, to, text: inner, selStart: from, selEnd: from + inner.length };
+  }
+
+  // Забор снаружи выделения. Без этой ветки повторное нажатие вложило бы забор в забор:
+  // после первого выделена только внутренность блока.
+  const outer = fenceAround(value, from, to);
+  if (outer) {
+    return { ...outer, text: block, selStart: outer.from, selEnd: outer.from + block.length };
+  }
+
+  return {
+    from,
+    to,
+    text: "```\n" + block + "\n```",
+    selStart: from + 4,
+    selEnd: from + 4 + block.length,
+  };
+}
+
+function fenceAround(value: string, from: number, to: number): { from: number; to: number } | null {
+  if (from === 0 || to >= value.length) return null;
+  const prevStart = lineStart(value, from - 1);
+  const nextEnd = lineEnd(value, to + 1);
+  if (!value.slice(prevStart, from - 1).startsWith("```")) return null;
+  if (value.slice(to + 1, nextEnd).trim() !== "```") return null;
+  return { from: prevStart, to: nextEnd };
+}
+
 // Ввод парного символа. null = вставить символ как обычно.
 export function autoPair(value: string, start: number, end: number, char: string): EditPatch | null {
   const close = PAIRS[char];

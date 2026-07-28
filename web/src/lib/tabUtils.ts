@@ -88,6 +88,39 @@ export function visibleTabsOf(tabs: Tab[], groups: TabGroup[], workspaceId: stri
   return tabsOf(tabs, workspaceId).filter((t) => !t.groupId || !collapsed.has(t.groupId));
 }
 
+// Шаг таба на одну ВИДИМУЮ позицию влево/вправо. Возвращает новый порядок или null,
+// если двигать некуда. Своя арифметика, а не reorderTab: тот вставляет таб на индекс цели,
+// то есть шаг вправо на соседа схлопывается в no-op.
+//
+// Членство определяется соседом, рядом с которым таб приземлился — тот же принцип, что
+// у drop'а. Следствия: шаг внутрь развёрнутого run'а вводит в группу, шаг за последнего
+// её члена выводит, а свёрнутую группу таб перепрыгивает целиком (её члены не видимы,
+// соседом окажется таб за run'ом) — провалиться в неё и исчезнуть из полосы нельзя.
+export function stepTab(
+  tabs: Tab[],
+  groups: TabGroup[],
+  id: string,
+  dir: -1 | 1
+): Tab[] | null {
+  const tab = tabs.find((t) => t.id === id);
+  if (!tab) return null;
+
+  const visible = visibleTabsOf(tabs, groups, tab.workspaceId);
+  const i = visible.findIndex((t) => t.id === id);
+  if (i < 0) return null; // таб спрятан в свёрнутой группе — двигать нечего
+
+  const neighbor = visible[i + dir];
+  if (!neighbor) return null;
+  // Через границу закреплённых шаг не переносит: пин — отдельный жест, а partitionPinned
+  // всё равно вернул бы таб обратно, и клавиша выглядела бы сломанной.
+  if (!!neighbor.pinned !== !!tab.pinned) return null;
+
+  const next = tabs.filter((t) => t.id !== id);
+  const at = next.findIndex((t) => t.id === neighbor.id);
+  next.splice(dir < 0 ? at : at + 1, 0, tab.pinned ? tab : { ...tab, groupId: neighbor.groupId });
+  return next;
+}
+
 // Группы активного workspace, в порядке появления их первого таба в полосе.
 export function groupsOf(groups: TabGroup[], workspaceId: string): TabGroup[] {
   return groups.filter((g) => g.workspaceId === workspaceId);
