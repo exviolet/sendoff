@@ -129,6 +129,7 @@ bun run preview    # serve the production build locally
 | `Ctrl+Shift+Enter` | tmux target picker |
 | `Ctrl+Alt+B` / `Ctrl+Alt+Shift+B` | Bind / unbind tab to tmux window |
 | `Ctrl+B` / `Ctrl+I` | Bold / italic (selection or word under the cursor) |
+| `Ctrl+M` / `Ctrl+Shift+M` | Inline code / fenced code block |
 | `Tab` / `Shift+Tab` | Indent / outdent — nests list items |
 | `Ctrl+R` | Toggle reference panel |
 | `Ctrl+K` | Trigger phrases |
@@ -140,12 +141,13 @@ bun run preview    # serve the production build locally
 | `Ctrl+N` / `Ctrl+W` | New / close tab |
 | `Ctrl+Shift+T` | Reopen closed tab |
 | `Ctrl+Tab` / `Ctrl+Shift+Tab` | Next / previous tab |
+| `Ctrl+Shift+PgUp` / `PgDn` | Move the tab left / right along the bar |
 | `Ctrl+Z` / `Ctrl+Shift+Z` | Undo / redo |
 | `Ctrl+F` / `Ctrl+H` | Find / Find & Replace |
 | `Ctrl+Shift+P` | Command palette |
 | `Ctrl+S` / `Ctrl+O` | Save / open file |
 | `Ctrl+.` | Toggle presets sidebar |
-| `Ctrl+M` | Markdown preview |
+| `Alt+M` | Markdown preview |
 | `Ctrl+E` | Focus the editor |
 | `Ctrl+Shift+F` | Distraction-free mode |
 | `Ctrl+Shift+A` | Scroll to the active tab |

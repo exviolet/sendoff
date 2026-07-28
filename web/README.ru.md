@@ -128,6 +128,7 @@ bun run preview    # локально проверить продакшен-сб
 | `Ctrl+Shift+Enter` | tmux target picker |
 | `Ctrl+Alt+B` / `Ctrl+Alt+Shift+B` | Привязать / отвязать таб к tmux-окну |
 | `Ctrl+B` / `Ctrl+I` | Жирный / курсив (выделение или слово под курсором) |
+| `Ctrl+M` / `Ctrl+Shift+M` | Инлайн-код / блок кода |
 | `Tab` / `Shift+Tab` | Отступ / убрать отступ — вкладывает пункты списка |
 | `Ctrl+R` | Reference panel |
 | `Ctrl+K` | Фразы-триггеры |
@@ -139,12 +140,13 @@ bun run preview    # локально проверить продакшен-сб
 | `Ctrl+N` / `Ctrl+W` | Новый / закрыть таб |
 | `Ctrl+Shift+T` | Открыть закрытый таб |
 | `Ctrl+Tab` / `Ctrl+Shift+Tab` | Следующий / предыдущий таб |
+| `Ctrl+Shift+PgUp` / `PgDn` | Сдвинуть таб влево / вправо по полосе |
 | `Ctrl+Z` / `Ctrl+Shift+Z` | Undo / redo |
 | `Ctrl+F` / `Ctrl+H` | Поиск / Поиск и замена |
 | `Ctrl+Shift+P` | Командная палитра |
 | `Ctrl+S` / `Ctrl+O` | Сохранить / открыть файл |
 | `Ctrl+.` | Сайдбар пресетов |
-| `Ctrl+M` | Markdown-превью |
+| `Alt+M` | Markdown-превью |
 | `Ctrl+E` | Фокус в редактор |
 | `Ctrl+Shift+F` | Distraction-free режим |
 | `Ctrl+Shift+A` | Доскроллить к активному табу |

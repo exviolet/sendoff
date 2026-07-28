@@ -12,6 +12,9 @@ const SHORTCUT_GROUPS = [
       { keys: "Ctrl+P", action: "Закрепить/открепить таб" },
       { keys: "Ctrl+Tab", action: "Следующий таб" },
       { keys: "Ctrl+Shift+Tab", action: "Предыдущий таб" },
+      { keys: "Ctrl+PgUp / Ctrl+PgDn", action: "Предыдущий / следующий таб" },
+      { keys: "Ctrl+Shift+PgUp / PgDn", action: "Сдвинуть таб влево / вправо" },
+      { keys: "Ctrl+G", action: "Положить таб в группу" },
     ],
   },
   {
@@ -33,6 +36,8 @@ const SHORTCUT_GROUPS = [
     items: [
       { keys: "Ctrl+B", action: "Жирный (**)" },
       { keys: "Ctrl+I", action: "Курсив (*)" },
+      { keys: "Ctrl+M", action: "Инлайн-код (`)" },
+      { keys: "Ctrl+Shift+M", action: "Блок кода (```)" },
       { keys: "Tab", action: "Отступ / вложить пункт списка" },
       { keys: "Shift+Tab", action: "Убрать отступ" },
       { keys: "Enter", action: "Продолжить список или цитату" },
@@ -46,7 +51,7 @@ const SHORTCUT_GROUPS = [
       { keys: "Ctrl+R", action: "Reference panel" },
       { keys: "Ctrl+,", action: "Настройки" },
       { keys: "Ctrl+.", action: "Toggle sidebar" },
-      { keys: "Ctrl+M", action: "Markdown превью" },
+      { keys: "Alt+M", action: "Markdown превью" },
       { keys: "Ctrl+Shift+P", action: "Command Palette" },
       { keys: "Ctrl+Shift+F", action: "Distraction-free режим" },
       { keys: "Ctrl+E", action: "Фокус в редактор" },

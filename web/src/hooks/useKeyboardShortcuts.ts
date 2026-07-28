@@ -115,6 +115,16 @@ export function useKeyboardShortcuts(callbacks?: ShortcutCallbacks) {
         return;
       }
 
+      // Ctrl+Shift+PgUp/PgDn — двигать сам таб по полосе. Проверяется ДО переключения:
+      // иначе ветка ниже съела бы Shift как «предыдущий таб». Ctrl+Shift+Tab не трогаем —
+      // это общесистемный жест «предыдущий», сдвиг на него вешать нельзя.
+      if (ctrl && e.shiftKey && (code === "PageUp" || code === "PageDown")) {
+        e.preventDefault();
+        const { activeTabId, moveTabStep } = useEditorStore.getState();
+        if (activeTabId) moveTabStep(activeTabId, code === "PageUp" ? -1 : 1);
+        return;
+      }
+
       if (ctrl && (e.key === "Tab" || code === "PageDown" || code === "PageUp")) {
         e.preventDefault();
         const { tabs, activeTabId, activeWorkspaceId, setActiveTab } =
@@ -185,7 +195,9 @@ export function useKeyboardShortcuts(callbacks?: ShortcutCallbacks) {
         return;
       }
 
-      if (ctrl && code === "KeyM") {
+      // Alt+M, а не Ctrl+M: Ctrl+M/Ctrl+Shift+M отданы редактору под инлайн-код и блок
+      // кода — жесты набора, а превью переключают куда реже.
+      if (!ctrl && e.altKey && code === "KeyM") {
         e.preventDefault();
         callbacks?.onToggleMarkdownPreview?.();
         return;
