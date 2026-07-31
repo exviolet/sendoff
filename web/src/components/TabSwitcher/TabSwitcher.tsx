@@ -269,6 +269,12 @@ export function TabSwitcher({ onClose }: TabSwitcherProps) {
         }
         suffix={
           <>
+            {/* Счётчик фиксированной ширины: «18/18» → «4/4» иначе дёргает соседей. */}
+            <span className="text-[10px] text-text-muted/50 tabular-nums shrink-0 min-w-[46px] text-right">
+              {results.length}/{boundOnly ? boundCount : tabs.length}
+            </span>
+            {/* Кнопка ПОСЛЕДНЯЯ: её правый край прижат к краю модалки, поэтому позиция
+                не зависит от ширины счётчика вообще — повторный клик всегда попадает. */}
             <button
               type="button"
               onClick={() => toggleBoundOnly(setSelectedIndex)}
@@ -288,11 +294,6 @@ export function TabSwitcher({ onClose }: TabSwitcherProps) {
                 <path d="M5 6.5L7 8l-2 1.5M8.5 9.5H11" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </button>
-            {/* Ширина фиксирована намеренно: «18/18» → «4/4» сужало правую группу,
-                кнопка уезжала вправо, и повторный клик в то же место промахивался. */}
-            <span className="text-[10px] text-text-muted/50 tabular-nums shrink-0 min-w-[46px] text-right">
-              {results.length}/{boundOnly ? boundCount : tabs.length}
-            </span>
           </>
         }
       />
