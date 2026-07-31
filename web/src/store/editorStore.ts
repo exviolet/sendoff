@@ -48,6 +48,17 @@ export interface OrcaBinding {
   titleHint?: string; // титул терминала для disambiguation внутри worktree
 }
 
+// Herdr persist'ит pane_id в session.json, поэтому привязка переживает рестарт сервера
+// и ребут — в отличие от tmux @id и orca term_… . НО публичные номера панелей
+// переиспользуются после закрытия, а лейблы не уникальны (две вкладки «codex» в одном
+// workspace — норма). Поэтому храним и то, и другое: резолв требует совпадения paneId
+// И пары лейблов, иначе промпт уедет чужому агенту (баг 2026-07-10).
+export interface HerdrBinding {
+  paneId: string;    // "wK:p1" — таргет всех agent-команд, единственная принимаемая форма
+  workspace: string; // ЛЕЙБЛ workspace ("rewrite-desktop"), не id: id пересобирается
+  tab: string;       // ЛЕЙБЛ вкладки ("1", "claude")
+}
+
 export interface Tab {
   id: string;
   title: string;
@@ -59,6 +70,7 @@ export interface Tab {
   titleSource?: "auto" | "manual" | "file";
   tmuxBinding?: TmuxBinding;
   orcaBinding?: OrcaBinding;
+  herdrBinding?: HerdrBinding;
   workspaceId: string; // обязателен после гидрации (старым табам присваивается «Default»)
   groupId?: string;    // аддитивно: отсутствие = таб вне групп (валидное состояние)
 }
@@ -91,6 +103,7 @@ interface EditorStore {
   markSaved: (id: string) => void;
   setTabBinding: (id: string, binding: TmuxBinding | null) => void;
   setOrcaBinding: (id: string, binding: OrcaBinding | null) => void;
+  setHerdrBinding: (id: string, binding: HerdrBinding | null) => void;
   togglePin: (id: string) => void;
   reorderTab: (fromId: string, toId: string) => void;
   moveTabStep: (id: string, dir: -1 | 1) => void;
@@ -143,6 +156,26 @@ function rememberActive(
   return workspaces.map((w) =>
     w.id === workspaceId ? { ...w, lastActiveTabId: tabId ?? undefined } : w,
   );
+}
+
+// Один терминальный таргет на таб: установка любой привязки стирает две другие.
+// Раньше взаимоисключимость держали парой `delete` в каждом сеттере — с тремя
+// таргетами это шесть мест, где легко забыть одно и получить таб с двумя привязками
+// (диспетчер Ctrl+Enter выбрал бы по порядку проверок, а не по тому, что привязал юзер).
+const BINDING_FIELDS = ["tmuxBinding", "orcaBinding", "herdrBinding"] as const;
+type BindingField = (typeof BINDING_FIELDS)[number];
+
+function applyBinding<F extends BindingField>(
+  tab: Tab,
+  id: string,
+  field: F,
+  binding: Tab[F] | null,
+): Tab {
+  if (tab.id !== id) return tab;
+  const next = { ...tab, updatedAt: Date.now() };
+  for (const f of BINDING_FIELDS) delete next[f];
+  if (binding) next[field] = binding;
+  return next;
 }
 
 // Какой таб активировать при входе в workspace: last-active (если жив) → первый → null.
@@ -478,34 +511,13 @@ export const useEditorStore = create<EditorStore>((set, get) => {
     })),
 
   setTabBinding: (id, binding) =>
-    set((s) => ({
-      tabs: s.tabs.map((t) => {
-        if (t.id !== id) return t;
-        const next = { ...t, updatedAt: Date.now() };
-        if (binding) {
-          next.tmuxBinding = binding;
-          delete next.orcaBinding; // взаимоисключимость: один таргет на таб
-        } else {
-          delete next.tmuxBinding;
-        }
-        return next;
-      }),
-    })),
+    set((s) => ({ tabs: s.tabs.map((t) => applyBinding(t, id, "tmuxBinding", binding)) })),
 
   setOrcaBinding: (id, binding) =>
-    set((s) => ({
-      tabs: s.tabs.map((t) => {
-        if (t.id !== id) return t;
-        const next = { ...t, updatedAt: Date.now() };
-        if (binding) {
-          next.orcaBinding = binding;
-          delete next.tmuxBinding; // взаимоисключимость: один таргет на таб
-        } else {
-          delete next.orcaBinding;
-        }
-        return next;
-      }),
-    })),
+    set((s) => ({ tabs: s.tabs.map((t) => applyBinding(t, id, "orcaBinding", binding)) })),
+
+  setHerdrBinding: (id, binding) =>
+    set((s) => ({ tabs: s.tabs.map((t) => applyBinding(t, id, "herdrBinding", binding)) })),
 
   addTabFromFile: (title, content) => {
     const next = get().tabCounter + 1;

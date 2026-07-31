@@ -4,6 +4,7 @@ import { useEditorStore } from "../store/editorStore";
 import { toast } from "../store/toastStore";
 import { type TmuxPicker } from "./useTmuxActions";
 import { type OrcaPicker } from "./useOrcaActions";
+import { type HerdrPicker } from "./useHerdrActions";
 
 export type PanelMode = null | "find" | "findReplace";
 export type SidePanel = null | "presets" | "settings" | "reference";
@@ -38,6 +39,9 @@ export interface CommandDeps {
   setOrcaPicker: Dispatch<SetStateAction<OrcaPicker>>;
   bindActiveTabOrca: () => void;
   unbindActiveTabOrca: () => void;
+  setHerdrPicker: Dispatch<SetStateAction<HerdrPicker>>;
+  bindActiveTabHerdr: () => void;
+  unbindActiveTabHerdr: () => void;
   openWorkspaceSwitcher: () => void;
   moveActiveTabToWorkspace: () => void;
   renameActiveWorkspace: () => void;
@@ -52,6 +56,7 @@ export function useCommands(deps: CommandDeps): Command[] {
     markdownPreview, focusEditor, cleanupEmptyTabs, toggleActivePin,
     handleTmuxSend, setTmuxPicker, bindActiveTab, unbindActiveTab,
     setOrcaPicker, bindActiveTabOrca, unbindActiveTabOrca,
+    setHerdrPicker, bindActiveTabHerdr, unbindActiveTabHerdr,
     openWorkspaceSwitcher, moveActiveTabToWorkspace, renameActiveWorkspace, deleteActiveWorkspace,
   } = deps;
 
@@ -91,13 +96,16 @@ export function useCommands(deps: CommandDeps): Command[] {
     { id: "presets", label: "Пресеты замены", action: () => setSidePanel("presets") },
     { id: "reference", label: "Reference panel", shortcut: "Ctrl+R", action: () => toggleSidePanel("reference") },
     { id: "trigger-phrases", label: "Фразы-триггеры", shortcut: "Ctrl+K", action: () => setTriggerPhrasesOpen(true) },
-    { id: "tmux-send", label: "Отправить (tmux/Orca)", shortcut: "Ctrl+Enter", action: handleTmuxSend },
+    { id: "tmux-send", label: "Отправить (tmux/Orca/Herdr)", shortcut: "Ctrl+Enter", action: handleTmuxSend },
     { id: "tmux-pick", label: "Отправить в tmux (выбрать окно)", shortcut: "Ctrl+Shift+Enter", action: () => setTmuxPicker({ mode: "send" }) },
     { id: "tmux-bind", label: "Привязать таб к tmux-окну", shortcut: "Ctrl+Alt+B", action: bindActiveTab },
     { id: "tmux-unbind", label: "Отвязать таб от tmux", shortcut: "Ctrl+Alt+Shift+B", action: unbindActiveTab },
     { id: "orca-pick", label: "Отправить в Orca (выбрать агента)", action: () => setOrcaPicker({ mode: "send" }) },
     { id: "orca-bind", label: "Привязать таб к Orca-агенту", action: bindActiveTabOrca },
     { id: "orca-unbind", label: "Отвязать таб от Orca", action: unbindActiveTabOrca },
+    { id: "herdr-pick", label: "Отправить в Herdr (выбрать агента)", action: () => setHerdrPicker({ mode: "send" }) },
+    { id: "herdr-bind", label: "Привязать таб к Herdr-агенту", action: bindActiveTabHerdr },
+    { id: "herdr-unbind", label: "Отвязать таб от Herdr", action: unbindActiveTabHerdr },
     { id: "save", label: "Сохранить как .txt", shortcut: "Ctrl+S", action: saveCurrentTab },
     { id: "open", label: "Открыть файл", shortcut: "Ctrl+O", action: openFile },
     { id: "download", label: "Скачать таб", action: downloadCurrentTab },
@@ -112,5 +120,5 @@ export function useCommands(deps: CommandDeps): Command[] {
     { id: "toggle-md-preview", label: markdownPreview ? "Редактор" : "Markdown превью", shortcut: "Alt+M", action: () => setMarkdownPreview((v) => !v) },
     { id: "settings", label: "Настройки", shortcut: "Ctrl+,", action: () => toggleSidePanel("settings") },
     { id: "focus-editor", label: "Фокус в редактор", shortcut: "Ctrl+E", action: focusEditor },
-  ], [saveCurrentTab, openFile, downloadCurrentTab, exportAll, importBackup, toggleDistractionFree, toggleSidePanel, setSidePanel, setPanelMode, setTheme, setTabSwitcherOpen, setGlobalSearchOpen, setTriggerPhrasesOpen, setShortcutsOpen, setMarkdownPreview, markdownPreview, focusEditor, cleanupEmptyTabs, toggleActivePin, handleTmuxSend, setTmuxPicker, bindActiveTab, unbindActiveTab, setOrcaPicker, bindActiveTabOrca, unbindActiveTabOrca, openWorkspaceSwitcher, moveActiveTabToWorkspace, renameActiveWorkspace, deleteActiveWorkspace]);
+  ], [saveCurrentTab, openFile, downloadCurrentTab, exportAll, importBackup, toggleDistractionFree, toggleSidePanel, setSidePanel, setPanelMode, setTheme, setTabSwitcherOpen, setGlobalSearchOpen, setTriggerPhrasesOpen, setShortcutsOpen, setMarkdownPreview, markdownPreview, focusEditor, cleanupEmptyTabs, toggleActivePin, handleTmuxSend, setTmuxPicker, bindActiveTab, unbindActiveTab, setOrcaPicker, bindActiveTabOrca, unbindActiveTabOrca, setHerdrPicker, bindActiveTabHerdr, unbindActiveTabHerdr, openWorkspaceSwitcher, moveActiveTabToWorkspace, renameActiveWorkspace, deleteActiveWorkspace]);
 }

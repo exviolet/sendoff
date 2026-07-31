@@ -13,6 +13,7 @@ import { TabSwitcher } from "./components/TabSwitcher/TabSwitcher";
 import { GlobalSearchPanel } from "./components/GlobalSearch/GlobalSearchPanel";
 import { TmuxTargetPicker } from "./components/TmuxPicker/TmuxTargetPicker";
 import { OrcaTargetPicker } from "./components/OrcaPicker/OrcaTargetPicker";
+import { HerdrTargetPicker } from "./components/HerdrPicker/HerdrTargetPicker";
 import { WorkspaceSwitcher } from "./components/WorkspaceSwitcher/WorkspaceSwitcher";
 import { TabGroupPicker } from "./components/TabGroupPicker/TabGroupPicker";
 import type { MatchResult } from "./lib/replaceEngine";
@@ -21,6 +22,7 @@ import { useSessionPersistence } from "./hooks/useSessionPersistence";
 import { useFileIO } from "./hooks/useFileIO";
 import { useTmuxActions } from "./hooks/useTmuxActions";
 import { useOrcaActions } from "./hooks/useOrcaActions";
+import { useHerdrActions } from "./hooks/useHerdrActions";
 import { useCommands, type PanelMode, type SidePanel } from "./hooks/useCommands";
 import { useEditorStore } from "./store/editorStore";
 import { useThemeStore } from "./store/themeStore";
@@ -100,14 +102,21 @@ function App() {
     orcaPicker, setOrcaPicker, handleOrcaSend, handleOrcaPick,
     bindActiveTabOrca, openBindPickerOrca, unbindActiveTabOrca,
   } = useOrcaActions(textareaRef);
+  const {
+    herdrPicker, setHerdrPicker, handleHerdrSend, handleHerdrPick,
+    bindActiveTabHerdr, openBindPickerHerdr, unbindActiveTabHerdr,
+  } = useHerdrActions(textareaRef);
 
-  // Ctrl+Enter диспетчер: таб с orca-привязкой → Orca, иначе существующий tmux-flow.
+  // Ctrl+Enter диспетчер: привязка таба выбирает путь, tmux — дефолт.
+  // Порядок проверок значения не имеет: три привязки взаимоисключимы (applyBinding
+  // в editorStore стирает две другие), одновременно их быть не может.
   const handleSend = useCallback(() => {
     const { tabs, activeTabId } = useEditorStore.getState();
     const tab = tabs.find((t) => t.id === activeTabId);
-    if (tab?.orcaBinding) void handleOrcaSend();
+    if (tab?.herdrBinding) void handleHerdrSend();
+    else if (tab?.orcaBinding) void handleOrcaSend();
     else void handleTmuxSend();
-  }, [handleOrcaSend, handleTmuxSend]);
+  }, [handleHerdrSend, handleOrcaSend, handleTmuxSend]);
 
   // Warn on browser close if dirty tabs exist
   useEffect(() => {
@@ -187,6 +196,7 @@ function App() {
     markdownPreview, focusEditor, cleanupEmptyTabs, toggleActivePin,
     handleTmuxSend: handleSend, setTmuxPicker, bindActiveTab, unbindActiveTab,
     setOrcaPicker, bindActiveTabOrca, unbindActiveTabOrca,
+    setHerdrPicker, bindActiveTabHerdr, unbindActiveTabHerdr,
     openWorkspaceSwitcher: openWorkspaceSwitcher,
     moveActiveTabToWorkspace: moveActiveTabToWorkspace,
     renameActiveWorkspace: () => setWorkspaceDialog("rename"),
@@ -199,7 +209,7 @@ function App() {
     onClosePanels: () => {
       if (distractionFree) {
         setDistractionFree(false);
-      } else if (commandPaletteOpen || shortcutsOpen || tabSwitcherOpen || globalSearchOpen || triggerPhrasesOpen || tmuxPicker || orcaPicker || workspacePicker || groupPickerTabId) {
+      } else if (commandPaletteOpen || shortcutsOpen || tabSwitcherOpen || globalSearchOpen || triggerPhrasesOpen || tmuxPicker || orcaPicker || herdrPicker || workspacePicker || groupPickerTabId) {
         // handled by their own listeners
       } else if (panelMode || sidePanel) {
         closePanel();
@@ -247,6 +257,7 @@ function App() {
           onCleanupEmptyTabs={cleanupEmptyTabs}
           onBindTmux={openBindPicker}
           onBindOrca={openBindPickerOrca}
+          onBindHerdr={openBindPickerHerdr}
           onMoveTabToWorkspace={(tabId) => setWorkspacePicker({ mode: "move", tabId })}
           onGroupTab={(tabId) => setGroupPickerTabId(tabId)}
           onTriggerPhrases={() => setTriggerPhrasesOpen(true)}
@@ -280,6 +291,7 @@ function App() {
         <StatusBar
           onBindTmux={bindActiveTab}
           onBindOrca={bindActiveTabOrca}
+          onBindHerdr={bindActiveTabHerdr}
           onWorkspaceSwitch={() => setWorkspacePicker({ mode: "switch" })}
         />
       )}
@@ -319,6 +331,13 @@ function App() {
           mode={orcaPicker.mode}
           onClose={() => setOrcaPicker(null)}
           onPick={handleOrcaPick}
+        />
+      )}
+      {herdrPicker && (
+        <HerdrTargetPicker
+          mode={herdrPicker.mode}
+          onClose={() => setHerdrPicker(null)}
+          onPick={handleHerdrPick}
         />
       )}
       {workspacePicker && (
