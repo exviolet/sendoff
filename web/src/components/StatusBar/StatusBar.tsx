@@ -1,5 +1,25 @@
 import { useEditorStore } from "../../store/editorStore";
 import { describeBinding } from "../../lib/terminalTargets";
+import { useTargetStatus } from "../../hooks/useTargetStatus";
+
+// Статусы агентов: herdr отдаёт idle|working|blocked|done, Orca — свой набор.
+// Сводим к одной шкале; неизвестный статус рисуем нейтрально, но подпись показываем
+// как есть — врать про чужой словарь хуже, чем показать незнакомое слово.
+const STATUS_COLOR: Record<string, string> = {
+  working: "bg-accent",
+  blocked: "bg-dirty",
+  waiting: "bg-dirty",
+  idle: "bg-text-muted/50",
+  done: "bg-text-muted/50",
+};
+
+const STATUS_LABEL: Record<string, string> = {
+  working: "работает",
+  blocked: "ждёт ответа",
+  waiting: "ждёт ответа",
+  idle: "свободен",
+  done: "готово",
+};
 
 interface StatusBarProps {
   onBindTarget: () => void;
@@ -11,6 +31,8 @@ export function StatusBar({ onBindTarget, onWorkspaceSwitch }: StatusBarProps) {
   const workspaceName = useEditorStore(
     (s) => s.workspaces.find((w) => w.id === s.activeWorkspaceId)?.name,
   );
+  // Хук зовётся ДО раннего return: порядок хуков обязан быть стабильным.
+  const status = useTargetStatus(tab?.binding);
 
   if (!tab) return null;
 
@@ -52,6 +74,19 @@ export function StatusBar({ onBindTarget, onWorkspaceSwitch }: StatusBarProps) {
         </svg>
         <span className="tabular-nums">{binding ? bindingLabel : "привязать"}</span>
       </button>
+
+      {/* Живой статус привязанного агента. tmux статусов не отдаёт — чипа просто нет. */}
+      {binding && status && (
+        <span
+          className="flex items-center gap-1.5 -ml-2.5"
+          title={`Состояние агента: ${status}`}
+        >
+          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${STATUS_COLOR[status] ?? "bg-border"}`} />
+          <span className={status === "working" ? "text-accent" : undefined}>
+            {STATUS_LABEL[status] ?? status}
+          </span>
+        </span>
+      )}
 
       <span className="ml-auto">{lines} {lines === 1 ? "line" : "lines"}</span>
       <span>{words} {words === 1 ? "word" : "words"}</span>

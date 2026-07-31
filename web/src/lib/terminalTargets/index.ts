@@ -35,6 +35,23 @@ export function describeBinding(binding: TabBinding): string {
   return `${binding.source}:${providerFor(binding).describe(binding)}`;
 }
 
+// Живой статус привязанной цели (herdr: idle/working/blocked/done, Orca: state).
+// Реализации в провайдерах НЕ нужно: статус уже едет в `listTargets()`, надо только
+// найти свою строку. tmux статусов не отдаёт — вернётся null сам собой.
+//
+// Неоднозначность → null, а не «первый попавшийся»: показать чужой статус так же
+// нечестно, как отправить чужому агенту, просто дешевле по последствиям.
+export async function statusOf(binding: TabBinding): Promise<string | null> {
+  try {
+    const matches = (await providerFor(binding).listTargets()).filter((t) =>
+      sameBinding(binding, t.binding),
+    );
+    return matches.length === 1 ? (matches[0].status ?? null) : null;
+  } catch {
+    return null;
+  }
+}
+
 // Указывают ли два дескриптора на одну цель. Сравниваем СТАБИЛЬНЫЕ поля, а не хендлы:
 // хендл живой и меняется, дескриптор — нет. Нужно, чтобы пикер преселектил строку,
 // соответствующую текущей привязке таба.
