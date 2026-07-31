@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useEditorStore } from "../../store/editorStore";
 import { TAB_GROUP_COLORS } from "../../store/editorStore";
-import type { TmuxBinding, OrcaBinding, Tab, TabGroup, TabGroupColor } from "../../store/editorStore";
+import type { TmuxBinding, OrcaBinding, HerdrBinding, Tab, TabGroup, TabGroupColor } from "../../store/editorStore";
 import type { Theme } from "../../store/themeStore";
 import { isTauri } from "../../lib/platform";
 import { tabsOf, groupsOf } from "../../lib/tabUtils";
@@ -20,6 +20,7 @@ interface TabBarProps {
   onCleanupEmptyTabs: () => void;
   onBindTmux: (tabId: string) => void;
   onBindOrca: (tabId: string) => void;
+  onBindHerdr: (tabId: string) => void;
   onMoveTabToWorkspace: (tabId: string) => void;
   onGroupTab: (tabId: string) => void;
   onTriggerPhrases: () => void;
@@ -39,11 +40,16 @@ function tabsMetaEqual(prev: ReturnType<typeof useEditorStore.getState>["tabs"],
     tab.tmuxBinding?.session === next[i].tmuxBinding?.session &&
     tab.tmuxBinding?.window === next[i].tmuxBinding?.window &&
     tab.orcaBinding?.worktree === next[i].orcaBinding?.worktree &&
-    tab.orcaBinding?.titleHint === next[i].orcaBinding?.titleHint
+    tab.orcaBinding?.titleHint === next[i].orcaBinding?.titleHint &&
+    // Без herdrBinding полоса замерзает при привязке к herdr — четвёртый случай
+    // того же класса после orcaBinding, workspaceId и groupId.
+    tab.herdrBinding?.paneId === next[i].herdrBinding?.paneId &&
+    tab.herdrBinding?.workspace === next[i].herdrBinding?.workspace &&
+    tab.herdrBinding?.tab === next[i].herdrBinding?.tab
   );
 }
 
-export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAll, onImportBackup, theme, onThemeToggle, onCleanupEmptyTabs, onBindTmux, onBindOrca, onMoveTabToWorkspace, onGroupTab, onTriggerPhrases }: TabBarProps) {
+export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAll, onImportBackup, theme, onThemeToggle, onCleanupEmptyTabs, onBindTmux, onBindOrca, onBindHerdr, onMoveTabToWorkspace, onGroupTab, onTriggerPhrases }: TabBarProps) {
   const allTabs = useEditorStore((s) => s.tabs, tabsMetaEqual);
   const activeWorkspaceId = useEditorStore((s) => s.activeWorkspaceId);
   // Имя/цвет/collapsed живут НЕ в табах — на группы нужна отдельная подписка, иначе
@@ -89,6 +95,7 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
   const closeTabsToRight = useEditorStore((s) => s.closeTabsToRight);
   const setTabBinding = useEditorStore((s) => s.setTabBinding);
   const setOrcaBinding = useEditorStore((s) => s.setOrcaBinding);
+  const setHerdrBinding = useEditorStore((s) => s.setHerdrBinding);
   const togglePin = useEditorStore((s) => s.togglePin);
 
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -316,6 +323,21 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
             <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
               <rect x="2" y="3" width="12" height="10" rx="2" stroke="currentColor" strokeWidth="1.4" />
               <path d="M5 6.5L7 8l-2 1.5M8.5 9.5H11" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </span>
+        )}
+
+        {/* Herdr binding indicator (стадо-глиф: три точки под общей дугой) */}
+        {tab.herdrBinding && (
+          <span
+            className="shrink-0 text-accent"
+            title={`herdr → ${tab.herdrBinding.workspace}/${tab.herdrBinding.tab}`}
+          >
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+              <path d="M2.5 6.5a5.5 5.5 0 0 1 11 0" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+              <circle cx="3.5" cy="11" r="1.6" stroke="currentColor" strokeWidth="1.3" />
+              <circle cx="8" cy="11" r="1.6" stroke="currentColor" strokeWidth="1.3" />
+              <circle cx="12.5" cy="11" r="1.6" stroke="currentColor" strokeWidth="1.3" />
             </svg>
           </span>
         )}
@@ -672,6 +694,7 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
           selectedCount={selectedTabIds.includes(ctxMenu.id) ? selectedTabIds.length : 0}
           binding={tabs.find((t) => t.id === ctxMenu.id)?.tmuxBinding ?? null}
           orcaBinding={tabs.find((t) => t.id === ctxMenu.id)?.orcaBinding ?? null}
+          herdrBinding={tabs.find((t) => t.id === ctxMenu.id)?.herdrBinding ?? null}
           onClose={() => setCtxMenu(null)}
           onTogglePin={() => togglePin(ctxMenu.id)}
           onGroupTab={() => onGroupTab(ctxMenu.id)}
@@ -684,6 +707,8 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
           onUnbindTmux={() => setTabBinding(ctxMenu.id, null)}
           onBindOrca={() => onBindOrca(ctxMenu.id)}
           onUnbindOrca={() => setOrcaBinding(ctxMenu.id, null)}
+          onBindHerdr={() => onBindHerdr(ctxMenu.id)}
+          onUnbindHerdr={() => setHerdrBinding(ctxMenu.id, null)}
           onCloseTab={() => closeTab(ctxMenu.id)}
           onCloseOthers={() => reportClosed(closeOtherTabs(ctxMenu.id))}
           onCloseRight={() => reportClosed(closeTabsToRight(ctxMenu.id))}
@@ -769,7 +794,7 @@ function GroupContextMenu({
 }
 
 function TabContextMenu({
-  x, y, pinned, grouped, selectedCount, binding, orcaBinding, onClose, onTogglePin, onGroupTab, onUngroupTab, onMoveToWorkspace, onBindTmux, onUnbindTmux, onBindOrca, onUnbindOrca, onCloseTab, onCloseOthers, onCloseRight, onCloseSaved, onCleanupEmpty,
+  x, y, pinned, grouped, selectedCount, binding, orcaBinding, herdrBinding, onClose, onTogglePin, onGroupTab, onUngroupTab, onMoveToWorkspace, onBindTmux, onUnbindTmux, onBindOrca, onUnbindOrca, onBindHerdr, onUnbindHerdr, onCloseTab, onCloseOthers, onCloseRight, onCloseSaved, onCleanupEmpty,
 }: {
   x: number; y: number;
   pinned: boolean;
@@ -778,6 +803,7 @@ function TabContextMenu({
   selectedCount: number;
   binding: TmuxBinding | null;
   orcaBinding: OrcaBinding | null;
+  herdrBinding: HerdrBinding | null;
   onClose: () => void;
   onTogglePin: () => void;
   onGroupTab: () => void;
@@ -787,6 +813,8 @@ function TabContextMenu({
   onUnbindTmux: () => void;
   onBindOrca: () => void;
   onUnbindOrca: () => void;
+  onBindHerdr: () => void;
+  onUnbindHerdr: () => void;
   onCloseTab: () => void;
   onCloseOthers: () => void;
   onCloseRight: () => void;
@@ -806,6 +834,13 @@ function TabContextMenu({
         { label: `Отвязать от Orca (${orcaBinding.titleHint ?? orcaBinding.worktree})`, action: onUnbindOrca },
       ]
     : [{ label: "Привязать к Orca-агенту…", action: onBindOrca }];
+
+  const herdrItems = herdrBinding
+    ? [
+        { label: "Перепривязать к Herdr-агенту…", action: onBindHerdr },
+        { label: `Отвязать от Herdr (${herdrBinding.workspace}/${herdrBinding.tab})`, action: onUnbindHerdr },
+      ]
+    : [{ label: "Привязать к Herdr-агенту…", action: onBindHerdr }];
 
   const closeItems = [
     { label: "Закрыть", action: onCloseTab, shortcut: "Ctrl+W" },
@@ -862,6 +897,7 @@ function TabContextMenu({
       </div>
       <div className="border-b border-border/40">{tmuxItems.map(renderItem)}</div>
       <div className="border-b border-border/40">{orcaItems.map(renderItem)}</div>
+      <div className="border-b border-border/40">{herdrItems.map(renderItem)}</div>
       {closeItems.map(renderItem)}
     </div>
   );

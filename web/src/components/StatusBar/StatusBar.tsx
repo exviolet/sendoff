@@ -3,10 +3,11 @@ import { useEditorStore } from "../../store/editorStore";
 interface StatusBarProps {
   onBindTmux: () => void;
   onBindOrca: () => void;
+  onBindHerdr: () => void;
   onWorkspaceSwitch: () => void;
 }
 
-export function StatusBar({ onBindTmux, onBindOrca, onWorkspaceSwitch }: StatusBarProps) {
+export function StatusBar({ onBindTmux, onBindOrca, onBindHerdr, onWorkspaceSwitch }: StatusBarProps) {
   const tab = useEditorStore((s) => s.tabs.find((t) => t.id === s.activeTabId));
   const workspaceName = useEditorStore(
     (s) => s.workspaces.find((w) => w.id === s.activeWorkspaceId)?.name,
@@ -19,20 +20,29 @@ export function StatusBar({ onBindTmux, onBindOrca, onWorkspaceSwitch }: StatusB
   const words = content.trim() ? content.trim().split(/\s+/).length : 0;
   const lines = content.split("\n").length;
 
-  // Привязки взаимоисключимы (один таргет на таб). Orca имеет приоритет отображения.
+  // Три привязки взаимоисключимы (applyBinding в editorStore стирает две другие),
+  // поэтому «приоритета отображения» тут нет — ровно одна ветка может быть истинной.
+  const herdrBinding = tab.herdrBinding;
   const orcaBinding = tab.orcaBinding;
   const tmuxBinding = tab.tmuxBinding;
-  const bound = Boolean(orcaBinding || tmuxBinding);
-  const bindingLabel = orcaBinding
-    ? `orca:${orcaBinding.titleHint ?? orcaBinding.worktree}`
-    : tmuxBinding
-      ? `${tmuxBinding.session}:${tmuxBinding.window}`
-      : null;
-  const bindTitle = orcaBinding
-    ? "Привязан к Orca-агенту — palette «Привязать/Отвязать к Orca»"
-    : tmuxBinding
-      ? `Привязан к tmux ${bindingLabel} — Ctrl+B перепривязать, Ctrl+Shift+B отвязать`
-      : "Не привязан — Ctrl+B привязать к tmux, palette → Orca";
+  const bound = Boolean(herdrBinding || orcaBinding || tmuxBinding);
+  const bindingLabel = herdrBinding
+    ? `herdr:${herdrBinding.workspace}/${herdrBinding.tab}`
+    : orcaBinding
+      ? `orca:${orcaBinding.titleHint ?? orcaBinding.worktree}`
+      : tmuxBinding
+        ? `${tmuxBinding.session}:${tmuxBinding.window}`
+        : null;
+  const bindTitle = herdrBinding
+    ? "Привязан к Herdr-агенту — palette «Привязать/Отвязать к Herdr»"
+    : orcaBinding
+      ? "Привязан к Orca-агенту — palette «Привязать/Отвязать к Orca»"
+      : tmuxBinding
+        ? `Привязан к tmux ${bindingLabel} — Ctrl+Alt+B перепривязать, Ctrl+Alt+Shift+B отвязать`
+        : "Не привязан — Ctrl+Alt+B привязать к tmux, palette → Orca / Herdr";
+
+  // Клик по чипу ведёт в перепривязку того же таргета, к которому таб привязан.
+  const onBindClick = herdrBinding ? onBindHerdr : orcaBinding ? onBindOrca : onBindTmux;
 
   return (
     <footer className="flex items-center h-6 px-3 bg-surface border-t border-border text-[10px] tracking-wide text-text-muted shrink-0 select-none gap-4">
@@ -49,7 +59,7 @@ export function StatusBar({ onBindTmux, onBindOrca, onWorkspaceSwitch }: StatusB
       </button>
 
       <button
-        onClick={orcaBinding ? onBindOrca : onBindTmux}
+        onClick={onBindClick}
         title={bindTitle}
         className={`
           flex items-center gap-1 px-1.5 h-4 rounded-[3px] transition-colors
