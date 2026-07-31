@@ -248,7 +248,7 @@ export function TabSwitcher({ onClose }: TabSwitcherProps) {
         <PickerHint>
           <span>↑↓ навигация</span>
           <span>↵ открыть</span>
-          <span>Tab только tmux</span>
+          <span>Tab только привязанные</span>
           <span>Ctrl+Del закрыть</span>
           <span>Esc закрыть</span>
         </PickerHint>
@@ -272,14 +272,14 @@ export function TabSwitcher({ onClose }: TabSwitcherProps) {
             <button
               type="button"
               onClick={() => toggleBoundOnly(setSelectedIndex)}
-              title="Только привязанные к tmux (Tab)"
+              title="Только привязанные к терминалу — herdr / Orca / tmux (Tab)"
               className={`shrink-0 px-2 py-0.5 rounded-[3px] border text-[10px] font-medium transition-colors ${
                 boundOnly
                   ? "border-accent/30 bg-accent/15 text-accent"
                   : "border-border text-text-muted hover:text-text"
               }`}
             >
-              tmux
+              привязанные
             </button>
             <span className="text-[10px] text-text-muted/50 tabular-nums shrink-0">
               {results.length}/{boundOnly ? boundCount : tabs.length}

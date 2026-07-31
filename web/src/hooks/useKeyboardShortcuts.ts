@@ -64,7 +64,7 @@ export function useKeyboardShortcuts(callbacks?: ShortcutCallbacks) {
         return;
       }
 
-      // Привязка к tmux живёт на Ctrl+Alt+B: Ctrl+B/Ctrl+I отданы markdown-обёрткам
+      // Привязка к терминалу живёт на Ctrl+Alt+B: Ctrl+B/Ctrl+I отданы markdown-обёрткам
       // в редакторе (общемировая мышечная память, жест частый), а привязка делается
       // один раз на таб и остаётся доступна в палитре и в ПКМ по табу.
       if (ctrl && e.altKey && e.shiftKey && code === "KeyB") {
