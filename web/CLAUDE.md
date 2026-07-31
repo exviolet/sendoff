@@ -13,7 +13,7 @@ Guidance for AI agents (Claude Code, Codex) working in this repo.
 
 **Rewrite — prompt-first редактор.** Цель: быстро формулировать LLM-промпты вне тесного input
 в Claude Code / Codex и неудобного скролла в tmux, и **отправлять их прямо в терминал агента**
-(`Ctrl+Enter` → tmux-pane или Orca-агент).
+(`Ctrl+Enter` → агент herdr, агент Orca или tmux-pane).
 
 Не pipeline-builder, не knowledge base, не code editor. Bulk find & replace и пресеты — не
 самоцель, а наследие исходного use-case (правка тона текста), которое осталось полезным.
@@ -53,20 +53,21 @@ bun run preview       # прод-сборка локально
 
 ### Stores (`src/store/`)
 - `editorStore.ts` — табы, `activeTabId`, CRUD, pin, reorder, undo/redo, bulk-close, `closedTabs`
-  (reopen), `pendingClose`, tmux/orca-привязки, `hydrate`. **Самый нагруженный стор.**
+  (reopen), `pendingClose`, привязка к терминалу (`binding`), `hydrate`. **Самый нагруженный стор.**
 - `editorHistory.ts` — undo/redo-стек (per-tab), вне Zustand.
 - `presetsStore.ts` — пресеты замен.
 - `triggerPhrasesStore.ts` — trigger phrases (`Ctrl+K`).
 - `themeStore.ts` — `dark | light | system`; в Tauri слушает нативную тему окна.
 - `settingsStore.ts` — `fontSize`, `wordWrap`, `tmuxAutoSubmit`, `fontFamily`.
-- `tmuxStore.ts` — последний выбранный tmux-таргет (**in-memory, НЕ персистится**: pane id эфемерны).
+- `lastTargetStore.ts` — последний выбранный таргет `{source, handle, label}` (**in-memory, НЕ персистится**: хендлы эфемерны). `source` обязателен — без него хендл двусмыслен между провайдерами.
 - `referenceStore.ts` — текст/ширина reference-панели.
 - `toastStore.ts` — тосты (`toast(msg, type)`).
 
 ### Pure logic (`src/lib/`) — без side effects
 - `replaceEngine.ts` — find/replace, пресеты, regex.
 - `tabUtils.ts` — `makeTab`, `makeAutoTitle`, `normalizeTab`, `partitionPinned`, `canCleanupTab`.
-- `tmuxResolve.ts` — парсинг топологии tmux + резолв привязки в pane (**критический путь**, см. Gotchas).
+- `tmuxResolve.ts` / `herdrResolve.ts` — резолв привязки в живой хендл (**критический путь**, см. Gotchas). Чистые, проверяются без Tauri.
+- `terminalTargets/` — абстракция терминальных таргетов: `types.ts` (контракт), `herdr.ts` / `orca.ts` / `tmux.ts` (провайдеры), `shell.ts` (запуск scoped-команд + JSON-narrowing), `index.ts` (реестр, `providerFor`, `describeBinding`, `sameBinding`).
 - `markdownEdit.ts` — отступы, продолжение списков, обёртки `**`/`*`, автопары. Каждая операция
   возвращает `EditPatch | null` (`null` = отдать клавишу браузеру), DOM не трогает.
 - `db.ts` — схема IndexedDB (**и есть источник правды по схеме**, не дублировать в markdown).
@@ -80,12 +81,18 @@ bun run preview       # прод-сборка локально
   Живёт локально, а не в глобальном листенере: операции работают с выделением textarea.
 - `useFileIO.ts` — сохранение/открытие файлов, export/import бэкапа.
 - `useCommands.ts` — каталог команд палитры.
-- `useTmuxSend.ts` / `useTmuxActions.ts` — отправка в tmux + цепочка резолва и picker.
-- `useOrcaSend.ts` / `useOrcaActions.ts` — то же для Orca-агентов.
+- `useTerminalActions.ts` — **один** хук на все таргеты: цепочка резолва, пикер, привязка, тосты, clipboard-фолбэк.
 
 ### Отправка промпта (`Ctrl+Enter`)
-Диспетчер в `App.tsx`: таб с `orcaBinding` → Orca-флоу, иначе tmux-флоу.
-tmux-цепочка: **Explicit** (привязка таба) → **Last** (последний выбор, in-memory) → **Modal** (picker).
+Диспетчера в `App.tsx` больше нет: `useTerminalActions` берёт `tab.binding`, находит провайдера
+через `providerFor` и работает с ним. Цепочка: **Explicit** (привязка таба) → **Last**
+(последний выбор, in-memory) → **Modal** (единый `TargetPicker` с секциями herdr / Orca / tmux).
+
+**Провайдеры отправляют по-разному, и это не случайность:**
+- **tmux** — `set-buffer` + `paste-buffer -p` + settle 80мс + `send-keys Enter`.
+- **Orca** — ручная bracketed-paste обёртка `\x1b[200~…\x1b[201~` + settle 80мс + `--enter`.
+- **herdr** — `agent prompt`, и всё: обёртка и settle **не нужны и вредны** (уедут в промпт
+  литералом). У herdr также **нет флага `--json`** — вывод и так JSON, лишний флаг роняет команду.
 
 ### Editor (`src/components/Editor/`)
 `<textarea>` не умеет подсветку. Оверлей: `<div>` точно под текстареа (тот же шрифт/размер/скролл)
@@ -112,20 +119,14 @@ interface Tab {
   updatedAt: number;
   pinned?: boolean;
   titleSource?: "auto" | "manual" | "file";
-  tmuxBinding?: TmuxBinding;  // взаимоисключимы: один таргет на таб
-  orcaBinding?: OrcaBinding;
+  binding?: TabBinding;       // ОДИН таргет на таб (было три взаимоисключимых поля)
 }
 
-interface TmuxBinding {
-  session: string;
-  window: string;             // имя: отображение + fallback, НЕ уникально
-  windowId?: string;          // #{window_id} (@N) — первичный ключ резолва
-}
-
-interface OrcaBinding {
-  worktree: string;
-  titleHint?: string;
-}
+// lib/terminalTargets/types.ts. Хранится СТАБИЛЬНЫЙ дескриптор, хендл резолвится живьём.
+type TabBinding =
+  | { source: "tmux";  session: string; window: string; windowId?: string }
+  | { source: "orca";  worktree: string; titleHint?: string }
+  | { source: "herdr"; paneId: string; workspace: string; tab: string };
 
 interface TriggerPhrase { id: string; label: string; body: string; order: number }
 interface ReplacePreset  { id: string; name: string; pairs: ReplacePair[] }
@@ -138,9 +139,9 @@ interface ReplacePreset  { id: string; name: string; pairs: ReplacePair[] }
 
 | Сочетание | Действие |
 |-----------|----------|
-| `Ctrl+Enter` | Отправить промпт (Orca-привязка → Orca, иначе tmux) |
-| `Ctrl+Shift+Enter` | tmux target picker |
-| `Ctrl+Alt+B` / `Ctrl+Alt+Shift+B` | Привязать / отвязать таб к tmux-окну |
+| `Ctrl+Enter` | Отправить промпт (по привязке таба) |
+| `Ctrl+Shift+Enter` | Единый target picker (herdr / Orca / tmux) |
+| `Ctrl+Alt+B` / `Ctrl+Alt+Shift+B` | Привязать / отвязать таб к терминалу |
 | `Ctrl+B` / `Ctrl+I` | **Редактор:** жирный / курсив |
 | `Ctrl+M` / `Ctrl+Shift+M` | **Редактор:** инлайн-код / блок кода |
 | `Tab` / `Shift+Tab` | **Редактор:** отступ / убрать отступ (вкладывает пункт списка) |
@@ -175,13 +176,16 @@ interface ReplacePreset  { id: string; name: string; pairs: ReplacePair[] }
 2. **Не угадывать при неоднозначности в путях «отправить промпт агенту».** Текст, улетевший
    **не тому** агенту, хуже лишнего клика. `tmuxResolve.ts`: имя tmux-окна **не уникально**
    (два окна `claude` — норма agentic-флоу), поэтому резолв идёт по `window_id` (`@N`), имя —
-   fallback; несколько совпадений → `ambiguous` → переспросить, **не отправлять**. Orca-резолв
-   держит тот же инвариант (`matches.length === 1 ? handle : null`). **Не откатывать к матчингу
-   только по имени** — это ровно тот баг, что чинили 2026-07-10.
+   fallback; несколько совпадений → `ambiguous` → переспросить, **не отправлять**. Тот же
+   инвариант держат Orca и herdr: у herdr `pane_id` персистится, **но номера панелей
+   переиспользуются**, поэтому резолв требует совпадения id И пары лейблов. Тип `Resolution`
+   разводит `not-found` и `ambiguous` намеренно — пользователь должен понимать, почему
+   открылся пикер. **Не откатывать к матчингу только по имени** — это баг 2026-07-10.
 
 3. **Custom equality в Zustand-селекторах.** `TabBar` подписан через `tabsMetaEqual` — при
    добавлении нового поля в `Tab`, влияющего на отрисовку полосы, **его надо добавить и в
-   `tabsMetaEqual`**, иначе полоса молча «замерзает» (так уже было с `orcaBinding`).
+   `tabsMetaEqual`**, иначе полоса молча «замерзает». Ловушка срабатывала уже четырежды:
+   `orcaBinding`, `workspaceId`, `groupId`, `herdrBinding`.
 
 4. **Unicode word boundaries.** `\b` в JS-regex не работает с кириллицей. `replaceEngine.ts`
    использует lookaround'ы `(?<![\p{L}\p{N}])` / `(?![\p{L}\p{N}])` с флагом `u`.
@@ -213,6 +217,10 @@ interface ReplacePreset  { id: string; name: string; pairs: ReplacePair[] }
   данные. Это единственное место, где можно реально навредить чужому человеку.
 - **Аддитивные ключи в сторе `meta` не требуют bump версии БД** (так добавлен `fontFamily`).
   Bump нужен только под новый object store / индекс.
+- **Смена формы поля внутри таба тоже не требует bump** — табы кладутся в IndexedDB целиком.
+  Так три поля привязок схлопнулись в `binding`: конверсия легаси живёт в `normalizeTab`
+  (нормализация на чтении, там же где `titleSource`), старые поля стираются. Это НЕ миграция
+  данных — но **не удалять эту ветку**, пока у второго пользователя может лежать старая база.
 
 ## Code Quality Rules
 
@@ -222,10 +230,16 @@ interface ReplacePreset  { id: string; name: string; pairs: ReplacePair[] }
 - Компоненты ~150 строк максимум — логику выносить в хуки.
 - Коммиты — русские, Conventional Commits.
 
-## Known duplication (осознанная)
+## Модалки-пикеры
 
-`TabSwitcher`, `GlobalSearchPanel`, `TmuxTargetPicker`, `CommandPalette`, `OrcaTargetPicker` —
-пять вариаций **одного** паттерна «модалка со списком: query + фильтр + ↑↓ + Esc/Enter».
-Извлечение общего примитива отложено осознанно (не смешивать с текущей фичей). Новые модалки
-такого рода писать **по существующему паттерну**, не изобретая свой, — чтобы будущее извлечение
-осталось механическим.
+Все построены на `usePickerModal` + `PickerModal` (примитив извлечён в #9). Консьюмеры:
+`TabSwitcher`, `GlobalSearchPanel`, `CommandPalette`, `TargetPicker`, `WorkspaceSwitcher`,
+`TabGroupPicker`. Новые писать **на примитиве**, не изобретая свой.
+
+Сгруппированные списки (`TargetPicker`, `GlobalSearchPanel`) держат **плоский курсор сквозь
+секции**: плоский массив `rows` — источник правды для индекса, секции рисуются поверх него
+общим счётчиком `cursor++`, каждая строка клеит `data-picker-index`. Не заводить курсор
+на секцию — доскролл и `Enter` в примитиве работают по плоскому индексу.
+
+`TriggerPhrasePicker` — единственный НЕ на примитиве (двухрежимная модалка list/edit, где
+`Enter`/стрелки обязаны быть нативными). Решение автора: не трогать.
