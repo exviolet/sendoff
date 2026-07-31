@@ -175,15 +175,16 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
           </div>
         </div>
 
-        {/* tmux */}
+        {/* терминальные таргеты */}
         <div className="space-y-3 pt-2 border-t border-border">
           <label className="text-[10px] uppercase tracking-widest text-text-muted/60">
-            tmux integration
+            Терминальные таргеты
           </label>
 
           <p className="text-[10px] leading-relaxed text-text-muted/60">
-            Цель выбирается через picker (<kbd className="font-mono">Ctrl+Shift+Enter</kbd>)
-            или привязкой таба к окну (контекстное меню таба). <kbd className="font-mono">Ctrl+Enter</kbd>:
+            Цель — агент herdr, агент Orca или tmux-окно. Выбирается через picker
+            (<kbd className="font-mono">Ctrl+Shift+Enter</kbd>) или привязкой таба
+            (<kbd className="font-mono">Ctrl+Alt+B</kbd>). <kbd className="font-mono">Ctrl+Enter</kbd>:
             привязка → последний выбор → picker.
           </p>
 

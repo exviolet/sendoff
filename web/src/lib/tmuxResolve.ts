@@ -1,5 +1,5 @@
 // Чистая логика tmux-таргетинга: разбор топологии и резолв привязки таба в pane.
-// Без side effects и без Tauri — shell-вызовы живут в hooks/useTmuxSend.ts.
+// Без side effects и без Tauri — shell-вызовы живут в lib/terminalTargets/tmux.ts.
 
 export interface TmuxPaneInfo {
   paneId: string;

@@ -17,10 +17,10 @@ interface ShortcutCallbacks {
   onToggleMarkdownPreview?: () => void;
   onSettings?: () => void;
   onFocusEditor?: () => void;
-  onTmuxSend?: () => void;
-  onTmuxPicker?: () => void;
-  onTmuxBind?: () => void;
-  onTmuxUnbind?: () => void;
+  onSendPrompt?: () => void;
+  onTargetPicker?: () => void;
+  onBindTarget?: () => void;
+  onUnbindTarget?: () => void;
   onTabSwitcher?: () => void;
   onReferencePanel?: () => void;
   onGlobalSearch?: () => void;
@@ -36,13 +36,13 @@ export function useKeyboardShortcuts(callbacks?: ShortcutCallbacks) {
 
       if (ctrl && e.shiftKey && code === "Enter") {
         e.preventDefault();
-        callbacks?.onTmuxPicker?.();
+        callbacks?.onTargetPicker?.();
         return;
       }
 
       if (ctrl && code === "Enter") {
         e.preventDefault();
-        callbacks?.onTmuxSend?.();
+        callbacks?.onSendPrompt?.();
         return;
       }
 
@@ -64,18 +64,18 @@ export function useKeyboardShortcuts(callbacks?: ShortcutCallbacks) {
         return;
       }
 
-      // Привязка к tmux живёт на Ctrl+Alt+B: Ctrl+B/Ctrl+I отданы markdown-обёрткам
+      // Привязка к терминалу живёт на Ctrl+Alt+B: Ctrl+B/Ctrl+I отданы markdown-обёрткам
       // в редакторе (общемировая мышечная память, жест частый), а привязка делается
       // один раз на таб и остаётся доступна в палитре и в ПКМ по табу.
       if (ctrl && e.altKey && e.shiftKey && code === "KeyB") {
         e.preventDefault();
-        callbacks?.onTmuxUnbind?.();
+        callbacks?.onUnbindTarget?.();
         return;
       }
 
       if (ctrl && e.altKey && !e.shiftKey && code === "KeyB") {
         e.preventDefault();
-        callbacks?.onTmuxBind?.();
+        callbacks?.onBindTarget?.();
         return;
       }
 

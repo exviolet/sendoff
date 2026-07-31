@@ -5,6 +5,7 @@ import type { Tab } from "../../store/editorStore";
 import { tabsOf } from "../../lib/tabUtils";
 import { fuzzyMatch } from "../../lib/fuzzyMatch";
 import { highlightMatches } from "../../lib/highlight";
+import { describeBinding } from "../../lib/terminalTargets";
 import { usePickerModal, type PickerKeyContext } from "../../hooks/usePickerModal";
 import { PickerModal, PickerHeader, PickerHint } from "../PickerModal/PickerModal";
 
@@ -27,13 +28,13 @@ interface TabResult {
   source: MatchResult["source"] | null;
 }
 
-// «Только tmux»-фильтр держится на сессию (сбрасывается на перезагрузке), но
+// «Только привязанные»-фильтр держится на сессию (сбрасывается на перезагрузке), но
 // переживает закрытие/открытие модалки. IndexedDB-персист не нужен — это эфемерный
 // режим просмотра, не настройка.
 let sessionBoundOnly = false;
 
 function bindingLabel(tab: Tab): string {
-  return tab.tmuxBinding ? `${tab.tmuxBinding.session}:${tab.tmuxBinding.window}` : "";
+  return tab.binding ? describeBinding(tab.binding) : "";
 }
 
 function firstContentLine(content: string) {
@@ -147,7 +148,7 @@ export function TabSwitcher({ onClose }: TabSwitcherProps) {
   const [query, setQuery] = useState("");
   const [boundOnly, setBoundOnly] = useState(sessionBoundOnly);
 
-  const boundCount = useMemo(() => tabs.filter((t) => t.tmuxBinding).length, [tabs]);
+  const boundCount = useMemo(() => tabs.filter((t) => t.binding).length, [tabs]);
 
   // setIndex приходит аргументом — обе точки вызова (клавиша до хука, кнопка после)
   // передают его сами, см. PickerKeyContext.
@@ -162,14 +163,14 @@ export function TabSwitcher({ onClose }: TabSwitcherProps) {
   const results = useMemo(() => {
     const indexedTabs = tabs
       .map((tab, index) => ({ tab, index }))
-      .filter((item) => !boundOnly || item.tab.tmuxBinding);
+      .filter((item) => !boundOnly || item.tab.binding);
 
     if (!query.trim()) {
       // Пустой запрос: привязанные первыми, внутри групп — по свежести.
       return indexedTabs
         .sort((a, b) => {
-          const aBound = a.tab.tmuxBinding ? 1 : 0;
-          const bBound = b.tab.tmuxBinding ? 1 : 0;
+          const aBound = a.tab.binding ? 1 : 0;
+          const bBound = b.tab.binding ? 1 : 0;
           if (aBound !== bBound) return bBound - aBound;
           return b.tab.updatedAt - a.tab.updatedAt;
         })
@@ -247,7 +248,7 @@ export function TabSwitcher({ onClose }: TabSwitcherProps) {
         <PickerHint>
           <span>↑↓ навигация</span>
           <span>↵ открыть</span>
-          <span>Tab только tmux</span>
+          <span>Tab только привязанные</span>
           <span>Ctrl+Del закрыть</span>
           <span>Esc закрыть</span>
         </PickerHint>
@@ -271,14 +272,14 @@ export function TabSwitcher({ onClose }: TabSwitcherProps) {
             <button
               type="button"
               onClick={() => toggleBoundOnly(setSelectedIndex)}
-              title="Только привязанные к tmux (Tab)"
+              title="Только привязанные к терминалу — herdr / Orca / tmux (Tab)"
               className={`shrink-0 px-2 py-0.5 rounded-[3px] border text-[10px] font-medium transition-colors ${
                 boundOnly
                   ? "border-accent/30 bg-accent/15 text-accent"
                   : "border-border text-text-muted hover:text-text"
               }`}
             >
-              tmux
+              привязанные
             </button>
             <span className="text-[10px] text-text-muted/50 tabular-nums shrink-0">
               {results.length}/{boundOnly ? boundCount : tabs.length}
@@ -334,10 +335,10 @@ export function TabSwitcher({ onClose }: TabSwitcherProps) {
                         {groupOf(item.tab)!.name}
                       </span>
                     )}
-                    {item.tab.tmuxBinding && (
+                    {item.tab.binding && (
                       <span
                         className="shrink-0 px-1.5 py-0.5 rounded-[3px] bg-accent/10 text-accent text-[9px] font-mono leading-none"
-                        title={`tmux → ${bindingLabel(item.tab)}`}
+                        title={`терминал → ${bindingLabel(item.tab)}`}
                       >
                         {item.source === "binding"
                           ? highlightMatches(bindingLabel(item.tab), item.indices)
@@ -360,7 +361,7 @@ export function TabSwitcher({ onClose }: TabSwitcherProps) {
                 <div className="flex items-center gap-2 min-w-0">
                   <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${selectedResult.tab.isDirty ? "bg-dirty" : selectedResult.tab.id === activeTabId ? "bg-accent" : "bg-border"}`} />
                   <h2 className="truncate text-sm font-medium text-text">{selectedResult.tab.title}</h2>
-                  {selectedResult.tab.tmuxBinding && (
+                  {selectedResult.tab.binding && (
                     <span className="shrink-0 px-1.5 py-0.5 rounded-[3px] bg-accent/10 text-accent text-[10px] font-mono leading-none">
                       {bindingLabel(selectedResult.tab)}
                     </span>

@@ -1,4 +1,4 @@
-import type { Tab, TabGroup } from "../store/editorStore";
+import type { LegacyBindings, Tab, TabBinding, TabGroup } from "../store/editorStore";
 
 const AUTO_TITLE_MAX_LENGTH = 48;
 const UNTITLED_RE = /^Untitled \d+$/;
@@ -37,12 +37,36 @@ export function makeAutoTitle(content: string, fallback: string) {
     : line;
 }
 
+// Привязки до объединения жили в трёх отдельных полях. Конвертируем на ЧТЕНИИ и
+// стираем легаси-поля, чтобы они не ездили в IndexedDB вечно. Это не миграция
+// данных (их мы не вводим) — это нормализация в том же месте, где чинится
+// titleSource: схема стора табов не меняется, bump версии БД не нужен.
+//
+// Без этого шага у автора пропали бы 4 живые привязки, а у второго пользователя —
+// свои. Единственное место, где можно молча навредить чужому человеку.
+function liftLegacyBinding(tab: Tab & LegacyBindings): TabBinding | undefined {
+  if (tab.binding) return tab.binding;
+  if (tab.herdrBinding) return { source: "herdr", ...tab.herdrBinding };
+  if (tab.orcaBinding) return { source: "orca", ...tab.orcaBinding };
+  if (tab.tmuxBinding) return { source: "tmux", ...tab.tmuxBinding };
+  return undefined;
+}
+
 export function normalizeTab(tab: Tab): Tab {
   const titleSource = tab.titleSource ?? (UNTITLED_RE.test(tab.title) ? "auto" : "manual");
   const title = titleSource === "auto"
     ? makeAutoTitle(tab.content, tab.title)
     : tab.title;
-  return { ...tab, title, titleSource };
+
+  const next: Tab & LegacyBindings = { ...tab, title, titleSource };
+  const binding = liftLegacyBinding(next);
+  delete next.tmuxBinding;
+  delete next.orcaBinding;
+  delete next.herdrBinding;
+  if (binding) next.binding = binding;
+  else delete next.binding;
+
+  return next;
 }
 
 // Pinned tabs always sort ahead of unpinned, preserving relative order within each group.

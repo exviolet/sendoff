@@ -55,7 +55,7 @@ interface PickerHeaderProps {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
-  // Иконка или лейбл ("orca"/"tmux"/"workspace") слева от инпута.
+  // Иконка или лейбл ("target"/"workspace") слева от инпута.
   prefix?: ReactNode;
   // Счётчик и/или тогглы справа.
   suffix?: ReactNode;
