@@ -34,13 +34,15 @@ No backend, no API keys, no telemetry. Everything runs client-side.
 
 ## The core loop
 
-```
-┌─────────────┐   Ctrl+Enter    ┌──────────────┐
-│   Rewrite   │ ──────────────► │ agent / pane │
-│  draft your │                 │ Herdr · Orca │
-│   prompt    │ ◄────────────── │    · tmux    │
-└─────────────┘   paste reply   └──────────────┘
-        ▲ Ctrl+R reference panel keeps the reply in view
+```mermaid
+flowchart LR
+    R["Rewrite<br/>draft the prompt"]
+    T["Bound target<br/>Herdr · Orca · tmux"]
+    P["Reference panel<br/>Ctrl+R"]
+
+    R -->|"Ctrl+Enter"| T
+    T -->|"paste the reply"| P
+    P -->|"keeps it in view"| R
 ```
 
 Draft the prompt → `Ctrl+Enter` sends it to the terminal the tab is bound to →
