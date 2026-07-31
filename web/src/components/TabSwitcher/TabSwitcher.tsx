@@ -275,7 +275,7 @@ export function TabSwitcher({ onClose }: TabSwitcherProps) {
               aria-label="Только привязанные к терминалу"
               aria-pressed={boundOnly}
               title="Только привязанные к терминалу — herdr / Orca / tmux (Tab)"
-              className={`shrink-0 flex items-center justify-center w-6 h-5 rounded-[3px] border transition-colors ${
+              className={`shrink-0 flex items-center justify-center w-7 h-6 rounded-[4px] border transition-colors ${
                 boundOnly
                   ? "border-accent/30 bg-accent/15 text-accent"
                   : "border-border text-text-muted hover:text-text"
@@ -283,12 +283,14 @@ export function TabSwitcher({ onClose }: TabSwitcherProps) {
             >
               {/* Тот же глиф терминала, что помечает привязку в полосе табов —
                   иконка и её значение должны совпадать между поверхностями. */}
-              <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
                 <rect x="2" y="3" width="12" height="10" rx="2" stroke="currentColor" strokeWidth="1.4" />
                 <path d="M5 6.5L7 8l-2 1.5M8.5 9.5H11" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </button>
-            <span className="text-[10px] text-text-muted/50 tabular-nums shrink-0">
+            {/* Ширина фиксирована намеренно: «18/18» → «4/4» сужало правую группу,
+                кнопка уезжала вправо, и повторный клик в то же место промахивался. */}
+            <span className="text-[10px] text-text-muted/50 tabular-nums shrink-0 min-w-[46px] text-right">
               {results.length}/{boundOnly ? boundCount : tabs.length}
             </span>
           </>

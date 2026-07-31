@@ -3,7 +3,7 @@ import { describeBinding } from "../../lib/terminalTargets";
 import { useTargetStatus } from "../../hooks/useTargetStatus";
 
 // Статусы агентов: herdr отдаёт idle|working|blocked|done, Orca — свой набор.
-// Сводим к одной шкале; неизвестный статус рисуем нейтрально, но подпись показываем
+// Сводим к одной шкале; неизвестный статус рисуем нейтрально, но в тултипе показываем
 // как есть — врать про чужой словарь хуже, чем показать незнакомое слово.
 const STATUS_COLOR: Record<string, string> = {
   working: "bg-accent",
@@ -20,6 +20,13 @@ const STATUS_LABEL: Record<string, string> = {
   idle: "свободен",
   done: "готово",
 };
+
+// Состояния, которые ждут ДЕЙСТВИЯ ПОЛЬЗОВАТЕЛЯ, а не просто сообщают о себе.
+// Из release-notes herdr 0.7.5: «question prompts now report blocked until the user
+// answers or dismisses them» — то есть blocked это «агент встал и ждёт тебя».
+// Только они получают подпись и пульсацию: остальное — фон, который не должен
+// дёргать внимание и менять ширину полосы.
+const NEEDS_YOU = new Set(["blocked", "waiting"]);
 
 interface StatusBarProps {
   onBindTarget: () => void;
@@ -79,12 +86,18 @@ export function StatusBar({ onBindTarget, onWorkspaceSwitch }: StatusBarProps) {
       {binding && status && (
         <span
           className="flex items-center gap-1.5 -ml-2.5"
-          title={`Состояние агента: ${status}`}
+          title={`Агент: ${STATUS_LABEL[status] ?? status}`}
         >
-          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${STATUS_COLOR[status] ?? "bg-border"}`} />
-          <span className={status === "working" ? "text-accent" : undefined}>
-            {STATUS_LABEL[status] ?? status}
-          </span>
+          <span
+            className={`
+              w-1.5 h-1.5 rounded-full shrink-0
+              ${STATUS_COLOR[status] ?? "bg-border"}
+              ${NEEDS_YOU.has(status) ? "animate-pulse" : ""}
+            `}
+          />
+          {NEEDS_YOU.has(status) && (
+            <span className="text-dirty">{STATUS_LABEL[status] ?? status}</span>
+          )}
         </span>
       )}
 
