@@ -25,8 +25,34 @@ export const DEFAULT_WORKSPACE_NAME = "Default";
 
 // Фиксированная палитра, а не произвольный hex: цвета обязаны читаться в обеих темах и не
 // спорить с accent-подсветкой активного таба (tasks/14).
-export const TAB_GROUP_COLORS = ["accent", "green", "yellow", "red", "purple", "gray"] as const;
+// Порядок НЕ по цветовому кругу, а по различимости соседей: `nextColor` выдаёт первый
+// незанятый, поэтому две подряд созданные группы обязаны быть непохожи. Радужная
+// сортировка дала бы violet→purple→pink подряд — ровно то, от чего уходили.
+//
+// Первые шесть — исторические, порядок и значения НЕ трогать: цвет хранится в IndexedDB
+// строкой, и перестановка тихо перекрасила бы уже существующие группы.
+export const TAB_GROUP_COLORS = [
+  "accent", "green", "yellow", "red", "purple", "gray",
+  "blue", "orange", "cyan", "pink", "lime", "brown",
+] as const;
 export type TabGroupColor = (typeof TAB_GROUP_COLORS)[number];
+
+// Ключи английские (они же имена CSS-переменных), подписи — для тултипов палитры:
+// на двенадцати цветах «accent» и «purple» на глаз уже не различить.
+export const TAB_GROUP_COLOR_LABELS: Record<TabGroupColor, string> = {
+  accent: "фиолетовый",
+  green: "зелёный",
+  yellow: "жёлтый",
+  red: "красный",
+  purple: "пурпурный",
+  gray: "серый",
+  blue: "синий",
+  orange: "оранжевый",
+  cyan: "голубой",
+  pink: "розовый",
+  lime: "лаймовый",
+  brown: "коричневый",
+};
 
 export interface TabGroup {
   id: string;

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useEditorStore } from "../../store/editorStore";
-import { TAB_GROUP_COLORS } from "../../store/editorStore";
+import { TAB_GROUP_COLORS, TAB_GROUP_COLOR_LABELS } from "../../store/editorStore";
 import type { Tab, TabBinding, TabGroup, TabGroupColor } from "../../store/editorStore";
 import { describeBinding } from "../../lib/terminalTargets";
 import type { Theme } from "../../store/themeStore";
@@ -729,12 +729,16 @@ function GroupContextMenu({
       style={{ left: x, top: y }}
       onMouseDown={(e) => e.stopPropagation()}
     >
-      <div className="flex items-center gap-1.5 px-3 py-2 border-b border-border/40">
+      {/* Сетка, а не ряд: двенадцать кружков в строку растянули бы меню шире табов.
+          6×2 — ширина совпадает с прежней однорядной палитрой из шести. */}
+      <div className="grid grid-cols-6 gap-1.5 px-3 py-2 border-b border-border/40">
         {TAB_GROUP_COLORS.map((color) => (
           <button
             key={color}
             onClick={() => { onColor(color); onClose(); }}
-            title={color}
+            title={TAB_GROUP_COLOR_LABELS[color]}
+            aria-label={TAB_GROUP_COLOR_LABELS[color]}
+            aria-pressed={group.color === color}
             className={`w-4 h-4 rounded-full transition-transform hover:scale-110 ${
               group.color === color ? "ring-2 ring-offset-1 ring-offset-surface ring-text-muted/50" : ""
             }`}

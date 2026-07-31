@@ -47,6 +47,12 @@
   --color-group-red: #ef4444;
   --color-group-purple: #c084fc;
   --color-group-gray: #8b8ba3;
+  --color-group-blue: #60a5fa;
+  --color-group-orange: #fb923c;
+  --color-group-cyan: #22d3ee;
+  --color-group-pink: #f472b6;
+  --color-group-lime: #a3e635;
+  --color-group-brown: #b58463;
 }
 
 html[data-theme="light"] {
@@ -68,6 +74,12 @@ html[data-theme="light"] {
   --color-group-red: #dc2626;
   --color-group-purple: #9333ea;
   --color-group-gray: #6b6b85;
+  --color-group-blue: #2563eb;
+  --color-group-orange: #ea580c;
+  --color-group-cyan: #0891b2;
+  --color-group-pink: #db2777;
+  --color-group-lime: #65a30d;
+  --color-group-brown: #92400e;
 }
 
 *,
