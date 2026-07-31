@@ -67,7 +67,7 @@ bun run preview       # прод-сборка локально
 - `replaceEngine.ts` — find/replace, пресеты, regex.
 - `tabUtils.ts` — `makeTab`, `makeAutoTitle`, `normalizeTab`, `partitionPinned`, `canCleanupTab`.
 - `tmuxResolve.ts` / `herdrResolve.ts` — резолв привязки в живой хендл (**критический путь**, см. Gotchas). Чистые, проверяются без Tauri.
-- `terminalTargets/` — абстракция терминальных таргетов: `types.ts` (контракт), `herdr.ts` / `orca.ts` / `tmux.ts` (провайдеры), `shell.ts` (запуск scoped-команд + JSON-narrowing), `index.ts` (реестр, `providerFor`, `describeBinding`, `sameBinding`).
+- `terminalTargets/` — абстракция терминальных таргетов: `types.ts` (контракт), `herdr.ts` / `orca.ts` / `tmux.ts` (провайдеры), `shell.ts` (запуск scoped-команд + JSON-narrowing), `index.ts` (реестр, `providerFor`, `describeBinding`, `sameBinding`, `statusOf`).
 - `markdownEdit.ts` — отступы, продолжение списков, обёртки `**`/`*`, автопары. Каждая операция
   возвращает `EditPatch | null` (`null` = отдать клавишу браузеру), DOM не трогает.
 - `db.ts` — схема IndexedDB (**и есть источник правды по схеме**, не дублировать в markdown).
@@ -82,6 +82,7 @@ bun run preview       # прод-сборка локально
 - `useFileIO.ts` — сохранение/открытие файлов, export/import бэкапа.
 - `useCommands.ts` — каталог команд палитры.
 - `useTerminalActions.ts` — **один** хук на все таргеты: цепочка резолва, пикер, привязка, тосты, clipboard-фолбэк.
+- `useTargetStatus.ts` — живой статус привязанного агента (опрос 3с, только когда окно в фокусе).
 
 ### Отправка промпта (`Ctrl+Enter`)
 Диспетчера в `App.tsx` больше нет: `useTerminalActions` берёт `tab.binding`, находит провайдера
@@ -93,6 +94,20 @@ bun run preview       # прод-сборка локально
 - **Orca** — ручная bracketed-paste обёртка `\x1b[200~…\x1b[201~` + settle 80мс + `--enter`.
 - **herdr** — `agent prompt`, и всё: обёртка и settle **не нужны и вредны** (уедут в промпт
   литералом). У herdr также **нет флага `--json`** — вывод и так JSON, лишний флаг роняет команду.
+
+### Статус агента
+`statusOf(binding)` берёт статус из `listTargets()` провайдера и находит свою строку через
+`sameBinding` — **отдельного метода в контракте нет и не нужно**: статус уже едет в таргетах.
+tmux их не отдаёт → вернётся `null` сам собой, без ветки по источнику.
+
+Неоднозначность → `null`, а не первое совпадение (тот же инвариант, что при отправке).
+
+**Подпись показывается только у состояний, ждущих действия пользователя** (`blocked`/`waiting`),
+остальное — тихая точка. Основание не вкусовое: по release-notes herdr 0.7.5 `blocked` = «агент
+встал и ждёт, пока пользователь ответит». Заодно ширина StatusBar не гуляет на каждом опросе.
+
+Опрос, а не подписка: хуков от herdr/Orca к нам не ведёт — это та самая граница, описанная в
+ROADMAP в заметке про agent-hooks (listener сломал бы no-egress-постуру редактора).
 
 ### Editor (`src/components/Editor/`)
 `<textarea>` не умеет подсветку. Оверлей: `<div>` точно под текстареа (тот же шрифт/размер/скролл)

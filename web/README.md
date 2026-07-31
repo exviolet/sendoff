@@ -36,38 +36,41 @@ No backend, no API keys, no telemetry. Everything runs client-side.
 
 ```
 ┌─────────────┐   Ctrl+Enter    ┌──────────────┐
-│   Rewrite   │ ──────────────► │  tmux pane   │
-│  draft your │                 │  Claude Code │
-│   prompt    │ ◄────────────── │  / any agent │
+│   Rewrite   │ ──────────────► │ agent / pane │
+│  draft your │                 │ Herdr · Orca │
+│   prompt    │ ◄────────────── │    · tmux    │
 └─────────────┘   paste reply   └──────────────┘
         ▲ Ctrl+R reference panel keeps the reply in view
 ```
 
-Draft the prompt → `Ctrl+Enter` sends it to the active `tmux` pane → keep the
-agent's reply pinned in the reference panel while you write the next one.
+Draft the prompt → `Ctrl+Enter` sends it to the terminal the tab is bound to →
+keep the agent's reply pinned in the reference panel while you write the next one.
 
-> **The `tmux` send needs the [desktop build](https://github.com/exviolet/rewrite-desktop).**
-> The direct write into a `tmux` pane goes through the Tauri shell, which only
-> the desktop app has. In a plain browser tab `Ctrl+Enter` falls back to copying
+> **Sending needs the [desktop build](https://github.com/exviolet/rewrite-desktop).**
+> The direct write into an agent's terminal goes through the Tauri shell, which
+> only the desktop app has. In a plain browser tab `Ctrl+Enter` falls back to copying
 > the buffer to the clipboard. Rewrite is **desktop-first**; the browser build is
 > a limited editor without the terminal bridge.
 
 ## Features
 
 **Prompt workflow**
-- **Send to tmux** (`Ctrl+Enter`) — push the current buffer into the bound or
-  active `tmux` pane without leaving the keyboard.
-- **tmux target picker** (`Ctrl+Shift+Enter`) — choose the destination
-  session / window / pane by name instead of relying on the active pane.
-- **tmux tab-binding** (`Ctrl+Alt+B` / `Ctrl+Alt+Shift+B`) — bind a tab to a specific
-  tmux window by `windowId`; the status bar shows the live binding so
-  `Ctrl+Enter` always lands in the right place. When two windows share a name,
-  Rewrite asks instead of guessing — a prompt in the wrong agent is worse than
-  an extra click.
-- **[Orca ADE](https://github.com/stablyai/orca) agents** — if you run agents
-  through Orca instead of raw tmux, `Ctrl+Enter` dispatches there: bind a tab to
-  an agent and the prompt goes into that agent's terminal. Multi-line prompts
-  arrive as one block (bracketed paste), submitted once.
+- **Send the prompt** (`Ctrl+Enter`) — push the current buffer into the terminal
+  the tab is bound to, without leaving the keyboard. Three kinds of target are
+  supported: [Herdr](https://herdr.dev) agents, [Orca ADE](https://github.com/stablyai/orca)
+  agents, and plain `tmux` panes. Multi-line prompts arrive as one block and are
+  submitted once.
+- **Target picker** (`Ctrl+Shift+Enter`) — one list, sectioned by source, so you
+  pick an agent or a pane by name instead of relying on whatever is focused.
+  A source that is not running simply has no section.
+- **Tab binding** (`Ctrl+Alt+B` / `Ctrl+Alt+Shift+B`) — pin a tab to one target;
+  the status bar shows the live binding so `Ctrl+Enter` always lands in the right
+  place. Bindings store a stable descriptor and resolve the live handle on every
+  send, so they survive restarts. **When a binding is ambiguous, Rewrite asks
+  instead of guessing** — a prompt in the wrong agent is worse than an extra click.
+- **Live agent status** — the status bar shows what the bound agent is doing.
+  It stays a quiet dot while the agent works, and speaks up only when the agent
+  is blocked waiting for *your* answer.
 - **Trigger phrases** (`Ctrl+K`) — reusable prompt fragments, inserted at the
   cursor.
 - **Reference panel** (`Ctrl+R`) — a resizable, persisted side panel to keep an
@@ -119,15 +122,15 @@ bun run preview    # serve the production build locally
 
 > Looking for the native desktop app? See
 > [**rewrite-desktop**](https://github.com/exviolet/rewrite-desktop) — a Tauri v2
-> wrapper with native dialogs, a custom title bar, and the `tmux` integration.
+> wrapper with native dialogs, a custom title bar, and the terminal integrations.
 
 ## Keyboard shortcuts
 
 | Shortcut | Action |
 |----------|--------|
-| `Ctrl+Enter` | Send buffer to bound / active tmux pane |
-| `Ctrl+Shift+Enter` | tmux target picker |
-| `Ctrl+Alt+B` / `Ctrl+Alt+Shift+B` | Bind / unbind tab to tmux window |
+| `Ctrl+Enter` | Send buffer to the bound terminal (Herdr / Orca / tmux) |
+| `Ctrl+Shift+Enter` | Target picker (Herdr / Orca / tmux) |
+| `Ctrl+Alt+B` / `Ctrl+Alt+Shift+B` | Bind / unbind tab to a terminal |
 | `Ctrl+B` / `Ctrl+I` | Bold / italic (selection or word under the cursor) |
 | `Ctrl+M` / `Ctrl+Shift+M` | Inline code / fenced code block |
 | `Tab` / `Shift+Tab` | Indent / outdent — nests list items |
