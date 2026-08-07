@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { matchShortcut, matchesChord, type ShortcutEvent } from "./shortcuts";
+import { formatChord, matchShortcut, matchesChord, type ShortcutEvent } from "./shortcuts";
 
 function key(
   code: string,
@@ -46,5 +46,30 @@ describe("shortcut matching", () => {
     expect(
       matchShortcut(key("PageDown", { ctrlKey: true, shiftKey: true }), "global")?.id,
     ).toBe("move-tab-right");
+  });
+});
+
+describe("shortcut labels", () => {
+  test("formats physical key codes for people", () => {
+    const cases = [
+      [{ code: "KeyB" }, "B"],
+      [{ code: "Comma" }, ","],
+      [{ code: "Slash" }, "/"],
+      [{ code: "Period" }, "."],
+      [{ code: "PageDown" }, "PgDn"],
+      [{ code: "PageUp" }, "PgUp"],
+      [{ code: "Enter" }, "Enter"],
+      [{ code: "Tab" }, "Tab"],
+    ] as const;
+
+    for (const [chord, label] of cases) {
+      expect(formatChord(chord)).toBe(label);
+    }
+  });
+
+  test("orders modifiers as Ctrl, Alt, Shift, then key", () => {
+    expect(formatChord({ code: "KeyB", ctrl: true, alt: true, shift: true })).toBe(
+      "Ctrl+Alt+Shift+B",
+    );
   });
 });
