@@ -34,8 +34,23 @@ interface RewriteDB extends DBSchema {
 const DB_NAME = "rewrite-db";
 const DB_VERSION = 6;
 
+// Соединение ОДНО на всё приложение и переиспользуется. Раньше каждый вызов открывал
+// новое и не закрывал: при записи раз в 500 мс за сессию их копились сотни. Дело не
+// только в утечке — открытые соединения БЛОКИРУЮТ апгрейд версии, то есть следующий
+// же bump DB_VERSION повис бы у пользователя навсегда.
+let dbPromise: Promise<IDBPDatabase<RewriteDB>> | null = null;
+
+// Закрыть и забыть соединение. Нужно тестам, которые пересоздают базу с нуля;
+// в приложении не зовётся — там соединение живёт столько же, сколько окно.
+export function closeDB() {
+  const pending = dbPromise;
+  dbPromise = null;
+  return pending?.then((db) => db.close()) ?? Promise.resolve();
+}
+
 function getDB() {
-  return openDB<RewriteDB>(DB_NAME, DB_VERSION, {
+  if (dbPromise) return dbPromise;
+  dbPromise = openDB<RewriteDB>(DB_NAME, DB_VERSION, {
     upgrade(db, oldVersion) {
       // v1: tabs, presets, meta
       if (!db.objectStoreNames.contains("tabs")) {
@@ -82,6 +97,7 @@ function getDB() {
       }
     },
   });
+  return dbPromise;
 }
 
 // Reorder records to match the persisted id sequence. Records missing from the list
