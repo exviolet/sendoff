@@ -107,6 +107,8 @@ keep the agent's reply pinned in the reference panel while you write the next on
 **Under the hood**
 - Autosave to IndexedDB — close and reopen, everything's there. There is no manual
   save: `Ctrl+S` only flushes the pending write immediately.
+- Closing a tab deletes nothing: it moves to an archive that survives restarts and
+  comes back with `Ctrl+Shift+T`.
 - File import/export (`.txt`, `.md`), plus full backup export/import.
 - Light / dark / system theme, and a configurable editor font (`Ctrl+,`).
 

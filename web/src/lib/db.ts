@@ -7,7 +7,9 @@ import type { PhraseInsertMode } from "../store/settingsStore";
 interface RewriteDB extends DBSchema {
   tabs: {
     key: string;
-    value: Tab;
+    // closedAt — маркер архива: таб закрыт, но не удалён. Живёт в том же сторе, чтобы
+    // не заводить новый (новый store = bump версии = сломанный откат у 2-го пользователя).
+    value: Tab & { closedAt?: number };
   };
   presets: {
     key: string;
@@ -114,9 +116,22 @@ export async function loadSession() {
   const db = await getDB();
   // getAll returns records sorted by primary key (uuid), NOT tab order. Restore
   // the user's arrangement (incl. DnD reorder) from the persisted tabOrder list.
-  const storedTabs = await db.getAll("tabs");
+  // Архив закрытых табов лежит в ТОМ ЖЕ сторе с маркером closedAt — новый object store
+  // потребовал бы bump версии, а он у второго пользователя ломает откат на старый бинарь.
+  // Форма записи внутри таба менять версию не обязана (см. правила в web/CLAUDE.md).
+  const storedTabs = (await db.getAll("tabs")) as (Tab & { closedAt?: number })[];
   const tabOrder = (await db.get("meta", "tabOrder")) as string[] | undefined;
-  const tabs = orderById(storedTabs, tabOrder);
+  const live = storedTabs.filter((t) => typeof t.closedAt !== "number");
+  const tabs = orderById(live, tabOrder);
+  // Порядок архива — по времени закрытия: Ctrl+Shift+T обязан отдавать последний закрытый.
+  const closedTabs = storedTabs
+    .filter((t) => typeof t.closedAt === "number")
+    .sort((a, b) => (a.closedAt ?? 0) - (b.closedAt ?? 0))
+    .map((stored) => {
+      const tab = { ...stored };
+      delete tab.closedAt; // маркер архива в модель таба не едет
+      return tab as Tab;
+    });
   const storedWorkspaces = await db.getAll("workspaces");
   const workspaceOrder = (await db.get("meta", "workspaceOrder")) as string[] | undefined;
   const workspaces = orderById(storedWorkspaces, workspaceOrder);
@@ -138,7 +153,7 @@ export async function loadSession() {
   const referenceText = (await db.get("meta", "referenceText")) as string | undefined;
   const referenceWidth = (await db.get("meta", "referenceWidth")) as number | undefined;
   return {
-    tabs, presets, triggerPhrases, workspaces, tabGroups,
+    tabs, closedTabs, presets, triggerPhrases, workspaces, tabGroups,
     activeTabId: activeTabId ?? null,
     activeWorkspaceId: activeWorkspaceId ?? null,
     tabCounter: tabCounter ?? 0,
@@ -157,6 +172,7 @@ export async function loadSession() {
 // нечитаемым и хрупким (перепутанный порядок тихо запишет не туда).
 export interface SessionSnapshot {
   tabs: Tab[];
+  closedTabs: Tab[];
   activeTabId: string | null;
   tabCounter: number;
   workspaces: Workspace[];
@@ -177,6 +193,7 @@ export interface SessionSnapshot {
 export async function saveSession(
   {
     tabs,
+    closedTabs,
     activeTabId,
     tabCounter,
     workspaces,
@@ -205,6 +222,11 @@ export async function saveSession(
   await tabStore.clear();
   for (const tab of tabs) {
     await tabStore.put(tab);
+  }
+  // Индекс в массиве, а не Date.now(): архив уже отсортирован по времени закрытия, а
+  // одинаковые метки у закрытых пачкой сломали бы порядок возврата.
+  for (const [i, tab] of closedTabs.entries()) {
+    await tabStore.put({ ...tab, closedAt: i + 1 });
   }
 
   // Clear and rewrite workspaces

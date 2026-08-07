@@ -104,9 +104,10 @@ interface EditorStore {
   tabCounter: number;
   isHydrated: boolean;
   closedTabs: Tab[];
-  // Одна форма на одиночное и на пакетное закрытие: подтверждать надо и то и другое,
-  // а две почти одинаковых ветки разъехались бы. `title` есть только у одиночного.
-  pendingClose: { ids: string[]; title: string | null } | null;
+  // Подтверждение осталось только у ПАКЕТНОГО закрытия, и уже не про потерю данных
+  // (архив всё вернёт), а про масштаб: «закрыть остальные» одним кликом меню уносит
+  // из полосы десятки табов, и доставать их обратно по одному больно.
+  pendingClose: { ids: string[] } | null;
   workspaces: Workspace[];
   activeWorkspaceId: string;
   tabGroups: TabGroup[];
@@ -158,6 +159,7 @@ interface EditorStore {
     workspaces: Workspace[],
     activeWorkspaceId: string | null,
     tabGroups: TabGroup[],
+    closedTabs: Tab[],
   ) => void;
 }
 
@@ -168,7 +170,15 @@ const initialWorkspace: Workspace = {
 };
 const initialTab = makeTab(1, initialWorkspace.id);
 
-const MAX_CLOSED_TABS = 20;
+// Архив закрытых табов. Раньше 20 и только в памяти — «закрыл и перезапустил» терял
+// текст навсегда. Теперь переживает перезапуск, поэтому закрытие перестало быть
+// разрушающим и подтверждение при закрытии одного таба стало не нужно (модель Obsidian:
+// закрыть вкладку ≠ удалить заметку).
+//
+// Потолок не снят совсем: таб бывает и на 10 тыс. символов, а база у пользователя одна на
+// всё. 200 — с запасом больше, чем живых табов (у автора их 75), это ~пара мегабайт в
+// худшем случае.
+const MAX_CLOSED_TABS = 200;
 
 // Запомнить last-active таб в его workspace. Держит инвариант «переключился обратно —
 // попал туда, где был».
@@ -259,7 +269,7 @@ export const useEditorStore = create<EditorStore>((set, get) => {
   // Не закрывает, а спрашивает: ставит pendingClose и отдаёт число под нож.
   function requestCloseMany(ids: string[]) {
     const n = bulkTargets(ids).length;
-    if (n > 0) set({ pendingClose: { ids, title: null } });
+    if (n > 0) set({ pendingClose: { ids } });
     return n;
   }
 
@@ -329,28 +339,14 @@ export const useEditorStore = create<EditorStore>((set, get) => {
     }));
   },
 
-  // Спрашиваем по НАЛИЧИЮ ТЕКСТА, а не по «изменён с последнего Ctrl+S»: запись в
-  // IndexedDB автоматическая, флага «не сохранён» больше нет. Пустой таб закрывается
-  // молча — раньше он тоже спрашивал, если его успели тронуть.
-  closeTab: (id) => {
-    const { tabs } = get();
-    const tab = tabs.find((t) => t.id === id);
-    if (!tab) return;
-    if (tab.content.trim() !== "") {
-      set({ pendingClose: { ids: [tab.id], title: tab.title } });
-      return;
-    }
-    performClose(id);
-  },
+  // Ничего не спрашиваем: закрытый таб уезжает в архив, который переживает перезапуск,
+  // и достаётся через Ctrl+Shift+T. Модель Obsidian — закрыть вкладку не значит удалить.
+  closeTab: (id) => performClose(id),
 
   confirmPendingClose: () => {
     const { pendingClose } = get();
     if (!pendingClose) return 0;
     set({ pendingClose: null });
-    if (pendingClose.ids.length === 1) {
-      performClose(pendingClose.ids[0]);
-      return 1;
-    }
     return performCloseMany(pendingClose.ids);
   },
 
@@ -851,7 +847,7 @@ export const useEditorStore = create<EditorStore>((set, get) => {
 
   // Bootstrap старой базы: нет workspaces → создаём «Default», все табы уходят в него.
   // Ничего не теряется — это единственное место, где можно повредить чужие данные.
-  hydrate: (tabs, activeTabId, tabCounter, workspaces, activeWorkspaceId, tabGroups) =>
+  hydrate: (tabs, activeTabId, tabCounter, workspaces, activeWorkspaceId, tabGroups, closedTabs) =>
     set(() => {
       const list: Workspace[] = workspaces.length > 0
         ? workspaces
@@ -876,6 +872,17 @@ export const useEditorStore = create<EditorStore>((set, get) => {
       });
       const groups = pruneGroups(normalized, groupList);
 
+      // Архив нормализуется тем же normalizeTab (там же чинятся легаси-привязки), но
+      // групп у закрытых табов не держим: группа могла исчезнуть, пока таб лежал в архиве,
+      // и вернувшийся таб не должен воскрешать её призраком.
+      const archive = closedTabs
+        .map(normalizeTab)
+        .map((t) => ({
+          ...t,
+          groupId: undefined,
+          workspaceId: t.workspaceId && known.has(t.workspaceId) ? t.workspaceId : list[0].id,
+        }));
+
       const activeWs = activeWorkspaceId && known.has(activeWorkspaceId) ? activeWorkspaceId : list[0].id;
       const active =
         activeTabId && normalized.some((t) => t.id === activeTabId && t.workspaceId === activeWs)
@@ -893,6 +900,7 @@ export const useEditorStore = create<EditorStore>((set, get) => {
           workspaces: rememberActive(list, activeWs, fresh.id),
           activeWorkspaceId: activeWs,
           tabGroups: groups,
+          closedTabs: archive,
           isHydrated: true,
         };
       }
@@ -904,6 +912,7 @@ export const useEditorStore = create<EditorStore>((set, get) => {
         workspaces: rememberActive(list, activeWs, active),
         activeWorkspaceId: activeWs,
         tabGroups: groups,
+        closedTabs: archive,
         isHydrated: true,
       };
     }),
