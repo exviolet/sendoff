@@ -58,7 +58,7 @@ bun run preview       # прод-сборка локально
 - `presetsStore.ts` — пресеты замен.
 - `triggerPhrasesStore.ts` — trigger phrases (`Ctrl+K`).
 - `themeStore.ts` — `dark | light | system`; в Tauri слушает нативную тему окна.
-- `settingsStore.ts` — `fontSize`, `wordWrap`, `tmuxAutoSubmit`, `fontFamily`.
+- `settingsStore.ts` — `fontSize`, `wordWrap`, `tmuxAutoSubmit`, `fontFamily`, `phraseInsertMode` (`Ctrl+K`: префиксом ко всему промпту / в позицию каретки).
 - `lastTargetStore.ts` — последний выбранный таргет `{source, handle, label}` (**in-memory, НЕ персистится**: хендлы эфемерны). `source` обязателен — без него хендл двусмыслен между провайдерами.
 - `referenceStore.ts` — текст/ширина reference-панели.
 - `toastStore.ts` — тосты (`toast(msg, type)`).
@@ -219,6 +219,12 @@ interface ReplacePreset  { id: string; name: string; pairs: ReplacePair[] }
 
 8. **Реактивные индикаторы не дебаунсить** (StatusBar, dirty-метки). См. Safety Rails в корневом
    `CLAUDE.md`.
+
+9. **`catch` вокруг Tauri-вызовов ловит не `Error`.** `Command.execute()` из
+   `tauri-plugin-shell` отклоняет промис **строкой** — ошибка приходит из Rust, и в `Error` её
+   никто не оборачивает. Поэтому `error instanceof Error ? error.message : "…"` тихо выбрасывает
+   настоящую причину: так сбой отправки у 2-го пользователя показал «Herdr: Неизвестная ошибка» и
+   стал нерасследуемым. Описывать ошибки только через `describeError` из `lib/terminalTargets`.
 
 ## Данные и IndexedDB — правила
 

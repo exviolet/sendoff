@@ -3,6 +3,8 @@ import { orcaProvider } from "./orca";
 import { tmuxProvider } from "./tmux";
 import type { TabBinding, TargetSource, TerminalProvider } from "./types";
 
+export { describeError } from "./shell";
+
 export type {
   Resolution,
   TabBinding,

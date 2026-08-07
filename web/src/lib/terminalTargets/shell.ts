@@ -24,6 +24,34 @@ export async function runScoped(
   return output;
 }
 
+// Любое брошенное значение → текст, который не стыдно показать пользователю.
+//
+// Живёт рядом с runScoped не случайно: бросает здесь не только он. Сам
+// `Command.execute()` из tauri-plugin-shell отклоняет промис СТРОКОЙ — ошибка
+// приходит из Rust, и `Error` её никто не оборачивает. Поэтому проверки
+// `instanceof Error` мало: она отправляла настоящую причину в мусор, и сбой у
+// 2-го пользователя оказался нерасследуемым — «Неизвестная ошибка» без единой
+// детали. Заглушка остаётся только на случай, когда показывать реально нечего.
+export function describeError(error: unknown): string {
+  if (error == null) return "ошибка без описания"; // иначе тост скажет «undefined»
+  const text =
+    error instanceof Error
+      ? error.message
+      : typeof error === "string"
+        ? error
+        : safeStringify(error);
+  return text.trim() || "ошибка без описания";
+}
+
+function safeStringify(value: unknown): string {
+  try {
+    // JSON.stringify(undefined) === undefined, а не строка — отсюда фолбэк.
+    return JSON.stringify(value) ?? String(value);
+  } catch {
+    return String(value); // циклические ссылки, getters с throw
+  }
+}
+
 // --- defensive JSON narrowing (вывод CLI приходит как unknown) ---
 
 export function asRecord(value: unknown): Record<string, unknown> | null {
