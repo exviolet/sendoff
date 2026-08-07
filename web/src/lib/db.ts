@@ -3,6 +3,10 @@ import type { Tab, Workspace, TabGroup } from "../store/editorStore";
 import type { ReplacePreset } from "../store/presetsStore";
 import type { TriggerPhrase } from "../store/triggerPhrasesStore";
 import type { PhraseInsertMode } from "../store/settingsStore";
+import {
+  sanitizeShortcutOverrides,
+  type ShortcutOverrides,
+} from "./shortcuts";
 
 interface RewriteDB extends DBSchema {
   tabs: {
@@ -29,7 +33,7 @@ interface RewriteDB extends DBSchema {
   };
   meta: {
     key: string;
-    value: string | number | boolean | string[];
+    value: string | number | boolean | string[] | ShortcutOverrides;
   };
 }
 
@@ -150,6 +154,9 @@ export async function loadSession() {
   // тихо сломал бы вставку. Незнакомое значение = исходное поведение.
   const phraseInsertMode: PhraseInsertMode =
     (await db.get("meta", "phraseInsertMode")) === "cursor" ? "cursor" : "prepend";
+  const shortcutOverrides = sanitizeShortcutOverrides(
+    await db.get("meta", "shortcutOverrides"),
+  );
   const referenceText = (await db.get("meta", "referenceText")) as string | undefined;
   const referenceWidth = (await db.get("meta", "referenceWidth")) as number | undefined;
   return {
@@ -163,12 +170,13 @@ export async function loadSession() {
     tmuxAutoSubmit: tmuxAutoSubmit ?? true,
     fontFamily: fontFamily ?? "",
     phraseInsertMode,
+    shortcutOverrides,
     referenceText: referenceText ?? "",
     referenceWidth: typeof referenceWidth === "number" ? referenceWidth : undefined,
   };
 }
 
-// Объектом, а не позиционными аргументами: их уже 14 — позиционный вызов стал бы
+// Объектом, а не позиционными аргументами: полей уже много — позиционный вызов стал бы
 // нечитаемым и хрупким (перепутанный порядок тихо запишет не туда).
 export interface SessionSnapshot {
   tabs: Tab[];
@@ -186,6 +194,7 @@ export interface SessionSnapshot {
   tmuxAutoSubmit: boolean;
   fontFamily: string;
   phraseInsertMode: PhraseInsertMode;
+  shortcutOverrides: ShortcutOverrides;
   referenceText: string;
   referenceWidth: number;
 }
@@ -207,6 +216,7 @@ export async function saveSession(
     tmuxAutoSubmit,
     fontFamily,
     phraseInsertMode,
+    shortcutOverrides,
     referenceText,
     referenceWidth,
   }: SessionSnapshot,
@@ -270,6 +280,7 @@ export async function saveSession(
   await metaStore.put(tmuxAutoSubmit, "tmuxAutoSubmit");
   await metaStore.put(fontFamily, "fontFamily");
   await metaStore.put(phraseInsertMode, "phraseInsertMode");
+  await metaStore.put(shortcutOverrides, "shortcutOverrides");
   await metaStore.put(referenceText, "referenceText");
   await metaStore.put(referenceWidth, "referenceWidth");
 

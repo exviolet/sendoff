@@ -4,9 +4,12 @@ import { useEditorStore } from "../store/editorStore";
 import { toast } from "../store/toastStore";
 import { type TargetPickerState } from "./useTerminalActions";
 import {
+  effectiveChords,
   formatChord,
   shortcutCommands,
+  type ShortcutOverrides,
 } from "../lib/shortcuts";
+import { useSettingsStore } from "../store/settingsStore";
 
 export type PanelMode = null | "find" | "findReplace";
 export type SidePanel = null | "presets" | "settings" | "reference";
@@ -15,12 +18,15 @@ const SHORTCUTS_BY_ID = new Map<string, (typeof shortcutCommands)[number]>(
   shortcutCommands.map((command) => [command.id, command]),
 );
 
-function addRegistryShortcuts(commands: Command[]): Command[] {
+function addRegistryShortcuts(
+  commands: Command[],
+  overrides: ShortcutOverrides,
+): Command[] {
   return commands.map((command) => {
     const registered = SHORTCUTS_BY_ID.get(command.id);
-    return registered
-      ? { ...command, shortcut: formatChord(registered.defaults[0]) }
-      : command;
+    if (!registered) return command;
+    const firstChord = effectiveChords(registered.id, overrides)[0];
+    return firstChord ? { ...command, shortcut: formatChord(firstChord) } : command;
   });
 }
 
@@ -58,6 +64,7 @@ export interface CommandDeps {
 }
 
 export function useCommands(deps: CommandDeps): Command[] {
+  const shortcutOverrides = useSettingsStore((state) => state.shortcutOverrides);
   const {
     saveCurrentTab, openFile, downloadCurrentTab, exportAll, importBackup,
     toggleDistractionFree, toggleSidePanel, setSidePanel, setPanelMode, setTheme,
@@ -115,5 +122,5 @@ export function useCommands(deps: CommandDeps): Command[] {
     { id: "toggle-md-preview", label: markdownPreview ? "Редактор" : "Markdown превью", action: () => setMarkdownPreview((v) => !v) },
     { id: "settings", label: "Настройки", action: () => toggleSidePanel("settings") },
     { id: "focus-editor", label: "Фокус в редактор", action: focusEditor },
-  ]), [saveCurrentTab, openFile, downloadCurrentTab, exportAll, importBackup, toggleDistractionFree, toggleSidePanel, setSidePanel, setPanelMode, setTheme, setTabSwitcherOpen, setGlobalSearchOpen, setTriggerPhrasesOpen, setShortcutsOpen, setMarkdownPreview, markdownPreview, focusEditor, cleanupEmptyTabs, toggleActivePin, handleSend, setTargetPicker, bindActiveTab, unbindActiveTab, openWorkspaceSwitcher, moveActiveTabToWorkspace, renameActiveWorkspace, deleteActiveWorkspace]);
+  ], shortcutOverrides), [saveCurrentTab, openFile, downloadCurrentTab, exportAll, importBackup, toggleDistractionFree, toggleSidePanel, setSidePanel, setPanelMode, setTheme, setTabSwitcherOpen, setGlobalSearchOpen, setTriggerPhrasesOpen, setShortcutsOpen, setMarkdownPreview, markdownPreview, focusEditor, cleanupEmptyTabs, toggleActivePin, handleSend, setTargetPicker, bindActiveTab, unbindActiveTab, openWorkspaceSwitcher, moveActiveTabToWorkspace, renameActiveWorkspace, deleteActiveWorkspace, shortcutOverrides]);
 }

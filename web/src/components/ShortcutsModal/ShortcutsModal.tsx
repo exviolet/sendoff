@@ -1,5 +1,11 @@
 import { useEffect } from "react";
-import { formatChord, shortcutCommands } from "../../lib/shortcuts";
+import {
+  effectiveChords,
+  formatChord,
+  shortcutCommands,
+  type ShortcutOverrides,
+} from "../../lib/shortcuts";
+import { useSettingsStore } from "../../store/settingsStore";
 
 const GROUP_ORDER = ["Табы", "Редактирование", "Markdown", "Панели", "Файлы", "Справка"] as const;
 type ShortcutGroup = (typeof GROUP_ORDER)[number];
@@ -18,24 +24,29 @@ const NON_COMMAND_SHORTCUTS: Partial<
   Панели: [{ keys: "Escape", action: "Закрыть панели" }],
 };
 
-const SHORTCUT_GROUPS = GROUP_ORDER.map((title) => ({
-  title,
-  items: [
-    ...shortcutCommands
-      .filter((command) => command.group === title)
-      .map((command) => ({
-        keys: command.defaults.map(formatChord).join(" / "),
-        action: command.label,
-      })),
-    ...(NON_COMMAND_SHORTCUTS[title] ?? []),
-  ],
-}));
+function shortcutGroups(overrides: ShortcutOverrides) {
+  return GROUP_ORDER.map((title) => ({
+    title,
+    items: [
+      ...shortcutCommands
+        .filter((command) => command.group === title)
+        .map((command) => ({
+          keys: effectiveChords(command.id, overrides).map(formatChord).join(" / "),
+          action: command.label,
+        })),
+      ...(NON_COMMAND_SHORTCUTS[title] ?? []),
+    ],
+  }));
+}
 
 interface ShortcutsModalProps {
   onClose: () => void;
 }
 
 export function ShortcutsModal({ onClose }: ShortcutsModalProps) {
+  const shortcutOverrides = useSettingsStore((state) => state.shortcutOverrides);
+  const groups = shortcutGroups(shortcutOverrides);
+
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") {
@@ -73,7 +84,7 @@ export function ShortcutsModal({ onClose }: ShortcutsModalProps) {
 
         {/* Content */}
         <div className="px-5 py-4 max-h-[60vh] overflow-y-auto space-y-4">
-          {SHORTCUT_GROUPS.map((group) => (
+          {groups.map((group) => (
             <div key={group.title}>
               <h3 className="text-[10px] uppercase tracking-widest text-text-muted/60 mb-2">
                 {group.title}

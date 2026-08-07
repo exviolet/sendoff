@@ -16,7 +16,7 @@ export function useSessionPersistence() {
     if (hasRestored.current) return;
     hasRestored.current = true;
 
-    loadSession().then(({ tabs, closedTabs, presets, triggerPhrases, workspaces, tabGroups, activeTabId, activeWorkspaceId, tabCounter, theme, fontSize, wordWrap, tmuxAutoSubmit, fontFamily, phraseInsertMode, referenceText, referenceWidth }) => {
+    loadSession().then(({ tabs, closedTabs, presets, triggerPhrases, workspaces, tabGroups, activeTabId, activeWorkspaceId, tabCounter, theme, fontSize, wordWrap, tmuxAutoSubmit, fontFamily, phraseInsertMode, shortcutOverrides, referenceText, referenceWidth }) => {
       // hydrate зовём и при пустых табах: он поднимает workspaces и держит инвариант
       // «активный workspace непуст» (создаст свежий таб, если надо).
       if (tabs.length > 0 || workspaces.length > 0) {
@@ -33,7 +33,7 @@ export function useSessionPersistence() {
       if (theme === "light" || theme === "dark" || theme === "system") {
         useThemeStore.getState().hydrate(theme);
       }
-      useSettingsStore.getState().hydrate({ fontSize, wordWrap, tmuxAutoSubmit, fontFamily, phraseInsertMode });
+      useSettingsStore.getState().hydrate({ fontSize, wordWrap, tmuxAutoSubmit, fontFamily, phraseInsertMode, shortcutOverrides });
       useReferenceStore.getState().hydrate({
         text: referenceText,
         width: referenceWidth ?? useReferenceStore.getState().width,
@@ -87,13 +87,13 @@ function writeSession(): Promise<void> {
   const { presets } = usePresetsStore.getState();
   const { phrases } = useTriggerPhrasesStore.getState();
   const { theme } = useThemeStore.getState();
-  const { fontSize, wordWrap, tmuxAutoSubmit, fontFamily, phraseInsertMode } = useSettingsStore.getState();
+  const { fontSize, wordWrap, tmuxAutoSubmit, fontFamily, phraseInsertMode, shortcutOverrides } = useSettingsStore.getState();
   const { text: referenceText, width: referenceWidth } = useReferenceStore.getState();
 
   return saveSession({
     tabs, closedTabs, activeTabId, tabCounter, workspaces, activeWorkspaceId, tabGroups,
     presets, triggerPhrases: phrases, theme,
-    fontSize, wordWrap, tmuxAutoSubmit, fontFamily, phraseInsertMode, referenceText, referenceWidth,
+    fontSize, wordWrap, tmuxAutoSubmit, fontFamily, phraseInsertMode, shortcutOverrides, referenceText, referenceWidth,
   })
     .then(() => { saveErrorShown = false; })
     .catch(() => {
