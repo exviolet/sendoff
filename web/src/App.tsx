@@ -375,20 +375,16 @@ function App() {
       {shortcutsOpen && <ShortcutsModal onClose={() => setShortcutsOpen(false)} />}
       {pendingClose && (
         <ConfirmDialog
-          title={pendingClose.title ? "Закрыть вкладку?" : `Закрыть ${pendingClose.ids.length} вкладок?`}
-          // Про «несохранённое» больше не врём: текст записан. Настоящий риск —
-          // стек возврата: 20 табов и только до перезапуска.
-          message={
-            pendingClose.title
-              ? `«${pendingClose.title}» — вернуть можно через Ctrl+Shift+T, но только до перезапуска.`
-              : `Вернуть можно через Ctrl+Shift+T — последние 20 и только до перезапуска.`
-          }
+          title={`Закрыть ${pendingClose.ids.length} вкладок?`}
+          // Спрашиваем не про потерю данных — архив закрытых переживает перезапуск.
+          // Спрашиваем про масштаб: доставать десятки табов обратно по одному больно.
+          message="Каждую можно будет вернуть через Ctrl+Shift+T — по одной."
           confirmLabel="Закрыть"
           cancelLabel="Отмена"
           danger
           onConfirm={() => {
             const n = confirmPendingClose();
-            if (n > 1) toast(`Закрыто: ${n}`, "success");
+            if (n > 0) toast(`Закрыто: ${n}`, "success");
           }}
           onCancel={cancelPendingClose}
         />

@@ -37,6 +37,7 @@ function tab(id: string, extra: Partial<Tab> = {}): Tab {
 function snapshot(over: Partial<SessionSnapshot> = {}): SessionSnapshot {
   return {
     tabs: [tab("a"), tab("b")],
+    closedTabs: [],
     activeTabId: "a",
     tabCounter: 2,
     workspaces: [{ id: "ws-1", name: "Default", createdAt: 0 }],
@@ -99,6 +100,50 @@ describe("round-trip сессии", () => {
     const binding = { source: "herdr", paneId: "wK:p1", workspace: "rw", tab: "claude" } as const;
     await saveSession(snapshot({ tabs: [tab("a", { binding })] }));
     expect((await loadSession()).tabs[0].binding).toEqual(binding);
+  });
+});
+
+// Архив закрытых табов — новая гарантия «закрыть ≠ потерять». Он лежит в том же
+// сторе, что живые табы, с маркером closedAt: перепутать их местами = либо потерять
+// работу, либо показать в полосе закрытое.
+describe("архив закрытых табов", () => {
+  test("закрытые переживают запись и чтение и НЕ попадают в живые", async () => {
+    await saveSession(snapshot({
+      tabs: [tab("live")],
+      closedTabs: [tab("closed", { content: "закрытая работа" })],
+      activeTabId: "live",
+    }));
+    const out = await loadSession();
+    expect(out.tabs.map((t) => t.id)).toEqual(["live"]);
+    expect(out.closedTabs.map((t) => t.id)).toEqual(["closed"]);
+    expect(out.closedTabs[0].content).toBe("закрытая работа");
+  });
+
+  test("маркер closedAt не протекает в модель таба", async () => {
+    await saveSession(snapshot({ tabs: [tab("live")], closedTabs: [tab("c")], activeTabId: "live" }));
+    const out = await loadSession();
+    expect("closedAt" in out.closedTabs[0]).toBe(false);
+  });
+
+  test("порядок архива сохраняется — Ctrl+Shift+T обязан отдавать последний закрытый", async () => {
+    const closed = [tab("первый"), tab("второй"), tab("третий")];
+    await saveSession(snapshot({ tabs: [tab("live")], closedTabs: closed, activeTabId: "live" }));
+    const out = await loadSession();
+    expect(out.closedTabs.map((t) => t.id)).toEqual(["первый", "второй", "третий"]);
+  });
+
+  test("возврат таба убирает его из архива и не плодит дублей", async () => {
+    await saveSession(snapshot({ tabs: [tab("a")], closedTabs: [tab("b")], activeTabId: "a" }));
+    // b вернули: теперь он живой, архив пуст
+    await saveSession(snapshot({ tabs: [tab("a"), tab("b")], closedTabs: [], activeTabId: "b" }));
+    const out = await loadSession();
+    expect(out.tabs.map((t) => t.id)).toEqual(["a", "b"]);
+    expect(out.closedTabs).toEqual([]);
+  });
+
+  test("пустой архив читается как пустой массив, а не undefined", async () => {
+    await saveSession(snapshot());
+    expect((await loadSession()).closedTabs).toEqual([]);
   });
 });
 

@@ -16,11 +16,11 @@ export function useSessionPersistence() {
     if (hasRestored.current) return;
     hasRestored.current = true;
 
-    loadSession().then(({ tabs, presets, triggerPhrases, workspaces, tabGroups, activeTabId, activeWorkspaceId, tabCounter, theme, fontSize, wordWrap, tmuxAutoSubmit, fontFamily, phraseInsertMode, referenceText, referenceWidth }) => {
+    loadSession().then(({ tabs, closedTabs, presets, triggerPhrases, workspaces, tabGroups, activeTabId, activeWorkspaceId, tabCounter, theme, fontSize, wordWrap, tmuxAutoSubmit, fontFamily, phraseInsertMode, referenceText, referenceWidth }) => {
       // hydrate зовём и при пустых табах: он поднимает workspaces и держит инвариант
       // «активный workspace непуст» (создаст свежий таб, если надо).
       if (tabs.length > 0 || workspaces.length > 0) {
-        useEditorStore.getState().hydrate(tabs, activeTabId, tabCounter, workspaces, activeWorkspaceId, tabGroups);
+        useEditorStore.getState().hydrate(tabs, activeTabId, tabCounter, workspaces, activeWorkspaceId, tabGroups, closedTabs);
       } else {
         useEditorStore.setState({ isHydrated: true });
       }
@@ -83,7 +83,7 @@ export function flushSession(): Promise<void> {
 function writeSession(): Promise<void> {
   if (!useEditorStore.getState().isHydrated) return Promise.resolve();
 
-  const { tabs, activeTabId, tabCounter, workspaces, activeWorkspaceId, tabGroups } = useEditorStore.getState();
+  const { tabs, closedTabs, activeTabId, tabCounter, workspaces, activeWorkspaceId, tabGroups } = useEditorStore.getState();
   const { presets } = usePresetsStore.getState();
   const { phrases } = useTriggerPhrasesStore.getState();
   const { theme } = useThemeStore.getState();
@@ -91,7 +91,7 @@ function writeSession(): Promise<void> {
   const { text: referenceText, width: referenceWidth } = useReferenceStore.getState();
 
   return saveSession({
-    tabs, activeTabId, tabCounter, workspaces, activeWorkspaceId, tabGroups,
+    tabs, closedTabs, activeTabId, tabCounter, workspaces, activeWorkspaceId, tabGroups,
     presets, triggerPhrases: phrases, theme,
     fontSize, wordWrap, tmuxAutoSubmit, fontFamily, phraseInsertMode, referenceText, referenceWidth,
   })

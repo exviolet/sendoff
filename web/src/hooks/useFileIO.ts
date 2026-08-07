@@ -184,6 +184,9 @@ function hydrateFromBackup(data: Record<string, unknown>) {
       workspaces,
       null,
       tabGroups,
+      // Архив закрытых в бэкап не кладём и из бэкапа не восстанавливаем: бэкап — это
+      // рабочее состояние, а не корзина. Импорт её просто очищает.
+      [],
     );
   }
   if (Array.isArray(data.presets) && data.presets.length > 0) {
