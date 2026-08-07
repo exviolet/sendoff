@@ -7,6 +7,7 @@ import {
   isValidChord,
   matchShortcut,
   matchesChord,
+  replaceChord,
   resetAllShortcuts,
   resetShortcut,
   sanitizeShortcutOverrides,
@@ -178,5 +179,58 @@ describe("shortcut labels", () => {
     expect(formatChord({ code: "KeyB", ctrl: true, alt: true, shift: true })).toBe(
       "Ctrl+Alt+Shift+B",
     );
+  });
+});
+
+// replaceChord — операция строки справки: пользователь жмёт на конкретное сочетание и
+// ждёт, что изменится именно оно. assignChord для этого не годится: он ДОБАВЛЯЕТ.
+describe("replaceChord", () => {
+  test("меняет указанный аккорд, второй аккорд команды не трогает", () => {
+    const res = replaceChord({}, "next-tab", { code: "PageDown", ctrl: true }, { code: "KeyJ", ctrl: true, alt: true });
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect(effectiveChords("next-tab", res.overrides).map(formatChord)).toEqual([
+      "Ctrl+Tab",
+      "Ctrl+Alt+J",
+    ]);
+  });
+
+  test("отбирает у прежнего владельца и сообщает, у кого", () => {
+    const res = replaceChord({}, "find", { code: "KeyF", ctrl: true }, { code: "KeyH", ctrl: true });
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect(res.stolenFrom).toBe("find-replace");
+    expect(effectiveChords("find", res.overrides).map(formatChord)).toEqual(["Ctrl+H"]);
+    expect(effectiveChords("find-replace", res.overrides)).toEqual([]);
+  });
+
+  // Ловушка: снятие старого аккорда даёт пустое промежуточное состояние. Проверь на нём
+  // инвариант самоблокировки — и саму справку станет нельзя перевесить.
+  test("справку МОЖНО перевесить на другое сочетание", () => {
+    const res = replaceChord({}, "shortcuts", { code: "Slash", ctrl: true }, { code: "F1" });
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect(effectiveChords("shortcuts", res.overrides).map(formatChord)).toEqual(["F1"]);
+  });
+
+  test("но отобрать единственный аккорд справки ДРУГОЙ команде по-прежнему нельзя", () => {
+    const res = replaceChord({}, "find", { code: "KeyF", ctrl: true }, { code: "Slash", ctrl: true });
+    expect(res.ok).toBe(false);
+    if (res.ok) return;
+    expect(res.reason).toBe("would-unbind-shortcuts");
+  });
+
+  test("аккорд из одних модификаторов отвергается", () => {
+    expect(replaceChord({}, "find", { code: "KeyF", ctrl: true }, { ctrl: true } as never).ok).toBe(false);
+  });
+
+  test("переопределение исчезает, если замена вернула дефолт", () => {
+    const moved = replaceChord({}, "find", { code: "KeyF", ctrl: true }, { code: "KeyJ", ctrl: true });
+    expect(moved.ok).toBe(true);
+    if (!moved.ok) return;
+    const back = replaceChord(moved.overrides, "find", { code: "KeyJ", ctrl: true }, { code: "KeyF", ctrl: true });
+    expect(back.ok).toBe(true);
+    if (!back.ok) return;
+    expect(back.overrides.find).toBeUndefined();
   });
 });
