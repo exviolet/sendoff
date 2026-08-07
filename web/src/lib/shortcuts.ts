@@ -390,6 +390,28 @@ export function assignChord(
   };
 }
 
+// Заменить КОНКРЕТНЫЙ аккорд команды на новый. Нужна отдельно от assignChord: тот
+// ДОБАВЛЯЕТ аккорд к существующим, а в строке справки пользователь жмёт на конкретное
+// сочетание и ждёт, что изменится именно оно, а не появится второе.
+//
+// Старый аккорд снимается ДО назначения нового, и инвариант «у справки должна остаться
+// клавиша» на промежуточном состоянии сознательно НЕ проверяется: оно пустое по
+// построению, новый аккорд добавляется следующей же строкой. Проверь его здесь — и
+// перевесить саму справку стало бы невозможно.
+export function replaceChord(
+  overrides: ShortcutOverrides,
+  commandId: ShortcutCommandId,
+  oldChord: Chord,
+  newChord: Chord,
+): ReturnType<typeof assignChord> {
+  if (!isValidChord(newChord)) return { ok: false, reason: "invalid-chord" };
+  if (!COMMANDS_BY_ID.has(commandId)) return { ok: false, reason: "invalid-chord" };
+
+  const without = effectiveChords(commandId, overrides)
+    .filter((chord) => !sameChord(chord, oldChord));
+  return assignChord(withEffectiveChords(overrides, commandId, without), commandId, newChord);
+}
+
 export function resetShortcut(
   overrides: ShortcutOverrides,
   commandId: ShortcutCommandId,
