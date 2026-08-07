@@ -9,6 +9,7 @@ import {
   toggleWrap,
   type EditPatch,
 } from "../lib/markdownEdit";
+import { matchShortcut } from "../lib/shortcuts";
 
 // Клавиатура редактора: отступы, продолжение списков, markdown-обёртки, автопары.
 // Живёт на самой textarea, а не в глобальном листенере — операции работают с её
@@ -42,20 +43,14 @@ export function useEditorKeymap(applyPatch: (patch: EditPatch) => void) {
         return;
       }
 
-      if (ctrl && !e.altKey && !e.shiftKey && e.code === "KeyB") {
-        run(toggleWrap(value, start, end, "**"));
-        return;
-      }
-
-      if (ctrl && !e.altKey && !e.shiftKey && e.code === "KeyI") {
-        run(toggleWrap(value, start, end, "*"));
-        return;
-      }
-
-      // M — моноширинный: Ctrl+M инлайном, Ctrl+Shift+M забором. Превью переехало на Alt+M.
-      if (ctrl && !e.altKey && e.code === "KeyM") {
-        run(e.shiftKey ? toggleCodeFence(value, start, end) : toggleWrap(value, start, end, "`"));
-        return;
+      const command = matchShortcut(e, "editor");
+      if (command) {
+        switch (command.id) {
+          case "bold": run(toggleWrap(value, start, end, "**")); return;
+          case "italic": run(toggleWrap(value, start, end, "*")); return;
+          case "inline-code": run(toggleWrap(value, start, end, "`")); return;
+          case "code-fence": run(toggleCodeFence(value, start, end)); return;
+        }
       }
 
       if (!ctrl && !e.altKey && e.code === "Backspace") {

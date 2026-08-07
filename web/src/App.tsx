@@ -30,6 +30,7 @@ import { toast } from "./store/toastStore";
 
 function App() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const activeTabRef = useRef<HTMLDivElement>(null);
   const [panelMode, setPanelMode] = useState<PanelMode>(null);
   const [sidePanel, setSidePanel] = useState<SidePanel>(null);
   const [highlights, setHighlights] = useState<{ index: number; length: number }[]>([]);
@@ -218,6 +219,12 @@ function App() {
       const id = useEditorStore.getState().activeTabId;
       setGroupPickerTabId((v) => (v ? null : id));
     },
+    onScrollActiveTab: () => {
+      const activeTab = activeTabRef.current;
+      if (!activeTab) return false;
+      activeTab.scrollIntoView({ inline: "nearest", block: "nearest" });
+      return true;
+    },
   });
 
   return (
@@ -236,6 +243,7 @@ function App() {
           onMoveTabToWorkspace={(tabId) => setWorkspacePicker({ mode: "move", tabId })}
           onGroupTab={(tabId) => setGroupPickerTabId(tabId)}
           onTriggerPhrases={() => setTriggerPhrasesOpen(true)}
+          activeTabRef={activeTabRef}
         />
       )}
       {!distractionFree && panelMode && (
