@@ -51,6 +51,7 @@ function snapshot(over: Partial<SessionSnapshot> = {}): SessionSnapshot {
     tmuxAutoSubmit: true,
     fontFamily: "",
     phraseInsertMode: "prepend",
+    shortcutOverrides: {},
     referenceText: "",
     referenceWidth: 320,
     ...over,
@@ -65,6 +66,9 @@ describe("round-trip сессии", () => {
       fontSize: 18,
       fontFamily: "JetBrainsMono Nerd Font",
       phraseInsertMode: "cursor",
+      shortcutOverrides: {
+        "new-tab": [{ code: "KeyQ", ctrl: true }],
+      },
       theme: "light",
       referenceText: "заметка",
       tabGroups: [{ id: "g", name: "Группа", color: "blue", collapsed: true, workspaceId: "ws-1", createdAt: 0 }],
@@ -80,6 +84,9 @@ describe("round-trip сессии", () => {
     expect(out.fontSize).toBe(18);
     expect(out.fontFamily).toBe("JetBrainsMono Nerd Font");
     expect(out.phraseInsertMode).toBe("cursor");
+    expect(out.shortcutOverrides).toEqual({
+      "new-tab": [{ code: "KeyQ", ctrl: true }],
+    });
     expect(out.theme).toBe("light");
     expect(out.referenceText).toBe("заметка");
   });
@@ -156,6 +163,7 @@ describe("пустая и порченая база", () => {
     expect(out.fontSize).toBe(13);
     expect(out.wordWrap).toBe(true);
     expect(out.phraseInsertMode).toBe("prepend");
+    expect(out.shortcutOverrides).toEqual({});
   });
 
   test("незнакомое значение phraseInsertMode → исходное поведение, не сбой", async () => {
@@ -164,6 +172,28 @@ describe("пустая и порченая база", () => {
     await db.put("meta", { мусор: true } as never, "phraseInsertMode");
     db.close();
     expect((await loadSession()).phraseInsertMode).toBe("prepend");
+  });
+
+  test("shortcutOverrides сужается: мусор не отключает команды", async () => {
+    await saveSession(snapshot());
+    const db = await openDB(DB_NAME, 6);
+    await db.put("meta", {
+      "new-tab": [
+        { code: "KeyQ", ctrl: true },
+        { code: 42, ctrl: true },
+      ],
+      unknown: [{ code: "KeyU", ctrl: true }],
+      "close-tab": "not-an-array",
+      open: [{ code: "AltLeft", alt: true }],
+      save: [],
+      shortcuts: [],
+    } as never, "shortcutOverrides");
+    db.close();
+
+    expect((await loadSession()).shortcutOverrides).toEqual({
+      "new-tab": [{ code: "KeyQ", ctrl: true }],
+      save: [],
+    });
   });
 
   test("tabOrder со ссылками на удалённые табы не создаёт дыр", async () => {

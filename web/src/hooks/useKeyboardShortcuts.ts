@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useEditorStore } from "../store/editorStore";
 import { tabsOf } from "../lib/tabUtils";
 import { matchShortcut } from "../lib/shortcuts";
+import { useSettingsStore } from "../store/settingsStore";
 
 interface ShortcutCallbacks {
   onFind?: () => void;
@@ -33,7 +34,11 @@ interface ShortcutCallbacks {
 export function useKeyboardShortcuts(callbacks?: ShortcutCallbacks) {
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      const command = matchShortcut(e, "global");
+      const command = matchShortcut(
+        e,
+        "global",
+        useSettingsStore.getState().shortcutOverrides,
+      );
       if (command) {
         // Раньше listener Ctrl+Shift+A жил в TabBar и исчезал вместе с полосой.
         // В distraction-free сохраняем это поведение: без DOM-цели клавишу не глушим.

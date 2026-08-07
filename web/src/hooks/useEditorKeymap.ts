@@ -10,6 +10,7 @@ import {
   type EditPatch,
 } from "../lib/markdownEdit";
 import { matchShortcut } from "../lib/shortcuts";
+import { useSettingsStore } from "../store/settingsStore";
 
 // Клавиатура редактора: отступы, продолжение списков, markdown-обёртки, автопары.
 // Живёт на самой textarea, а не в глобальном листенере — операции работают с её
@@ -43,7 +44,11 @@ export function useEditorKeymap(applyPatch: (patch: EditPatch) => void) {
         return;
       }
 
-      const command = matchShortcut(e, "editor");
+      const command = matchShortcut(
+        e,
+        "editor",
+        useSettingsStore.getState().shortcutOverrides,
+      );
       if (command) {
         switch (command.id) {
           case "bold": run(toggleWrap(value, start, end, "**")); return;
