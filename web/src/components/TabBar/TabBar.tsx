@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo, type RefObject } from "react";
 import { useEditorStore } from "../../store/editorStore";
 import { TAB_GROUP_COLORS, TAB_GROUP_COLOR_LABELS } from "../../store/editorStore";
 import type { Tab, TabBinding, TabGroup, TabGroupColor } from "../../store/editorStore";
@@ -23,6 +23,7 @@ interface TabBarProps {
   onMoveTabToWorkspace: (tabId: string) => void;
   onGroupTab: (tabId: string) => void;
   onTriggerPhrases: () => void;
+  activeTabRef: RefObject<HTMLDivElement | null>;
 }
 
 // Дескрипторы разной формы — сводим к строке, чтобы сравнение не зависело от источника.
@@ -47,7 +48,7 @@ function tabsMetaEqual(prev: ReturnType<typeof useEditorStore.getState>["tabs"],
   );
 }
 
-export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAll, onImportBackup, theme, onThemeToggle, onCleanupEmptyTabs, onBindTarget, onMoveTabToWorkspace, onGroupTab, onTriggerPhrases }: TabBarProps) {
+export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAll, onImportBackup, theme, onThemeToggle, onCleanupEmptyTabs, onBindTarget, onMoveTabToWorkspace, onGroupTab, onTriggerPhrases, activeTabRef }: TabBarProps) {
   const allTabs = useEditorStore((s) => s.tabs, tabsMetaEqual);
   const activeWorkspaceId = useEditorStore((s) => s.activeWorkspaceId);
   // Имя/цвет/collapsed живут НЕ в табах — на группы нужна отдельная подписка, иначе
@@ -107,7 +108,6 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
   // и перепутать «таб внутрь группы» с «группа к позиции» нельзя.
   const dragGroupIdRef = useRef<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const activeTabRef = useRef<HTMLDivElement>(null);
   const navRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -139,7 +139,7 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
   // если таб уже виден; block:"nearest" — без вертикального сдвига хедера; instant.
   const scrollToActive = useCallback(() => {
     activeTabRef.current?.scrollIntoView({ inline: "nearest", block: "nearest" });
-  }, []);
+  }, [activeTabRef]);
 
   // Авто-скролл при переключении таба (Ctrl+Tab, Ctrl+T switcher, создание/закрытие).
   useEffect(() => {
@@ -165,21 +165,7 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
     );
     io.observe(el);
     return () => io.disconnect();
-  }, [activeTabId, tabs]);
-
-  // Ctrl+Shift+A → доскролл к активному табу. Локально в TabBar: это DOM-скролл-
-  // концерн полосы, не store-действие, поэтому не в централизованный
-  // useKeyboardShortcuts. e.code (не e.key) — независимо от раскладки; KeyA свободен.
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if ((e.ctrlKey || e.metaKey) && e.shiftKey && !e.altKey && e.code === "KeyA") {
-        e.preventDefault();
-        scrollToActive();
-      }
-    }
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [scrollToActive]);
+  }, [activeTabId, tabs, activeTabRef]);
 
   function startRename(id: string, title: string) {
     setEditingId(id);

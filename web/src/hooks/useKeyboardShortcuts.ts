@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useEditorStore } from "../store/editorStore";
 import { tabsOf } from "../lib/tabUtils";
+import { matchShortcut } from "../lib/shortcuts";
 
 interface ShortcutCallbacks {
   onFind?: () => void;
@@ -26,211 +27,81 @@ interface ShortcutCallbacks {
   onGlobalSearch?: () => void;
   onWorkspaceSwitcher?: () => void;
   onTabGroupPicker?: () => void;
+  onScrollActiveTab?: () => boolean;
 }
 
 export function useKeyboardShortcuts(callbacks?: ShortcutCallbacks) {
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      const ctrl = e.ctrlKey || e.metaKey;
-      const code = e.code;
-
-      if (ctrl && e.shiftKey && code === "Enter") {
-        e.preventDefault();
-        callbacks?.onTargetPicker?.();
-        return;
-      }
-
-      if (ctrl && code === "Enter") {
-        e.preventDefault();
-        callbacks?.onSendPrompt?.();
-        return;
-      }
-
-      if (ctrl && !e.shiftKey && code === "KeyT") {
-        e.preventDefault();
-        callbacks?.onTabSwitcher?.();
-        return;
-      }
-
-      if (ctrl && !e.shiftKey && code === "KeyR") {
-        e.preventDefault();
-        callbacks?.onReferencePanel?.();
-        return;
-      }
-
-      if (ctrl && e.shiftKey && code === "KeyD") {
-        e.preventDefault();
-        callbacks?.onGlobalSearch?.();
-        return;
-      }
-
-      // Привязка к терминалу живёт на Ctrl+Alt+B: Ctrl+B/Ctrl+I отданы markdown-обёрткам
-      // в редакторе (общемировая мышечная память, жест частый), а привязка делается
-      // один раз на таб и остаётся доступна в палитре и в ПКМ по табу.
-      if (ctrl && e.altKey && e.shiftKey && code === "KeyB") {
-        e.preventDefault();
-        callbacks?.onUnbindTarget?.();
-        return;
-      }
-
-      if (ctrl && e.altKey && !e.shiftKey && code === "KeyB") {
-        e.preventDefault();
-        callbacks?.onBindTarget?.();
-        return;
-      }
-
-      if (ctrl && code === "KeyN") {
-        e.preventDefault();
-        useEditorStore.getState().createTab();
-        return;
-      }
-
-      if (ctrl && e.shiftKey && code === "KeyW") {
-        e.preventDefault();
-        callbacks?.onWorkspaceSwitcher?.();
-        return;
-      }
-
-      // Ctrl+G — положить активный таб в группу (пикер со строкой создания).
-      // Сворачивание остаётся на клике по чипу: пока не видно, что этот жест
-      // повторяется чаще (tasks/14, решение 6). Ctrl+Shift+G оставлен свободным.
-      if (ctrl && !e.shiftKey && code === "KeyG") {
-        e.preventDefault();
-        callbacks?.onTabGroupPicker?.();
-        return;
-      }
-
-      // !e.shiftKey обязателен: иначе эта ветка перехватит Ctrl+Shift+W и закроет таб
-      // вместо открытия свитчера workspace.
-      if (ctrl && !e.shiftKey && code === "KeyW") {
-        e.preventDefault();
-        const { activeTabId, closeTab } = useEditorStore.getState();
-        if (activeTabId) closeTab(activeTabId);
-        return;
-      }
-
-      if (ctrl && e.shiftKey && code === "KeyT") {
-        e.preventDefault();
-        useEditorStore.getState().reopenTab();
-        return;
-      }
-
-      // Ctrl+Shift+PgUp/PgDn — двигать сам таб по полосе. Проверяется ДО переключения:
-      // иначе ветка ниже съела бы Shift как «предыдущий таб». Ctrl+Shift+Tab не трогаем —
-      // это общесистемный жест «предыдущий», сдвиг на него вешать нельзя.
-      if (ctrl && e.shiftKey && (code === "PageUp" || code === "PageDown")) {
-        e.preventDefault();
-        const { activeTabId, moveTabStep } = useEditorStore.getState();
-        if (activeTabId) moveTabStep(activeTabId, code === "PageUp" ? -1 : 1);
-        return;
-      }
-
-      if (ctrl && (e.key === "Tab" || code === "PageDown" || code === "PageUp")) {
-        e.preventDefault();
-        const { tabs, activeTabId, activeWorkspaceId, setActiveTab } =
-          useEditorStore.getState();
-        // Циклим только внутри активного workspace (изоляция).
-        const visible = tabsOf(tabs, activeWorkspaceId);
-        if (visible.length < 2) return;
-        const currentIndex = visible.findIndex((t) => t.id === activeTabId);
-        const goBack = e.shiftKey || code === "PageUp";
-        const nextIndex = goBack
-          ? (currentIndex - 1 + visible.length) % visible.length
-          : (currentIndex + 1) % visible.length;
-        setActiveTab(visible[nextIndex].id);
-        return;
-      }
-
-      if (ctrl && code === "KeyF" && !e.shiftKey) {
-        e.preventDefault();
-        callbacks?.onFind?.();
-        return;
-      }
-
-      if (ctrl && code === "KeyH") {
-        e.preventDefault();
-        callbacks?.onFindReplace?.();
-        return;
-      }
-
-      if (ctrl && code === "KeyK") {
-        e.preventDefault();
-        callbacks?.onTriggerPhrases?.();
-        return;
-      }
-
-      if (ctrl && e.shiftKey && code === "KeyP") {
-        e.preventDefault();
-        callbacks?.onCommandPalette?.();
-        return;
-      }
-
-      if (ctrl && !e.shiftKey && code === "KeyP") {
-        e.preventDefault();
-        callbacks?.onTogglePin?.();
-        return;
-      }
-
-      if (ctrl && e.shiftKey && code === "KeyF") {
-        e.preventDefault();
-        callbacks?.onDistractionFree?.();
-        return;
-      }
-
-      if (ctrl && code === "Slash") {
-        e.preventDefault();
-        callbacks?.onShortcutsHelp?.();
-        return;
-      }
-
-      if (ctrl && code === "Comma") {
-        e.preventDefault();
-        callbacks?.onSettings?.();
-        return;
-      }
-
-      if (ctrl && code === "Period") {
-        e.preventDefault();
-        callbacks?.onToggleSidebar?.();
-        return;
-      }
-
-      // Alt+M, а не Ctrl+M: Ctrl+M/Ctrl+Shift+M отданы редактору под инлайн-код и блок
-      // кода — жесты набора, а превью переключают куда реже.
-      if (!ctrl && e.altKey && code === "KeyM") {
-        e.preventDefault();
-        callbacks?.onToggleMarkdownPreview?.();
-        return;
-      }
-
-      if (ctrl && code === "KeyE") {
-        e.preventDefault();
-        callbacks?.onFocusEditor?.();
-        return;
-      }
-
-      if (ctrl && code === "KeyS") {
-        e.preventDefault();
-        callbacks?.onSave?.();
-        return;
-      }
-
-      if (ctrl && code === "KeyO") {
-        e.preventDefault();
-        callbacks?.onOpen?.();
-        return;
-      }
-
-      if (ctrl && code === "KeyZ") {
-        e.preventDefault();
-        const { activeTabId } = useEditorStore.getState();
-        if (!activeTabId) return;
-        if (e.shiftKey) {
-          useEditorStore.getState().redo(activeTabId);
-        } else {
-          useEditorStore.getState().undo(activeTabId);
+      const command = matchShortcut(e, "global");
+      if (command) {
+        // Раньше listener Ctrl+Shift+A жил в TabBar и исчезал вместе с полосой.
+        // В distraction-free сохраняем это поведение: без DOM-цели клавишу не глушим.
+        if (command.id === "scroll-active-tab") {
+          if (callbacks?.onScrollActiveTab?.()) e.preventDefault();
+          return;
         }
-        return;
+
+        e.preventDefault();
+
+        switch (command.id) {
+          case "target-pick": callbacks?.onTargetPicker?.(); return;
+          case "target-send": callbacks?.onSendPrompt?.(); return;
+          case "tab-switcher": callbacks?.onTabSwitcher?.(); return;
+          case "reference": callbacks?.onReferencePanel?.(); return;
+          case "global-search": callbacks?.onGlobalSearch?.(); return;
+          case "target-unbind": callbacks?.onUnbindTarget?.(); return;
+          case "target-bind": callbacks?.onBindTarget?.(); return;
+          case "new-tab": useEditorStore.getState().createTab(); return;
+          case "workspace-switch": callbacks?.onWorkspaceSwitcher?.(); return;
+          case "tab-group-picker": callbacks?.onTabGroupPicker?.(); return;
+          case "close-tab": {
+            const { activeTabId, closeTab } = useEditorStore.getState();
+            if (activeTabId) closeTab(activeTabId);
+            return;
+          }
+          case "reopen-tab": useEditorStore.getState().reopenTab(); return;
+          case "move-tab-left":
+          case "move-tab-right": {
+            const { activeTabId, moveTabStep } = useEditorStore.getState();
+            if (activeTabId) moveTabStep(activeTabId, command.id === "move-tab-left" ? -1 : 1);
+            return;
+          }
+          case "next-tab":
+          case "previous-tab": {
+            const { tabs, activeTabId, activeWorkspaceId, setActiveTab } =
+              useEditorStore.getState();
+            // Циклим только внутри активного workspace (изоляция).
+            const visible = tabsOf(tabs, activeWorkspaceId);
+            if (visible.length < 2) return;
+            const currentIndex = visible.findIndex((tab) => tab.id === activeTabId);
+            const delta = command.id === "previous-tab" ? -1 : 1;
+            const nextIndex = (currentIndex + delta + visible.length) % visible.length;
+            setActiveTab(visible[nextIndex].id);
+            return;
+          }
+          case "find": callbacks?.onFind?.(); return;
+          case "find-replace": callbacks?.onFindReplace?.(); return;
+          case "trigger-phrases": callbacks?.onTriggerPhrases?.(); return;
+          case "command-palette": callbacks?.onCommandPalette?.(); return;
+          case "toggle-pin": callbacks?.onTogglePin?.(); return;
+          case "distraction-free": callbacks?.onDistractionFree?.(); return;
+          case "shortcuts": callbacks?.onShortcutsHelp?.(); return;
+          case "settings": callbacks?.onSettings?.(); return;
+          case "toggle-sidebar": callbacks?.onToggleSidebar?.(); return;
+          case "toggle-md-preview": callbacks?.onToggleMarkdownPreview?.(); return;
+          case "focus-editor": callbacks?.onFocusEditor?.(); return;
+          case "save": callbacks?.onSave?.(); return;
+          case "open": callbacks?.onOpen?.(); return;
+          case "undo":
+          case "redo": {
+            const { activeTabId, undo, redo } = useEditorStore.getState();
+            if (!activeTabId) return;
+            if (command.id === "redo") redo(activeTabId);
+            else undo(activeTabId);
+            return;
+          }
+        }
       }
 
       if (e.key === "Escape") {
