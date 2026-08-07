@@ -6,6 +6,7 @@ import { isTauri } from "../lib/platform";
 import { toast } from "../store/toastStore";
 import {
   describeBinding,
+  describeError,
   providerBySource,
   providerFor,
   type TargetSource,
@@ -45,8 +46,12 @@ export function useTerminalActions(textareaRef: RefObject<HTMLTextAreaElement | 
         const where = await provider.send(handle, text, autoSubmit);
         toast(`Отправлено в ${provider.label}: ${where} (${text.length} симв.)`, "success");
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Неизвестная ошибка";
-        toast(`${provider.label}: ${message}`, "error");
+        // describeError, а не `instanceof Error`: у не-Error тут была заглушка
+        // «Неизвестная ошибка», и настоящая причина сбоя терялась (см. коммент
+        // у самой функции). Формулировки провайдеров (`herdr error: …`) приходят
+        // Error'ом и выглядят как раньше.
+        toast(`${provider.label}: ${describeError(error)}`, "error");
+        console.error(`[${provider.label}] отправка не удалась`, error);
       }
     },
     [autoSubmit],

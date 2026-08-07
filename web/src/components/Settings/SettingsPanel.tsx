@@ -10,10 +10,12 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
   const wordWrap = useSettingsStore((s) => s.wordWrap);
   const tmuxAutoSubmit = useSettingsStore((s) => s.tmuxAutoSubmit);
   const fontFamily = useSettingsStore((s) => s.fontFamily);
+  const phraseInsertMode = useSettingsStore((s) => s.phraseInsertMode);
   const setFontSize = useSettingsStore((s) => s.setFontSize);
   const setWordWrap = useSettingsStore((s) => s.setWordWrap);
   const setTmuxAutoSubmit = useSettingsStore((s) => s.setTmuxAutoSubmit);
   const setFontFamily = useSettingsStore((s) => s.setFontFamily);
+  const setPhraseInsertMode = useSettingsStore((s) => s.setPhraseInsertMode);
 
   const theme = useThemeStore((s) => s.theme);
   const setTheme = useThemeStore((s) => s.setTheme);
@@ -173,6 +175,34 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
               </button>
             ))}
           </div>
+        </div>
+
+        {/* Фразы-триггеры */}
+        <div className="space-y-2">
+          <label className="text-[10px] uppercase tracking-widest text-text-muted/60">
+            Вставка фразы-триггера
+          </label>
+          <div className="grid grid-cols-2 gap-1 p-1 rounded-[6px] border border-border">
+            {(["prepend", "cursor"] as const).map((m) => (
+              <button
+                key={m}
+                onClick={() => setPhraseInsertMode(m)}
+                className={`
+                  flex items-center justify-center h-7 rounded-[4px] text-[11px] transition-colors
+                  ${phraseInsertMode === m
+                    ? "bg-accent/15 text-accent"
+                    : "text-text-muted hover:text-text hover:bg-surface-hover"
+                  }
+                `}
+              >
+                {m === "prepend" ? "В начало" : "По курсору"}
+              </button>
+            ))}
+          </div>
+          <p className="text-[10px] leading-relaxed text-text-muted/60">
+            Куда <kbd className="font-mono">Ctrl+K</kbd> кладёт тело фразы: префиксом ко
+            всему промпту или в позицию каретки.
+          </p>
         </div>
 
         {/* терминальные таргеты */}

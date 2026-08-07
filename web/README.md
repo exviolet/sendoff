@@ -73,8 +73,9 @@ keep the agent's reply pinned in the reference panel while you write the next on
 - **Live agent status** — the status bar shows what the bound agent is doing.
   It stays a quiet dot while the agent works, and speaks up only when the agent
   is blocked waiting for *your* answer.
-- **Trigger phrases** (`Ctrl+K`) — reusable prompt fragments, inserted at the
-  cursor.
+- **Trigger phrases** (`Ctrl+K`) — reusable prompt fragments. By default they go
+  in front of the whole prompt (they are usually role prefixes); a setting
+  switches insertion to the caret instead.
 - **Reference panel** (`Ctrl+R`) — a resizable, persisted side panel to keep an
   agent's reply visible while you compose the follow-up.
 

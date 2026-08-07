@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useEditorStore } from "../../store/editorStore";
 import { useTriggerPhrasesStore, type TriggerPhrase } from "../../store/triggerPhrasesStore";
+import { useSettingsStore } from "../../store/settingsStore";
 
 interface TriggerPhrasePickerProps {
   onClose: () => void;
@@ -41,7 +42,12 @@ export function TriggerPhrasePicker({ onClose, textareaRef }: TriggerPhrasePicke
     );
   }, [query, phrases]);
 
-  // Вставка: префикс в самое начало активного таба, курсор встаёт после него.
+  // Куда падает тело фразы — в начало таба или в позицию каретки (настройка).
+  //
+  // Читаем текст и каретку из САМОЙ textarea, а не из стора: правки уезжают в стор
+  // через RAF, и на быстром `Ctrl+K` сразу после набора стор отстаёт на кадр —
+  // вставка по индексу из стора попала бы мимо. Выделение textarea переживает
+  // потерю фокуса, так что курсор известен и пока открыта модалка.
   const insertPhrase = useCallback((body: string) => {
     const { activeTabId, tabs, updateContent } = useEditorStore.getState();
     const tab = activeTabId ? tabs.find((t) => t.id === activeTabId) : undefined;
@@ -49,13 +55,22 @@ export function TriggerPhrasePicker({ onClose, textareaRef }: TriggerPhrasePicke
       onClose();
       return;
     }
-    updateContent(activeTabId, body + tab.content);
+
+    const ta = textareaRef.current;
+    const content = ta ? ta.value : tab.content;
+    const atCursor = useSettingsStore.getState().phraseInsertMode === "cursor";
+    const from = atCursor && ta ? ta.selectionStart : 0;
+    const to = atCursor && ta ? ta.selectionEnd : 0;
+
+    updateContent(activeTabId, content.slice(0, from) + body + content.slice(to));
     onClose();
+
+    const caret = from + body.length;
     requestAnimationFrame(() => {
-      const ta = textareaRef.current;
-      if (ta) {
-        ta.focus();
-        ta.setSelectionRange(body.length, body.length);
+      const el = textareaRef.current;
+      if (el) {
+        el.focus();
+        el.setSelectionRange(caret, caret);
       }
     });
   }, [onClose, textareaRef]);

@@ -2,6 +2,7 @@ import { openDB, type DBSchema, type IDBPDatabase } from "idb";
 import type { Tab, Workspace, TabGroup } from "../store/editorStore";
 import type { ReplacePreset } from "../store/presetsStore";
 import type { TriggerPhrase } from "../store/triggerPhrasesStore";
+import type { PhraseInsertMode } from "../store/settingsStore";
 
 interface RewriteDB extends DBSchema {
   tabs: {
@@ -114,6 +115,10 @@ export async function loadSession() {
   const wordWrap = (await db.get("meta", "wordWrap")) as boolean | undefined;
   const tmuxAutoSubmit = (await db.get("meta", "tmuxAutoSubmit")) as boolean | undefined;
   const fontFamily = (await db.get("meta", "fontFamily")) as string | undefined;
+  // Сужаем на чтении, а не кастуем: в meta лежит что угодно, а неизвестный режим
+  // тихо сломал бы вставку. Незнакомое значение = исходное поведение.
+  const phraseInsertMode: PhraseInsertMode =
+    (await db.get("meta", "phraseInsertMode")) === "cursor" ? "cursor" : "prepend";
   const referenceText = (await db.get("meta", "referenceText")) as string | undefined;
   const referenceWidth = (await db.get("meta", "referenceWidth")) as number | undefined;
   return {
@@ -126,6 +131,7 @@ export async function loadSession() {
     wordWrap: wordWrap ?? true,
     tmuxAutoSubmit: tmuxAutoSubmit ?? true,
     fontFamily: fontFamily ?? "",
+    phraseInsertMode,
     referenceText: referenceText ?? "",
     referenceWidth: typeof referenceWidth === "number" ? referenceWidth : undefined,
   };
@@ -147,6 +153,7 @@ export interface SessionSnapshot {
   wordWrap: boolean;
   tmuxAutoSubmit: boolean;
   fontFamily: string;
+  phraseInsertMode: PhraseInsertMode;
   referenceText: string;
   referenceWidth: number;
 }
@@ -166,6 +173,7 @@ export async function saveSession(
     wordWrap,
     tmuxAutoSubmit,
     fontFamily,
+    phraseInsertMode,
     referenceText,
     referenceWidth,
   }: SessionSnapshot,
@@ -223,6 +231,7 @@ export async function saveSession(
   await metaStore.put(wordWrap, "wordWrap");
   await metaStore.put(tmuxAutoSubmit, "tmuxAutoSubmit");
   await metaStore.put(fontFamily, "fontFamily");
+  await metaStore.put(phraseInsertMode, "phraseInsertMode");
   await metaStore.put(referenceText, "referenceText");
   await metaStore.put(referenceWidth, "referenceWidth");
 
