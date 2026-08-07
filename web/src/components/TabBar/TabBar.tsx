@@ -35,7 +35,6 @@ function tabsMetaEqual(prev: ReturnType<typeof useEditorStore.getState>["tabs"],
   return prev.every((tab, i) =>
     tab.id === next[i].id &&
     tab.title === next[i].title &&
-    tab.isDirty === next[i].isDirty &&
     tab.pinned === next[i].pinned &&
     // Без workspaceId полоса «замерзает» при переключении workspace / переносе таба.
     tab.workspaceId === next[i].workspaceId &&
@@ -89,7 +88,6 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
   const createTab = useEditorStore((s) => s.createTab);
   const renameTab = useEditorStore((s) => s.renameTab);
   const reorderTab = useEditorStore((s) => s.reorderTab);
-  const closeSavedTabs = useEditorStore((s) => s.closeSavedTabs);
   const closeOtherTabs = useEditorStore((s) => s.closeOtherTabs);
   const closeTabsToRight = useEditorStore((s) => s.closeTabsToRight);
   const setTabBinding = useEditorStore((s) => s.setTabBinding);
@@ -124,9 +122,10 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
     };
   }, [ctxMenu, groupMenu]);
 
-  function reportClosed(n: number) {
-    if (n === 0) toast("Нечего закрывать (несохранённые не трогаются)", "info");
-    else toast(`Закрыто: ${n}`, "success");
+  // Bulk-close теперь только СПРАШИВАЕТ: 0 — молча сообщаем, иначе показывается
+  // диалог, и тост про результат печатает уже он (App).
+  function reportRequested(n: number) {
+    if (n === 0) toast("Нечего закрывать", "info");
   }
 
   useEffect(() => {
@@ -286,11 +285,6 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
           ${isDragTarget ? "ring-1 ring-accent/40" : ""}
         `}
       >
-        {/* Dirty indicator */}
-        {tab.isDirty && (
-          <span className="w-1.5 h-1.5 rounded-full bg-dirty shrink-0" />
-        )}
-
         {/* Pinned indicator */}
         {tab.pinned && (
           <span className="shrink-0 text-accent" title="Закреплён">
@@ -672,9 +666,8 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
           onBindTarget={() => onBindTarget(ctxMenu.id)}
           onUnbindTarget={() => setTabBinding(ctxMenu.id, null)}
           onCloseTab={() => closeTab(ctxMenu.id)}
-          onCloseOthers={() => reportClosed(closeOtherTabs(ctxMenu.id))}
-          onCloseRight={() => reportClosed(closeTabsToRight(ctxMenu.id))}
-          onCloseSaved={() => reportClosed(closeSavedTabs())}
+          onCloseOthers={() => reportRequested(closeOtherTabs(ctxMenu.id))}
+          onCloseRight={() => reportRequested(closeTabsToRight(ctxMenu.id))}
           onCleanupEmpty={onCleanupEmptyTabs}
         />
       )}
@@ -694,7 +687,7 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
             }}
             onColor={(color) => setTabGroupColor(group.id, color)}
             onUngroup={() => ungroupTabGroup(group.id)}
-            onCloseGroup={() => reportClosed(closeTabGroup(group.id))}
+            onCloseGroup={() => reportRequested(closeTabGroup(group.id))}
           />
         );
       })()}
@@ -760,7 +753,7 @@ function GroupContextMenu({
 }
 
 function TabContextMenu({
-  x, y, pinned, grouped, selectedCount, binding, onClose, onTogglePin, onGroupTab, onUngroupTab, onMoveToWorkspace, onBindTarget, onUnbindTarget, onCloseTab, onCloseOthers, onCloseRight, onCloseSaved, onCleanupEmpty,
+  x, y, pinned, grouped, selectedCount, binding, onClose, onTogglePin, onGroupTab, onUngroupTab, onMoveToWorkspace, onBindTarget, onUnbindTarget, onCloseTab, onCloseOthers, onCloseRight, onCleanupEmpty,
 }: {
   x: number; y: number;
   pinned: boolean;
@@ -778,7 +771,6 @@ function TabContextMenu({
   onCloseTab: () => void;
   onCloseOthers: () => void;
   onCloseRight: () => void;
-  onCloseSaved: () => void;
   onCleanupEmpty: () => void;
 }) {
   const targetItems = binding
@@ -792,7 +784,6 @@ function TabContextMenu({
     { label: "Закрыть", action: onCloseTab, shortcut: "Ctrl+W" },
     { label: "Закрыть остальные", action: onCloseOthers },
     { label: "Закрыть справа", action: onCloseRight },
-    { label: "Закрыть все сохранённые", action: onCloseSaved },
     { label: "Закрыть пустые", action: onCleanupEmpty },
   ];
 

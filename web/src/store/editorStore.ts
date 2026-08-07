@@ -68,6 +68,13 @@ export interface TabGroup {
 import type { TabBinding } from "../lib/terminalTargets";
 export type { TabBinding };
 
+// Поле «сохранён/не сохранён» из эпохи ручного Ctrl+S. Запись в IndexedDB
+// автоматическая, флаг больше ничего не значит — но лежит в базе 2-го пользователя,
+// поэтому стирается на чтении в normalizeTab, а не тащится вечно.
+export interface LegacyFields {
+  isDirty?: boolean;
+}
+
 // Легаси-форма табов до объединения привязок в одно поле. Читается normalizeTab и
 // больше нигде: в новых данных этих полей нет.
 export interface LegacyBindings {
@@ -80,7 +87,6 @@ export interface Tab {
   id: string;
   title: string;
   content: string;
-  isDirty: boolean;
   createdAt: number;
   updatedAt: number;
   pinned?: boolean;
@@ -98,7 +104,9 @@ interface EditorStore {
   tabCounter: number;
   isHydrated: boolean;
   closedTabs: Tab[];
-  pendingClose: { id: string; title: string } | null;
+  // Одна форма на одиночное и на пакетное закрытие: подтверждать надо и то и другое,
+  // а две почти одинаковых ветки разъехались бы. `title` есть только у одиночного.
+  pendingClose: { ids: string[]; title: string | null } | null;
   workspaces: Workspace[];
   activeWorkspaceId: string;
   tabGroups: TabGroup[];
@@ -107,9 +115,11 @@ interface EditorStore {
   selectedTabIds: string[];
   createTab: () => void;
   closeTab: (id: string) => void;
-  confirmPendingClose: () => void;
+  // Возвращает число реально закрытых — тост про результат живёт в UI, не в сторе.
+  confirmPendingClose: () => number;
   cancelPendingClose: () => void;
-  closeSavedTabs: () => number;
+  // Bulk-close только ЗАПРАШИВАЮТ закрытие (ставят pendingClose) и возвращают,
+  // сколько табов попадёт под нож. 0 = нечего закрывать, диалога не будет.
   closeOtherTabs: (keepId: string) => number;
   closeTabsToRight: (id: string) => number;
   cleanupEmptyTabs: () => number;
@@ -117,7 +127,6 @@ interface EditorStore {
   setActiveTab: (id: string) => void;
   updateContent: (id: string, content: string) => void;
   renameTab: (id: string, title: string) => void;
-  markSaved: (id: string) => void;
   setTabBinding: (id: string, binding: TabBinding | null) => void;
   togglePin: (id: string) => void;
   reorderTab: (fromId: string, toId: string) => void;
@@ -238,14 +247,26 @@ export const useEditorStore = create<EditorStore>((set, get) => {
     });
   }
 
+  // Кого bulk-close реально заберёт. Одна точка правды на подсчёт и на исполнение:
+  // разойдись они — диалог обещал бы одно число, а закрывалось бы другое.
+  function bulkTargets(ids: string[]): Tab[] {
+    const toClose = new Set(ids);
+    const { tabs, activeWorkspaceId } = get();
+    // Скоуп: bulk-close НИКОГДА не трогает чужие workspace (не разрушать молча).
+    return tabs.filter((t) => toClose.has(t.id) && t.workspaceId === activeWorkspaceId);
+  }
+
+  // Не закрывает, а спрашивает: ставит pendingClose и отдаёт число под нож.
+  function requestCloseMany(ids: string[]) {
+    const n = bulkTargets(ids).length;
+    if (n > 0) set({ pendingClose: { ids, title: null } });
+    return n;
+  }
+
   function performCloseMany(ids: string[]) {
     if (ids.length === 0) return 0;
-    const toClose = new Set(ids);
     const { tabs, activeTabId, closedTabs, tabCounter, activeWorkspaceId, workspaces } = get();
-    // Скоуп: bulk-close НИКОГДА не трогает чужие workspace (не разрушать молча).
-    const closing = tabs.filter(
-      (t) => toClose.has(t.id) && !t.isDirty && t.workspaceId === activeWorkspaceId,
-    );
+    const closing = bulkTargets(ids);
     if (closing.length === 0) return 0;
     const closingIds = new Set(closing.map((t) => t.id));
     closingIds.forEach(disposeHistory);
@@ -308,12 +329,15 @@ export const useEditorStore = create<EditorStore>((set, get) => {
     }));
   },
 
+  // Спрашиваем по НАЛИЧИЮ ТЕКСТА, а не по «изменён с последнего Ctrl+S»: запись в
+  // IndexedDB автоматическая, флага «не сохранён» больше нет. Пустой таб закрывается
+  // молча — раньше он тоже спрашивал, если его успели тронуть.
   closeTab: (id) => {
     const { tabs } = get();
     const tab = tabs.find((t) => t.id === id);
     if (!tab) return;
-    if (tab.isDirty) {
-      set({ pendingClose: { id: tab.id, title: tab.title } });
+    if (tab.content.trim() !== "") {
+      set({ pendingClose: { ids: [tab.id], title: tab.title } });
       return;
     }
     performClose(id);
@@ -321,17 +345,24 @@ export const useEditorStore = create<EditorStore>((set, get) => {
 
   confirmPendingClose: () => {
     const { pendingClose } = get();
-    if (!pendingClose) return;
+    if (!pendingClose) return 0;
     set({ pendingClose: null });
-    performClose(pendingClose.id);
+    if (pendingClose.ids.length === 1) {
+      performClose(pendingClose.ids[0]);
+      return 1;
+    }
+    return performCloseMany(pendingClose.ids);
   },
 
   cancelPendingClose: () => set({ pendingClose: null }),
 
   // Все bulk-close скоуплены активным workspace (фильтр — внутри performCloseMany).
-  closeSavedTabs: () => performCloseMany(get().tabs.filter((t) => !t.isDirty && !t.pinned).map((t) => t.id)),
-
-  closeOtherTabs: (keepId) => performCloseMany(get().tabs.filter((t) => t.id !== keepId && !t.pinned).map((t) => t.id)),
+  //
+  // Подтверждение обязательно, и это не перестраховка: стек возврата — 20 табов И
+  // ТОЛЬКО В ПАМЯТИ, то есть «закрыть остальные» при 75 табах унесло бы 74, из них
+  // 54 безвозвратно. Раньше от этого спасал фильтр по isDirty (тронутые табы bulk не
+  // трогал) — вместе с флагом ушёл и он.
+  closeOtherTabs: (keepId) => requestCloseMany(get().tabs.filter((t) => t.id !== keepId && !t.pinned).map((t) => t.id)),
 
   closeTabsToRight: (id) => {
     const { tabs, activeWorkspaceId } = get();
@@ -339,7 +370,7 @@ export const useEditorStore = create<EditorStore>((set, get) => {
     const visible = tabsOf(tabs, activeWorkspaceId);
     const idx = visible.findIndex((t) => t.id === id);
     if (idx < 0) return 0;
-    return performCloseMany(visible.slice(idx + 1).filter((t) => !t.pinned).map((t) => t.id));
+    return requestCloseMany(visible.slice(idx + 1).filter((t) => !t.pinned).map((t) => t.id));
   },
 
   cleanupEmptyTabs: () => {
@@ -419,7 +450,6 @@ export const useEditorStore = create<EditorStore>((set, get) => {
               content,
               title: isAutoTitled(t) ? makeAutoTitle(content, t.title) : t.title,
               titleSource: isAutoTitled(t) ? "auto" : t.titleSource,
-              isDirty: true,
               updatedAt: Date.now(),
             }
           : t
@@ -498,13 +528,6 @@ export const useEditorStore = create<EditorStore>((set, get) => {
     }));
   },
 
-  markSaved: (id) =>
-    set((s) => ({
-      tabs: s.tabs.map((t) =>
-        t.id === id ? { ...t, isDirty: false, updatedAt: Date.now() } : t
-      ),
-    })),
-
   setTabBinding: (id, binding) =>
     set((s) => ({
       tabs: s.tabs.map((t) => {
@@ -522,7 +545,6 @@ export const useEditorStore = create<EditorStore>((set, get) => {
       id: crypto.randomUUID(),
       title,
       content,
-      isDirty: false,
       createdAt: Date.now(),
       updatedAt: Date.now(),
       titleSource: "file",
@@ -823,7 +845,9 @@ export const useEditorStore = create<EditorStore>((set, get) => {
 
   // Закрытие идёт через общий performCloseMany: он держит скоуп по workspace, наполняет
   // closedTabs (Ctrl+Shift+T вернёт), пропускает несохранённые и чистит осиротевшую группу.
-  closeTabGroup: (id) => performCloseMany(get().tabs.filter((t) => t.groupId === id).map((t) => t.id)),
+  // Тоже через подтверждение: раньше от массового сноса спасал фильтр по isDirty,
+  // теперь его нет — а «закрыть все табы группы» уносит сразу пачку.
+  closeTabGroup: (id) => requestCloseMany(get().tabs.filter((t) => t.groupId === id).map((t) => t.id)),
 
   // Bootstrap старой базы: нет workspaces → создаём «Default», все табы уходят в него.
   // Ничего не теряется — это единственное место, где можно повредить чужие данные.

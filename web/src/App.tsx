@@ -16,7 +16,7 @@ import { WorkspaceSwitcher } from "./components/WorkspaceSwitcher/WorkspaceSwitc
 import { TabGroupPicker } from "./components/TabGroupPicker/TabGroupPicker";
 import type { MatchResult } from "./lib/replaceEngine";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
-import { useSessionPersistence } from "./hooks/useSessionPersistence";
+import { useSessionPersistence, flushSession } from "./hooks/useSessionPersistence";
 import { useFileIO } from "./hooks/useFileIO";
 import { useTerminalActions } from "./hooks/useTerminalActions";
 import { useCommands, type PanelMode, type SidePanel } from "./hooks/useCommands";
@@ -97,13 +97,13 @@ function App() {
     openBindPicker, bindActiveTab, unbindActiveTab,
   } = useTerminalActions(textareaRef);
 
-  // Warn on browser close if dirty tabs exist
+  // Раньше здесь было предупреждение «есть несохранённые изменения». Оно потеряло
+  // смысл вместе с ручным сохранением — и защищало-то максимум 500 мс набора.
+  // Полезнее не спрашивать, а дожать отложенную запись: ждать её нельзя (beforeunload
+  // синхронный), но начатая транзакция IndexedDB успевает завершиться.
   useEffect(() => {
-    function handleBeforeUnload(e: BeforeUnloadEvent) {
-      const hasDirty = useEditorStore.getState().tabs.some((t) => t.isDirty);
-      if (hasDirty) {
-        e.preventDefault();
-      }
+    function handleBeforeUnload() {
+      void flushSession();
     }
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
@@ -375,12 +375,21 @@ function App() {
       {shortcutsOpen && <ShortcutsModal onClose={() => setShortcutsOpen(false)} />}
       {pendingClose && (
         <ConfirmDialog
-          title="Закрыть вкладку без сохранения?"
-          message={`Несохранённые изменения в «${pendingClose.title}» будут потеряны.`}
+          title={pendingClose.title ? "Закрыть вкладку?" : `Закрыть ${pendingClose.ids.length} вкладок?`}
+          // Про «несохранённое» больше не врём: текст записан. Настоящий риск —
+          // стек возврата: 20 табов и только до перезапуска.
+          message={
+            pendingClose.title
+              ? `«${pendingClose.title}» — вернуть можно через Ctrl+Shift+T, но только до перезапуска.`
+              : `Вернуть можно через Ctrl+Shift+T — последние 20 и только до перезапуска.`
+          }
           confirmLabel="Закрыть"
           cancelLabel="Отмена"
           danger
-          onConfirm={confirmPendingClose}
+          onConfirm={() => {
+            const n = confirmPendingClose();
+            if (n > 1) toast(`Закрыто: ${n}`, "success");
+          }}
           onCancel={cancelPendingClose}
         />
       )}

@@ -105,7 +105,8 @@ keep the agent's reply pinned in the reference panel while you write the next on
 - Markdown preview, distraction-free mode, command palette (`Ctrl+Shift+P`).
 
 **Under the hood**
-- Session persistence via IndexedDB — close and reopen, everything's there.
+- Autosave to IndexedDB — close and reopen, everything's there. There is no manual
+  save: `Ctrl+S` only flushes the pending write immediately.
 - File import/export (`.txt`, `.md`), plus full backup export/import.
 - Light / dark / system theme, and a configurable editor font (`Ctrl+,`).
 
@@ -151,7 +152,7 @@ bun run preview    # serve the production build locally
 | `Ctrl+Z` / `Ctrl+Shift+Z` | Undo / redo |
 | `Ctrl+F` / `Ctrl+H` | Find / Find & Replace |
 | `Ctrl+Shift+P` | Command palette |
-| `Ctrl+S` / `Ctrl+O` | Save / open file |
+| `Ctrl+S` / `Ctrl+O` | Flush the pending write now (it is automatic) / open file |
 | `Ctrl+.` | Toggle presets sidebar |
 | `Alt+M` | Markdown preview |
 | `Ctrl+E` | Focus the editor |

@@ -1,4 +1,4 @@
-import type { LegacyBindings, Tab, TabBinding, TabGroup } from "../store/editorStore";
+import type { LegacyBindings, LegacyFields, Tab, TabBinding, TabGroup } from "../store/editorStore";
 
 const AUTO_TITLE_MAX_LENGTH = 48;
 const UNTITLED_RE = /^Untitled \d+$/;
@@ -8,7 +8,6 @@ export function makeTab(n: number, workspaceId: string): Tab {
     id: crypto.randomUUID(),
     title: `Untitled ${n}`,
     content: "",
-    isDirty: false,
     createdAt: Date.now(),
     updatedAt: Date.now(),
     titleSource: "auto",
@@ -58,11 +57,13 @@ export function normalizeTab(tab: Tab): Tab {
     ? makeAutoTitle(tab.content, tab.title)
     : tab.title;
 
-  const next: Tab & LegacyBindings = { ...tab, title, titleSource };
+  const next: Tab & LegacyBindings & LegacyFields = { ...tab, title, titleSource };
   const binding = liftLegacyBinding(next);
   delete next.tmuxBinding;
   delete next.orcaBinding;
   delete next.herdrBinding;
+  // Ручного «сохранения» больше нет — флаг из старых баз стираем здесь же.
+  delete next.isDirty;
   if (binding) next.binding = binding;
   else delete next.binding;
 
@@ -171,6 +172,9 @@ export function isAutoTitled(tab: Tab) {
   return tab.titleSource === "auto" || (tab.titleSource === undefined && UNTITLED_RE.test(tab.title));
 }
 
+// «Пустой» = нет текста. Условия `!isDirty` здесь больше нет: оно означало «не трогали
+// с последнего Ctrl+S», а ручного сохранения не осталось. На поведение это влияет так:
+// таб, в котором писали и всё стёрли, теперь тоже считается пустым — и правильно.
 export function canCleanupTab(tab: Tab) {
-  return tab.content.trim() === "" && !tab.isDirty && !tab.pinned && isAutoTitled(tab);
+  return tab.content.trim() === "" && !tab.pinned && isAutoTitled(tab);
 }
