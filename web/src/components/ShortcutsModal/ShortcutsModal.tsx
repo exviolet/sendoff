@@ -1,77 +1,35 @@
 import { useEffect } from "react";
+import { formatChord, shortcutCommands } from "../../lib/shortcuts";
 
-const SHORTCUT_GROUPS = [
-  {
-    title: "Табы",
-    items: [
-      { keys: "Ctrl+N", action: "Новый таб" },
-      { keys: "Ctrl+W", action: "Закрыть таб" },
-      { keys: "Ctrl+Shift+T", action: "Восстановить таб" },
-      { keys: "Ctrl+T", action: "Найти таб (в текущем workspace)" },
-      { keys: "Ctrl+Shift+W", action: "Workspace: переключить / создать" },
-      { keys: "Ctrl+P", action: "Закрепить/открепить таб" },
-      { keys: "Ctrl+Tab", action: "Следующий таб" },
-      { keys: "Ctrl+Shift+Tab", action: "Предыдущий таб" },
-      { keys: "Ctrl+PgUp / Ctrl+PgDn", action: "Предыдущий / следующий таб" },
-      { keys: "Ctrl+Shift+PgUp / PgDn", action: "Сдвинуть таб влево / вправо" },
-      { keys: "Ctrl+G", action: "Положить таб в группу" },
-    ],
-  },
-  {
-    title: "Редактирование",
-    items: [
-      { keys: "Ctrl+Z", action: "Отменить" },
-      { keys: "Ctrl+Shift+Z", action: "Повторить" },
-      { keys: "Ctrl+F", action: "Найти" },
-      { keys: "Ctrl+Shift+D", action: "Глобальный поиск по табам" },
-      { keys: "Ctrl+H", action: "Найти и заменить" },
-      { keys: "Ctrl+Enter", action: "Отправить промпт в терминал" },
-      { keys: "Ctrl+Shift+Enter", action: "Выбрать цель (herdr / Orca / tmux)" },
-      { keys: "Ctrl+Alt+B", action: "Привязать таб к терминалу" },
-      { keys: "Ctrl+Alt+Shift+B", action: "Отвязать таб от терминала" },
-    ],
-  },
-  {
-    title: "Markdown",
-    items: [
-      { keys: "Ctrl+B", action: "Жирный (**)" },
-      { keys: "Ctrl+I", action: "Курсив (*)" },
-      { keys: "Ctrl+M", action: "Инлайн-код (`)" },
-      { keys: "Ctrl+Shift+M", action: "Блок кода (```)" },
-      { keys: "Tab", action: "Отступ / вложить пункт списка" },
-      { keys: "Shift+Tab", action: "Убрать отступ" },
-      { keys: "Enter", action: "Продолжить список или цитату" },
-      { keys: "`", action: "Обернуть выделение (третий подряд — блок кода)" },
-    ],
-  },
-  {
-    title: "Панели",
-    items: [
-      { keys: "Ctrl+K", action: "Фразы-триггеры" },
-      { keys: "Ctrl+R", action: "Reference panel" },
-      { keys: "Ctrl+,", action: "Настройки" },
-      { keys: "Ctrl+.", action: "Toggle sidebar" },
-      { keys: "Alt+M", action: "Markdown превью" },
-      { keys: "Ctrl+Shift+P", action: "Command Palette" },
-      { keys: "Ctrl+Shift+F", action: "Distraction-free режим" },
-      { keys: "Ctrl+E", action: "Фокус в редактор" },
-      { keys: "Escape", action: "Закрыть панели" },
-    ],
-  },
-  {
-    title: "Файлы",
-    items: [
-      { keys: "Ctrl+S", action: "Записать сейчас (обычно само)" },
-      { keys: "Ctrl+O", action: "Открыть файл" },
-    ],
-  },
-  {
-    title: "Справка",
-    items: [
-      { keys: "Ctrl+/", action: "Шорткаты (это окно)" },
-    ],
-  },
-];
+const GROUP_ORDER = ["Табы", "Редактирование", "Markdown", "Панели", "Файлы", "Справка"] as const;
+type ShortcutGroup = (typeof GROUP_ORDER)[number];
+
+// Эти строки описывают семантику ввода и структурный выход, а не команды.
+// Они намеренно остаются вне реестра, но должны быть видимы в справке.
+const NON_COMMAND_SHORTCUTS: Partial<
+  Record<ShortcutGroup, readonly { keys: string; action: string }[]>
+> = {
+  Markdown: [
+    { keys: "Tab", action: "Отступ / вложить пункт списка" },
+    { keys: "Shift+Tab", action: "Убрать отступ" },
+    { keys: "Enter", action: "Продолжить список или цитату" },
+    { keys: "`", action: "Обернуть выделение (третий подряд — блок кода)" },
+  ],
+  Панели: [{ keys: "Escape", action: "Закрыть панели" }],
+};
+
+const SHORTCUT_GROUPS = GROUP_ORDER.map((title) => ({
+  title,
+  items: [
+    ...shortcutCommands
+      .filter((command) => command.group === title)
+      .map((command) => ({
+        keys: command.defaults.map(formatChord).join(" / "),
+        action: command.label,
+      })),
+    ...(NON_COMMAND_SHORTCUTS[title] ?? []),
+  ],
+}));
 
 interface ShortcutsModalProps {
   onClose: () => void;
@@ -123,7 +81,7 @@ export function ShortcutsModal({ onClose }: ShortcutsModalProps) {
               <div className="space-y-1">
                 {group.items.map((item) => (
                   <div
-                    key={item.keys}
+                    key={`${item.action}:${item.keys}`}
                     className="flex items-center justify-between py-1.5 text-sm"
                   >
                     <span className="text-text-muted">{item.action}</span>

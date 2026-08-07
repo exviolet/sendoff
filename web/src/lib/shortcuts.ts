@@ -285,6 +285,27 @@ export const shortcutCommands = [
 
 export type ShortcutCommandId = (typeof shortcutCommands)[number]["id"];
 
+const KEY_LABELS: Readonly<Record<string, string>> = {
+  Comma: ",",
+  Slash: "/",
+  Period: ".",
+  PageDown: "PgDn",
+  PageUp: "PgUp",
+  Enter: "Enter",
+  Tab: "Tab",
+};
+
+export function formatChord(chord: Chord): string {
+  const key = KEY_LABELS[chord.code] ??
+    (chord.code.startsWith("Key") ? chord.code.slice(3) : chord.code);
+  const parts: string[] = [];
+  if (chord.ctrl) parts.push("Ctrl");
+  if (chord.alt) parts.push("Alt");
+  if (chord.shift) parts.push("Shift");
+  parts.push(key);
+  return parts.join("+");
+}
+
 export function matchesChord(event: ShortcutEvent, chord: Chord): boolean {
   return (
     event.code === chord.code &&
