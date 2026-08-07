@@ -61,7 +61,7 @@ const SHORTCUT_GROUPS = [
   {
     title: "Файлы",
     items: [
-      { keys: "Ctrl+S", action: "Сохранить" },
+      { keys: "Ctrl+S", action: "Записать сейчас (обычно само)" },
       { keys: "Ctrl+O", action: "Открыть файл" },
     ],
   },

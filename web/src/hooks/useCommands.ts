@@ -56,21 +56,15 @@ export function useCommands(deps: CommandDeps): Command[] {
       const { activeTabId, closeTab } = useEditorStore.getState();
       if (activeTabId) closeTab(activeTabId);
     }},
-    { id: "close-saved-tabs", label: "Закрыть все сохранённые табы", action: () => {
-      const n = useEditorStore.getState().closeSavedTabs();
-      toast(n === 0 ? "Нечего закрывать" : `Закрыто: ${n}`, n === 0 ? "info" : "success");
-    }},
     { id: "close-other-tabs", label: "Закрыть остальные табы", action: () => {
       const { activeTabId, closeOtherTabs } = useEditorStore.getState();
       if (!activeTabId) return;
-      const n = closeOtherTabs(activeTabId);
-      toast(n === 0 ? "Нечего закрывать" : `Закрыто: ${n}`, n === 0 ? "info" : "success");
+      if (closeOtherTabs(activeTabId) === 0) toast("Нечего закрывать", "info");
     }},
     { id: "close-tabs-to-right", label: "Закрыть табы справа", action: () => {
       const { activeTabId, closeTabsToRight } = useEditorStore.getState();
       if (!activeTabId) return;
-      const n = closeTabsToRight(activeTabId);
-      toast(n === 0 ? "Нечего закрывать" : `Закрыто: ${n}`, n === 0 ? "info" : "success");
+      if (closeTabsToRight(activeTabId) === 0) toast("Нечего закрывать", "info");
     }},
     { id: "workspace-switch", label: "Workspace: переключить / создать…", shortcut: "Ctrl+Shift+W", action: openWorkspaceSwitcher },
     { id: "workspace-move-tab", label: "Workspace: переместить таб…", action: moveActiveTabToWorkspace },
@@ -90,7 +84,7 @@ export function useCommands(deps: CommandDeps): Command[] {
     { id: "target-pick", label: "Отправить в терминал (выбрать цель)", shortcut: "Ctrl+Shift+Enter", action: () => setTargetPicker({ mode: "send" }) },
     { id: "target-bind", label: "Привязать таб к терминалу", shortcut: "Ctrl+Alt+B", action: bindActiveTab },
     { id: "target-unbind", label: "Отвязать таб от терминала", shortcut: "Ctrl+Alt+Shift+B", action: unbindActiveTab },
-    { id: "save", label: "Сохранить как .txt", shortcut: "Ctrl+S", action: saveCurrentTab },
+    { id: "save", label: "Записать сейчас (обычно само)", shortcut: "Ctrl+S", action: saveCurrentTab },
     { id: "open", label: "Открыть файл", shortcut: "Ctrl+O", action: openFile },
     { id: "download", label: "Скачать таб", action: downloadCurrentTab },
     { id: "export", label: "Экспорт бэкапа", action: exportAll },

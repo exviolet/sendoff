@@ -161,7 +161,7 @@ export function GlobalSearchPanel({ onClose, onOpenMatch }: GlobalSearchPanelPro
         {groupedResults.map((group) => (
           <section key={group.tab.id} className="border-b border-border/40 last:border-b-0">
             <div className="sticky top-0 z-10 flex items-center gap-2 px-4 py-2 bg-surface/95 border-b border-border/30">
-              <span className={`w-1.5 h-1.5 rounded-full ${group.tab.isDirty ? "bg-dirty" : group.tab.id === activeTabId ? "bg-accent" : "bg-border"}`} />
+              <span className={`w-1.5 h-1.5 rounded-full ${group.tab.id === activeTabId ? "bg-accent" : "bg-border"}`} />
               <span className="truncate text-[12px] text-text">{group.tab.title}</span>
               {group.tab.workspaceId !== activeWorkspaceId && (
                 <span className="shrink-0 text-[9px] px-1 py-px rounded-sm bg-surface-hover text-text-muted/70">

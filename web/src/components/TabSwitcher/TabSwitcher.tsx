@@ -327,7 +327,7 @@ export function TabSwitcher({ onClose }: TabSwitcherProps) {
                   ${isSelected ? "bg-accent/10 text-text" : "text-text-muted hover:text-text hover:bg-surface-hover/50"}
                 `}
               >
-                <span className={`w-1.5 h-1.5 rounded-full ${item.tab.isDirty ? "bg-dirty" : isActive ? "bg-accent" : "bg-border"}`} />
+                <span className={`w-1.5 h-1.5 rounded-full ${isActive ? "bg-accent" : "bg-border"}`} />
                 <span className="min-w-0">
                   <span className="flex items-center gap-2 min-w-0">
                     <span className="truncate text-[13px] text-text">{highlightMatches(item.tab.title, item.source === "title" ? item.indices : [])}</span>
@@ -369,7 +369,7 @@ export function TabSwitcher({ onClose }: TabSwitcherProps) {
             <>
               <div className="px-4 py-3 border-b border-border">
                 <div className="flex items-center gap-2 min-w-0">
-                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${selectedResult.tab.isDirty ? "bg-dirty" : selectedResult.tab.id === activeTabId ? "bg-accent" : "bg-border"}`} />
+                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${selectedResult.tab.id === activeTabId ? "bg-accent" : "bg-border"}`} />
                   <h2 className="truncate text-sm font-medium text-text">{selectedResult.tab.title}</h2>
                   {selectedResult.tab.binding && (
                     <span className="shrink-0 px-1.5 py-0.5 rounded-[3px] bg-accent/10 text-accent text-[10px] font-mono leading-none">
@@ -388,7 +388,6 @@ export function TabSwitcher({ onClose }: TabSwitcherProps) {
                 </div>
                 <div className="mt-1 flex items-center gap-2 text-[10px] text-text-muted/50">
                   {selectedResult.tab.id === activeTabId && <span className="text-accent">активный</span>}
-                  {selectedResult.tab.isDirty && <span className="text-dirty">изменён</span>}
                   {selectedResult.source === "content" && <span>совпадение в тексте</span>}
                   {selectedResult.source === "binding" && <span>совпадение в привязке</span>}
                 </div>

@@ -172,7 +172,7 @@ interface ReplacePreset  { id: string; name: string; pairs: ReplacePair[] }
 | `Ctrl+Shift+P` | Command palette |
 | `Ctrl+K` | Trigger phrases |
 | `Ctrl+F` / `Ctrl+H` | Find / Find & Replace |
-| `Ctrl+S` / `Ctrl+O` | Сохранить / открыть файл |
+| `Ctrl+S` / `Ctrl+O` | Записать сейчас (запись и так автоматическая) / открыть файл |
 | `Ctrl+Z` / `Ctrl+Shift+Z` | Undo / redo |
 | `Ctrl+R` | Reference panel |
 | `Alt+M` | Markdown preview |

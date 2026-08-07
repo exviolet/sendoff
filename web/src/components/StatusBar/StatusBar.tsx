@@ -104,7 +104,6 @@ export function StatusBar({ onBindTarget, onWorkspaceSwitch }: StatusBarProps) {
       <span className="ml-auto">{lines} {lines === 1 ? "line" : "lines"}</span>
       <span>{words} {words === 1 ? "word" : "words"}</span>
       <span>{chars} {chars === 1 ? "char" : "chars"}</span>
-      <span>{tab.isDirty ? "Modified" : "Saved"}</span>
     </footer>
   );
 }

@@ -47,75 +47,60 @@ export function useSessionPersistence() {
 
   // Persist on changes (debounced 500ms)
   useEffect(() => {
-    let timer: ReturnType<typeof setTimeout>;
-    let saveErrorShown = false;
-
-    const unsubEditor = useEditorStore.subscribe(() => {
+    const schedule = () => {
       if (!useEditorStore.getState().isHydrated) return;
-      clearTimeout(timer);
-      timer = setTimeout(persist, 500);
-    });
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(() => { void writeSession(); }, 500);
+    };
 
-    const unsubPresets = usePresetsStore.subscribe(() => {
-      if (!useEditorStore.getState().isHydrated) return;
-      clearTimeout(timer);
-      timer = setTimeout(persist, 500);
-    });
-
-    const unsubPhrases = useTriggerPhrasesStore.subscribe(() => {
-      if (!useEditorStore.getState().isHydrated) return;
-      clearTimeout(timer);
-      timer = setTimeout(persist, 500);
-    });
-
-    const unsubTheme = useThemeStore.subscribe(() => {
-      if (!useEditorStore.getState().isHydrated) return;
-      clearTimeout(timer);
-      timer = setTimeout(persist, 500);
-    });
-
-    const unsubSettings = useSettingsStore.subscribe(() => {
-      if (!useEditorStore.getState().isHydrated) return;
-      clearTimeout(timer);
-      timer = setTimeout(persist, 500);
-    });
-
-    const unsubReference = useReferenceStore.subscribe(() => {
-      if (!useEditorStore.getState().isHydrated) return;
-      clearTimeout(timer);
-      timer = setTimeout(persist, 500);
-    });
-
-    function persist() {
-      const { tabs, activeTabId, tabCounter, workspaces, activeWorkspaceId, tabGroups } = useEditorStore.getState();
-      const { presets } = usePresetsStore.getState();
-      const { phrases } = useTriggerPhrasesStore.getState();
-      const { theme } = useThemeStore.getState();
-      const { fontSize, wordWrap, tmuxAutoSubmit, fontFamily, phraseInsertMode } = useSettingsStore.getState();
-      const { text: referenceText, width: referenceWidth } = useReferenceStore.getState();
-      saveSession({
-        tabs, activeTabId, tabCounter, workspaces, activeWorkspaceId, tabGroups,
-        presets, triggerPhrases: phrases, theme,
-        fontSize, wordWrap, tmuxAutoSubmit, fontFamily, phraseInsertMode, referenceText, referenceWidth,
-      })
-        .then(() => { saveErrorShown = false; })
-        .catch(() => {
-          // Throttle: one toast per failure streak, not every 500ms tick.
-          if (!saveErrorShown) {
-            saveErrorShown = true;
-            toast("Не удалось сохранить сессию", "error");
-          }
-        });
-    }
+    const unsubs = [
+      useEditorStore.subscribe(schedule),
+      usePresetsStore.subscribe(schedule),
+      useTriggerPhrasesStore.subscribe(schedule),
+      useThemeStore.subscribe(schedule),
+      useSettingsStore.subscribe(schedule),
+      useReferenceStore.subscribe(schedule),
+    ];
 
     return () => {
-      clearTimeout(timer);
-      unsubEditor();
-      unsubPresets();
-      unsubPhrases();
-      unsubTheme();
-      unsubSettings();
-      unsubReference();
+      clearTimeout(saveTimer);
+      unsubs.forEach((off) => off());
     };
   }, []);
+}
+
+let saveTimer: ReturnType<typeof setTimeout>;
+let saveErrorShown = false;
+
+// Записать прямо сейчас, не дожидаясь дебаунса. Ручного «сохранения» в редакторе нет:
+// запись автоматическая, и это единственная честная работа, которая осталась для Ctrl+S.
+// Зовётся ещё и при закрытии окна — там дебаунс мог не успеть догореть.
+export function flushSession(): Promise<void> {
+  clearTimeout(saveTimer);
+  return writeSession();
+}
+
+function writeSession(): Promise<void> {
+  if (!useEditorStore.getState().isHydrated) return Promise.resolve();
+
+  const { tabs, activeTabId, tabCounter, workspaces, activeWorkspaceId, tabGroups } = useEditorStore.getState();
+  const { presets } = usePresetsStore.getState();
+  const { phrases } = useTriggerPhrasesStore.getState();
+  const { theme } = useThemeStore.getState();
+  const { fontSize, wordWrap, tmuxAutoSubmit, fontFamily, phraseInsertMode } = useSettingsStore.getState();
+  const { text: referenceText, width: referenceWidth } = useReferenceStore.getState();
+
+  return saveSession({
+    tabs, activeTabId, tabCounter, workspaces, activeWorkspaceId, tabGroups,
+    presets, triggerPhrases: phrases, theme,
+    fontSize, wordWrap, tmuxAutoSubmit, fontFamily, phraseInsertMode, referenceText, referenceWidth,
+  })
+    .then(() => { saveErrorShown = false; })
+    .catch(() => {
+      // Throttle: one toast per failure streak, not every 500ms tick.
+      if (!saveErrorShown) {
+        saveErrorShown = true;
+        toast("Не удалось сохранить сессию", "error");
+      }
+    });
 }

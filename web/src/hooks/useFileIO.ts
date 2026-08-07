@@ -3,11 +3,16 @@ import { usePresetsStore } from "../store/presetsStore";
 import { useTriggerPhrasesStore } from "../store/triggerPhrasesStore";
 import { isTauri } from "../lib/platform";
 import { toast } from "../store/toastStore";
+import { flushSession } from "./useSessionPersistence";
 
 export function useFileIO() {
-  function saveCurrentTab() {
-    const { activeTabId, markSaved } = useEditorStore.getState();
-    if (activeTabId) markSaved(activeTabId);
+  // Ctrl+S больше не «сохраняет»: запись в IndexedDB идёт сама, дебаунс 500 мс.
+  // Раньше он только гасил флаг isDirty (файл не писал никогда, хотя команда палитры
+  // называлась «Сохранить как .txt» — .txt пишет downloadCurrentTab). Оставлен как
+  // честный flush: дожать отложенную запись немедленно.
+  async function saveCurrentTab() {
+    await flushSession();
+    toast("Записано", "success");
   }
 
   async function downloadCurrentTab(format: "txt" | "md" = "txt") {
