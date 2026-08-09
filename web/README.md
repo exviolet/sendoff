@@ -182,7 +182,9 @@ portfolio piece — **it works for me, but no support or stability is guaranteed
 Expect fast, unannounced breaking changes.
 
 Honest scope, so nobody wastes an evening: Linux-only, no auto-update, no data
-migrations (breaking changes land as clean sweeps), no tests, and issues may sit.
+migrations (breaking changes land as clean sweeps), and issues may sit. Tests
+cover pure logic and the IndexedDB layer only — components and hooks are not
+covered on purpose.
 Contributions aren't being solicited — fork freely instead.
 
 ## Credits
