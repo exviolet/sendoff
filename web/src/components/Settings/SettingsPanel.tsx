@@ -24,7 +24,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
     <aside className="absolute right-0 top-0 bottom-0 w-72 bg-surface border-l border-border z-30 flex flex-col animate-slide-in-right">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
-        <h2 className="text-xs font-medium text-text tracking-wide">Настройки</h2>
+        <h2 className="text-xs font-medium text-text tracking-wide">Settings</h2>
         <button
           onClick={onClose}
           className="flex items-center justify-center w-5 h-5 rounded text-text-muted hover:text-text hover:bg-surface-hover transition-colors"
@@ -40,7 +40,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
         {/* Font size */}
         <div className="space-y-2">
           <label className="text-[10px] uppercase tracking-widest text-text-muted/60">
-            Размер шрифта
+            Font size
           </label>
           <div className="flex items-center gap-2">
             <button
@@ -79,14 +79,14 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
         {/* Font family */}
         <div className="space-y-2">
           <label className="text-[10px] uppercase tracking-widest text-text-muted/60">
-            Шрифт
+            Font
           </label>
           <input
             type="text"
             list="font-family-presets"
             value={fontFamily}
             onChange={(e) => setFontFamily(e.target.value)}
-            placeholder="По умолчанию (JetBrains Mono)"
+            placeholder="Default (JetBrains Mono)"
             spellCheck={false}
             autoCapitalize="off"
             autoCorrect="off"
@@ -102,23 +102,23 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
             <option value="Cascadia Code" />
           </datalist>
           <p className="text-[10px] leading-relaxed text-text-muted/60">
-            Имя установленного в системе моноширинного шрифта. Для иконок — Nerd Font
-            вариант (напр. <span className="text-text-muted">JetBrainsMono Nerd Font</span>).
-            Пусто — забандленный JetBrains Mono.
+            Name of a monospace font installed on the system. For icons use a Nerd Font
+            variant (e.g. <span className="text-text-muted">JetBrainsMono Nerd Font</span>).
+            Empty — the bundled JetBrains Mono.
           </p>
         </div>
 
         {/* Word wrap */}
         <div className="space-y-2">
           <label className="text-[10px] uppercase tracking-widest text-text-muted/60">
-            Перенос строк
+            Word wrap
           </label>
           <button
             onClick={() => setWordWrap(!wordWrap)}
             className="flex items-center justify-between w-full px-3 py-2 rounded-[6px] border border-border hover:bg-surface-hover transition-colors"
           >
             <span className="text-[12px] text-text">
-              {wordWrap ? "Включён" : "Выключен"}
+              {wordWrap ? "On" : "Off"}
             </span>
             <div
               className={`
@@ -139,7 +139,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
         {/* Theme */}
         <div className="space-y-2">
           <label className="text-[10px] uppercase tracking-widest text-text-muted/60">
-            Тема
+            Theme
           </label>
           <div className="grid grid-cols-3 gap-1 p-1 rounded-[6px] border border-border">
             {(["dark", "light", "system"] as const).map((t) => (
@@ -171,7 +171,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                     <path d="M6 13.5h4M8 11v2.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
                   </svg>
                 )}
-                <span>{t === "dark" ? "Тёмная" : t === "light" ? "Светлая" : "Система"}</span>
+                <span>{t === "dark" ? "Dark" : t === "light" ? "Light" : "System"}</span>
               </button>
             ))}
           </div>
@@ -180,7 +180,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
         {/* Фразы-триггеры */}
         <div className="space-y-2">
           <label className="text-[10px] uppercase tracking-widest text-text-muted/60">
-            Вставка фразы-триггера
+            Trigger phrase insertion
           </label>
           <div className="grid grid-cols-2 gap-1 p-1 rounded-[6px] border border-border">
             {(["prepend", "cursor"] as const).map((m) => (
@@ -195,27 +195,27 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                   }
                 `}
               >
-                {m === "prepend" ? "В начало" : "По курсору"}
+                {m === "prepend" ? "Prepend" : "At cursor"}
               </button>
             ))}
           </div>
           <p className="text-[10px] leading-relaxed text-text-muted/60">
-            Куда <kbd className="font-mono">Ctrl+K</kbd> кладёт тело фразы: префиксом ко
-            всему промпту или в позицию каретки.
+            Where <kbd className="font-mono">Ctrl+K</kbd> puts the phrase body: as a prefix to
+            the whole prompt, or at the caret position.
           </p>
         </div>
 
         {/* терминальные таргеты */}
         <div className="space-y-3 pt-2 border-t border-border">
           <label className="text-[10px] uppercase tracking-widest text-text-muted/60">
-            Терминальные таргеты
+            Terminal targets
           </label>
 
           <p className="text-[10px] leading-relaxed text-text-muted/60">
-            Цель — агент herdr, агент Orca или tmux-окно. Выбирается через picker
-            (<kbd className="font-mono">Ctrl+Shift+Enter</kbd>) или привязкой таба
+            A target is a herdr agent, an Orca agent or a tmux window. Choose it via the picker
+            (<kbd className="font-mono">Ctrl+Shift+Enter</kbd>) or by binding the tab
             (<kbd className="font-mono">Ctrl+Alt+B</kbd>). <kbd className="font-mono">Ctrl+Enter</kbd>:
-            привязка → последний выбор → picker.
+            binding → last choice → picker.
           </p>
 
           <button
@@ -252,14 +252,14 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
             }}
             className="text-[11px] text-text-muted hover:text-accent transition-colors"
           >
-            Сбросить по умолчанию
+            Reset to defaults
           </button>
         </div>
       </div>
 
       {/* Footer */}
       <div className="px-4 py-2 border-t border-border text-[10px] text-text-muted/50 text-center">
-        Ctrl+, — открыть/закрыть
+        Ctrl+, — open/close
       </div>
     </aside>
   );

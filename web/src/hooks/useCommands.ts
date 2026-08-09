@@ -75,52 +75,52 @@ export function useCommands(deps: CommandDeps): Command[] {
   } = deps;
 
   return useMemo(() => addRegistryShortcuts([
-    { id: "new-tab", label: "Новый таб", action: () => useEditorStore.getState().createTab() },
-    { id: "close-tab", label: "Закрыть таб", action: () => {
+    { id: "new-tab", label: "New tab", action: () => useEditorStore.getState().createTab() },
+    { id: "close-tab", label: "Close tab", action: () => {
       const { activeTabId, closeTab } = useEditorStore.getState();
       if (activeTabId) closeTab(activeTabId);
     }},
-    { id: "close-other-tabs", label: "Закрыть остальные табы", action: () => {
+    { id: "close-other-tabs", label: "Close other tabs", action: () => {
       const { activeTabId, closeOtherTabs } = useEditorStore.getState();
       if (!activeTabId) return;
-      if (closeOtherTabs(activeTabId) === 0) toast("Нечего закрывать", "info");
+      if (closeOtherTabs(activeTabId) === 0) toast("Nothing to close", "info");
     }},
-    { id: "close-tabs-to-right", label: "Закрыть табы справа", action: () => {
+    { id: "close-tabs-to-right", label: "Close tabs to the right", action: () => {
       const { activeTabId, closeTabsToRight } = useEditorStore.getState();
       if (!activeTabId) return;
-      if (closeTabsToRight(activeTabId) === 0) toast("Нечего закрывать", "info");
+      if (closeTabsToRight(activeTabId) === 0) toast("Nothing to close", "info");
     }},
-    { id: "workspace-switch", label: "Workspace: переключить / создать…", action: openWorkspaceSwitcher },
-    { id: "workspace-move-tab", label: "Workspace: переместить таб…", action: moveActiveTabToWorkspace },
-    { id: "workspace-rename", label: "Workspace: переименовать…", action: renameActiveWorkspace },
-    { id: "workspace-delete", label: "Workspace: удалить…", action: deleteActiveWorkspace },
-    { id: "toggle-pin", label: "Закрепить/открепить таб", action: toggleActivePin },
-    { id: "cleanup-empty-tabs", label: "Очистить пустые табы", action: cleanupEmptyTabs },
-    { id: "reopen-tab", label: "Восстановить закрытый таб", action: () => useEditorStore.getState().reopenTab() },
-    { id: "tab-switcher", label: "Найти таб", action: () => setTabSwitcherOpen(true) },
-    { id: "global-search", label: "Глобальный поиск по табам", action: () => setGlobalSearchOpen(true) },
-    { id: "find", label: "Найти", action: () => setPanelMode("find") },
-    { id: "find-replace", label: "Найти и заменить", action: () => setPanelMode("findReplace") },
-    { id: "presets", label: "Пресеты замены", action: () => setSidePanel("presets") },
+    { id: "workspace-switch", label: "Workspace: switch / create…", action: openWorkspaceSwitcher },
+    { id: "workspace-move-tab", label: "Workspace: move tab…", action: moveActiveTabToWorkspace },
+    { id: "workspace-rename", label: "Workspace: rename…", action: renameActiveWorkspace },
+    { id: "workspace-delete", label: "Workspace: delete…", action: deleteActiveWorkspace },
+    { id: "toggle-pin", label: "Pin / unpin tab", action: toggleActivePin },
+    { id: "cleanup-empty-tabs", label: "Clean up empty tabs", action: cleanupEmptyTabs },
+    { id: "reopen-tab", label: "Reopen closed tab", action: () => useEditorStore.getState().reopenTab() },
+    { id: "tab-switcher", label: "Find tab", action: () => setTabSwitcherOpen(true) },
+    { id: "global-search", label: "Search across all tabs", action: () => setGlobalSearchOpen(true) },
+    { id: "find", label: "Find", action: () => setPanelMode("find") },
+    { id: "find-replace", label: "Find and replace", action: () => setPanelMode("findReplace") },
+    { id: "presets", label: "Replace presets", action: () => setSidePanel("presets") },
     { id: "reference", label: "Reference panel", action: () => toggleSidePanel("reference") },
-    { id: "trigger-phrases", label: "Фразы-триггеры", action: () => setTriggerPhrasesOpen(true) },
-    { id: "target-send", label: "Отправить промпт", action: handleSend },
-    { id: "target-pick", label: "Отправить в терминал (выбрать цель)", action: () => setTargetPicker({ mode: "send" }) },
-    { id: "target-bind", label: "Привязать таб к терминалу", action: bindActiveTab },
-    { id: "target-unbind", label: "Отвязать таб от терминала", action: unbindActiveTab },
-    { id: "save", label: "Записать сейчас (обычно само)", action: saveCurrentTab },
-    { id: "open", label: "Открыть файл", action: openFile },
-    { id: "download", label: "Скачать таб", action: downloadCurrentTab },
-    { id: "export", label: "Экспорт бэкапа", action: exportAll },
-    { id: "import", label: "Импорт бэкапа", action: importBackup },
-    { id: "distraction-free", label: "Distraction-free режим", action: toggleDistractionFree },
-    { id: "shortcuts", label: "Клавиатурные сокращения", action: () => setShortcutsOpen(true) },
-    { id: "theme-dark", label: "Тема: Тёмная", action: () => setTheme("dark") },
-    { id: "theme-light", label: "Тема: Светлая", action: () => setTheme("light") },
-    { id: "theme-system", label: "Тема: Системная", action: () => setTheme("system") },
-    { id: "toggle-sidebar", label: "Пресеты (sidebar)", action: () => toggleSidePanel("presets") },
-    { id: "toggle-md-preview", label: markdownPreview ? "Редактор" : "Markdown превью", action: () => setMarkdownPreview((v) => !v) },
-    { id: "settings", label: "Настройки", action: () => toggleSidePanel("settings") },
-    { id: "focus-editor", label: "Фокус в редактор", action: focusEditor },
+    { id: "trigger-phrases", label: "Trigger phrases", action: () => setTriggerPhrasesOpen(true) },
+    { id: "target-send", label: "Send prompt", action: handleSend },
+    { id: "target-pick", label: "Send to terminal (pick target)", action: () => setTargetPicker({ mode: "send" }) },
+    { id: "target-bind", label: "Bind tab to terminal", action: bindActiveTab },
+    { id: "target-unbind", label: "Unbind tab from terminal", action: unbindActiveTab },
+    { id: "save", label: "Write now (usually automatic)", action: saveCurrentTab },
+    { id: "open", label: "Open file", action: openFile },
+    { id: "download", label: "Download tab", action: downloadCurrentTab },
+    { id: "export", label: "Export backup", action: exportAll },
+    { id: "import", label: "Import backup", action: importBackup },
+    { id: "distraction-free", label: "Distraction-free mode", action: toggleDistractionFree },
+    { id: "shortcuts", label: "Keyboard shortcuts", action: () => setShortcutsOpen(true) },
+    { id: "theme-dark", label: "Theme: Dark", action: () => setTheme("dark") },
+    { id: "theme-light", label: "Theme: Light", action: () => setTheme("light") },
+    { id: "theme-system", label: "Theme: System", action: () => setTheme("system") },
+    { id: "toggle-sidebar", label: "Presets (sidebar)", action: () => toggleSidePanel("presets") },
+    { id: "toggle-md-preview", label: markdownPreview ? "Editor" : "Markdown preview", action: () => setMarkdownPreview((v) => !v) },
+    { id: "settings", label: "Settings", action: () => toggleSidePanel("settings") },
+    { id: "focus-editor", label: "Focus editor", action: focusEditor },
   ], shortcutOverrides), [saveCurrentTab, openFile, downloadCurrentTab, exportAll, importBackup, toggleDistractionFree, toggleSidePanel, setSidePanel, setPanelMode, setTheme, setTabSwitcherOpen, setGlobalSearchOpen, setTriggerPhrasesOpen, setShortcutsOpen, setMarkdownPreview, markdownPreview, focusEditor, cleanupEmptyTabs, toggleActivePin, handleSend, setTargetPicker, bindActiveTab, unbindActiveTab, openWorkspaceSwitcher, moveActiveTabToWorkspace, renameActiveWorkspace, deleteActiveWorkspace, shortcutOverrides]);
 }

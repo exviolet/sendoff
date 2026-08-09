@@ -11,25 +11,23 @@ export interface ReplacePreset {
 
 const DEFAULT_PRESETS: ReplacePreset[] = [
   {
-    id: "vy-my",
-    name: "Вы \u2192 Мы",
+    id: "you-we",
+    name: "You \u2192 We",
     pairs: [
-      { from: "Вы", to: "Мы", caseSensitive: true, wholeWord: true },
-      { from: "вы", to: "мы", caseSensitive: true, wholeWord: true },
-      { from: "Ваш", to: "Наш", caseSensitive: true, wholeWord: false },
-      { from: "ваш", to: "наш", caseSensitive: true, wholeWord: false },
-      { from: "Вашего", to: "Нашего", caseSensitive: true, wholeWord: false },
-      { from: "Вам", to: "Нам", caseSensitive: true, wholeWord: false },
+      { from: "You", to: "We", caseSensitive: true, wholeWord: true },
+      { from: "you", to: "we", caseSensitive: true, wholeWord: true },
+      { from: "Your", to: "Our", caseSensitive: true, wholeWord: true },
+      { from: "your", to: "our", caseSensitive: true, wholeWord: true },
     ],
   },
   {
-    id: "my-vy",
-    name: "Мы \u2192 Вы (обратно)",
+    id: "we-you",
+    name: "We \u2192 You (reverse)",
     pairs: [
-      { from: "Мы", to: "Вы", caseSensitive: true, wholeWord: true },
-      { from: "мы", to: "вы", caseSensitive: true, wholeWord: true },
-      { from: "Наш", to: "Ваш", caseSensitive: true, wholeWord: false },
-      { from: "наш", to: "ваш", caseSensitive: true, wholeWord: false },
+      { from: "We", to: "You", caseSensitive: true, wholeWord: true },
+      { from: "we", to: "you", caseSensitive: true, wholeWord: true },
+      { from: "Our", to: "Your", caseSensitive: true, wholeWord: true },
+      { from: "our", to: "your", caseSensitive: true, wholeWord: true },
     ],
   },
 ];

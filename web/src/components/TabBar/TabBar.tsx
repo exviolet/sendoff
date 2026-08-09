@@ -125,7 +125,7 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
   // Bulk-close теперь только СПРАШИВАЕТ: 0 — молча сообщаем, иначе показывается
   // диалог, и тост про результат печатает уже он (App).
   function reportRequested(n: number) {
-    if (n === 0) toast("Нечего закрывать", "info");
+    if (n === 0) toast("Nothing to close", "info");
   }
 
   useEffect(() => {
@@ -273,7 +273,7 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
       >
         {/* Pinned indicator */}
         {tab.pinned && (
-          <span className="shrink-0 text-accent" title="Закреплён">
+          <span className="shrink-0 text-accent" title="Pinned">
             <svg width="11" height="11" viewBox="0 0 16 16" fill="none">
               <path d="M5.5 2.5h5l-.8 4 2.3 2.3v1.2H8.7L8 14l-.7-4H4V8.8l2.3-2.3-.8-4z" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
@@ -411,7 +411,7 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
                   setDragOverId(null);
                   if (id) assignTabToGroup(id, group.id);
                 }}
-                title={group.collapsed ? `Развернуть «${group.name}»` : `Свернуть «${group.name}»`}
+                title={group.collapsed ? `Expand “${group.name}”` : `Collapse “${group.name}”`}
                 className="flex items-center gap-1.5 h-6 px-1.5 rounded-[4px] shrink-0 transition-colors duration-100 hover:bg-surface-hover/60"
               >
                 <span
@@ -450,7 +450,7 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
                   <span className="flex items-center gap-1 shrink-0 text-[9px] text-text-muted tabular-nums">
                     {seg.tabs.length}
                     {hasActive && (
-                      <span className="w-1 h-1 rounded-full bg-accent" title="Активный таб внутри" />
+                      <span className="w-1 h-1 rounded-full bg-accent" title="Active tab inside" />
                     )}
                   </span>
                 )}
@@ -486,8 +486,8 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
           >
             <button
               onClick={scrollToActive}
-              aria-label="Прокрутить к активному табу"
-              title="К активному табу (Ctrl+Shift+A)"
+              aria-label="Scroll to active tab"
+              title="Scroll to active tab (Ctrl+Shift+A)"
               className={`pointer-events-auto flex items-center justify-center h-6 w-5 rounded-[3px] text-accent hover:bg-surface-hover transition-colors duration-100 ${activeOff === "left" ? "ml-0.5" : "mr-0.5"}`}
             >
               {activeOff === "left" ? (
@@ -542,8 +542,8 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
               : "text-text-muted hover:text-text hover:bg-surface-hover"
             }
           `}
-          aria-label="Настройки"
-          title="Настройки (Ctrl+,)"
+          aria-label="Settings"
+          title="Settings (Ctrl+,)"
         >
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
             <circle cx="8" cy="8" r="2.5" stroke="currentColor" strokeWidth="1.3" />
@@ -555,8 +555,8 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
         <button
           onClick={onThemeToggle}
           className="flex items-center justify-center w-7 h-7 rounded-[4px] text-text-muted hover:text-text hover:bg-surface-hover transition-colors duration-150"
-          aria-label={`Тема: ${theme === "dark" ? "тёмная" : theme === "light" ? "светлая" : "системная"}`}
-          title={`Тема: ${theme === "dark" ? "тёмная" : theme === "light" ? "светлая" : "системная"} → ${theme === "dark" ? "светлая" : theme === "light" ? "системная" : "тёмная"}`}
+          aria-label={`Theme: ${theme === "dark" ? "dark" : theme === "light" ? "light" : "system"}`}
+          title={`Theme: ${theme === "dark" ? "dark" : theme === "light" ? "light" : "system"} → ${theme === "dark" ? "light" : theme === "light" ? "system" : "dark"}`}
         >
           {theme === "light" ? (
             <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
@@ -601,8 +601,8 @@ export function TabBar({ sidePanel, onSidePanelToggle, onDownloadTab, onExportAl
             flex items-center justify-center w-7 h-7 rounded-[4px] transition-colors duration-150
             text-text-muted hover:text-text hover:bg-surface-hover
           "
-          aria-label="Фразы-триггеры"
-          title="Фразы-триггеры (Ctrl+K)"
+          aria-label="Trigger phrases"
+          title="Trigger phrases (Ctrl+K)"
         >
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
             <rect x="2" y="2" width="12" height="12" rx="2.5" stroke="currentColor" strokeWidth="1.3" />
@@ -694,12 +694,12 @@ function GroupContextMenu({
   onCloseGroup: () => void;
 }) {
   const items = [
-    { label: group.collapsed ? "Развернуть группу" : "Свернуть группу", action: onToggleCollapsed },
-    { label: "Переименовать группу", action: onRename },
+    { label: group.collapsed ? "Expand group" : "Collapse group", action: onToggleCollapsed },
+    { label: "Rename group", action: onRename },
     // Расформировать ≠ закрыть: подписи обязаны различаться однозначно, иначе
     // пользователь однажды снесёт табы, думая что просто убирает группировку.
-    { label: "Расформировать (табы останутся)", action: onUngroup },
-    { label: "Закрыть все табы группы", action: onCloseGroup },
+    { label: "Disband (tabs stay)", action: onUngroup },
+    { label: "Close all tabs in group", action: onCloseGroup },
   ];
 
   return (
@@ -761,16 +761,16 @@ function TabContextMenu({
 }) {
   const targetItems = binding
     ? [
-        { label: "Перепривязать к терминалу…", action: onBindTarget },
-        { label: `Отвязать (${describeBinding(binding)})`, action: onUnbindTarget },
+        { label: "Rebind to terminal…", action: onBindTarget },
+        { label: `Unbind (${describeBinding(binding)})`, action: onUnbindTarget },
       ]
-    : [{ label: "Привязать к терминалу…", action: onBindTarget }];
+    : [{ label: "Bind to terminal…", action: onBindTarget }];
 
   const closeItems = [
-    { label: "Закрыть", action: onCloseTab, shortcut: "Ctrl+W" },
-    { label: "Закрыть остальные", action: onCloseOthers },
-    { label: "Закрыть справа", action: onCloseRight },
-    { label: "Закрыть пустые", action: onCleanupEmpty },
+    { label: "Close", action: onCloseTab, shortcut: "Ctrl+W" },
+    { label: "Close others", action: onCloseOthers },
+    { label: "Close to the right", action: onCloseRight },
+    { label: "Close empty", action: onCleanupEmpty },
   ];
 
   function renderItem(it: { label: string; action: () => void; shortcut?: string }) {
@@ -798,23 +798,23 @@ function TabContextMenu({
         {renderItem({
           // Пин и группа взаимоисключимы: подсказываем это прямо в подписи, чтобы
           // «таб выпрыгнул из группы» не выглядело сбоем (tasks/14, решение 1).
-          label: pinned ? "Открепить таб" : grouped ? "Закрепить таб (выйдет из группы)" : "Закрепить таб",
+          label: pinned ? "Unpin tab" : grouped ? "Pin tab (leaves the group)" : "Pin tab",
           action: onTogglePin,
           shortcut: "Ctrl+P",
         })}
         {renderItem({
-          label: selectedCount > 1 ? `В группу… (${selectedCount} таба)` : "В группу…",
+          label: selectedCount > 1 ? `Add to group… (${selectedCount} tabs)` : "Add to group…",
           action: onGroupTab,
           shortcut: "Ctrl+G",
         })}
         {grouped && renderItem({
-          label: selectedCount > 1 ? `Убрать из группы (${selectedCount})` : "Убрать из группы",
+          label: selectedCount > 1 ? `Remove from group (${selectedCount})` : "Remove from group",
           action: onUngroupTab,
         })}
         {renderItem({
           label: selectedCount > 1
-            ? `Переместить в workspace… (${selectedCount} таба)`
-            : "Переместить в workspace…",
+            ? `Move to workspace… (${selectedCount} tabs)`
+            : "Move to workspace…",
           action: onMoveToWorkspace,
         })}
       </div>
@@ -906,7 +906,7 @@ function DownloadButton({ onDownload }: { onDownload: (format: "txt" | "md") => 
             className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] tracking-wide text-text-muted hover:text-text hover:bg-surface-hover transition-colors whitespace-nowrap"
           >
             <span className="text-text-muted/60">.txt</span>
-            <span>Текстовый файл</span>
+            <span>Text file</span>
           </button>
           <button
             onClick={() => { onDownload("md"); setOpen(false); }}

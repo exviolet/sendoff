@@ -52,7 +52,7 @@ describe("describeError: причина не должна теряться", () 
 
   test("пусто во всех видах → честная заглушка, а не «undefined» в тосте", () => {
     for (const v of [undefined, null, "", "   ", new Error("")]) {
-      expect(describeError(v)).toBe("ошибка без описания");
+      expect(describeError(v)).toBe("error without description");
     }
   });
 

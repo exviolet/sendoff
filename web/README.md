@@ -101,7 +101,7 @@ keep the agent's reply pinned in the reference panel while you write the next on
 - Find & Replace with a real-time highlight overlay.
 - Bulk find & replace with a diff preview before applying.
 - **Replace presets** — reusable bulk-replacement rule sets (the original use
-  case: tone conversion, e.g. formal `Вы/Ваш` → collaborative `Мы/Наш`).
+  case: tone conversion, e.g. `You/Your` → collaborative `We/Our`).
 - Markdown preview, distraction-free mode, command palette (`Ctrl+Shift+P`).
 
 **Under the hood**

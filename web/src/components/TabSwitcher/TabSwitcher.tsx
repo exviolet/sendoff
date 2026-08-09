@@ -46,7 +46,7 @@ function firstContentLine(content: string) {
 
 function makePreview(tab: Tab) {
   const line = firstContentLine(tab.content) || tab.content.trim().replace(/\s+/g, " ");
-  if (!line) return "Пустой таб";
+  if (!line) return "Empty tab";
   return line.length > 80 ? `${line.slice(0, 77)}...` : line;
 }
 
@@ -246,11 +246,11 @@ export function TabSwitcher({ onClose }: TabSwitcherProps) {
       width="min(92vw, 980px)"
       footer={
         <PickerHint>
-          <span>↑↓ навигация</span>
-          <span>↵ открыть</span>
-          <span>Tab только привязанные</span>
-          <span>Ctrl+Del закрыть</span>
-          <span>Esc закрыть</span>
+          <span>↑↓ navigate</span>
+          <span>↵ open</span>
+          <span>Tab bound only</span>
+          <span>Ctrl+Del close</span>
+          <span>Esc close</span>
         </PickerHint>
       }
     >
@@ -261,7 +261,7 @@ export function TabSwitcher({ onClose }: TabSwitcherProps) {
           setQuery(v);
           setSelectedIndex(0);
         }}
-        placeholder={boundOnly ? "Найти привязанный таб..." : "Найти таб..."}
+        placeholder={boundOnly ? "Find a bound tab..." : "Find a tab..."}
         prefix={
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" className="text-text-muted shrink-0">
             <path d="M3 4h10M3 8h7M3 12h9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
@@ -278,9 +278,9 @@ export function TabSwitcher({ onClose }: TabSwitcherProps) {
             <button
               type="button"
               onClick={() => toggleBoundOnly(setSelectedIndex)}
-              aria-label="Только привязанные к терминалу"
+              aria-label="Bound to a terminal only"
               aria-pressed={boundOnly}
-              title="Только привязанные к терминалу — herdr / Orca / tmux (Tab)"
+              title="Bound to a terminal only — herdr / Orca / tmux (Tab)"
               className={`shrink-0 flex items-center justify-center w-7 h-6 rounded-[4px] border transition-colors ${
                 boundOnly
                   ? "border-accent/30 bg-accent/15 text-accent"
@@ -302,7 +302,7 @@ export function TabSwitcher({ onClose }: TabSwitcherProps) {
         <div ref={listRef} className="max-h-[52vh] overflow-y-auto py-1 md:border-r md:border-border">
           {results.length === 0 && (
             <div className="px-4 py-8 text-center text-text-muted text-xs">
-              {boundOnly && boundCount === 0 ? "Нет привязанных табов" : "Ничего не найдено"}
+              {boundOnly && boundCount === 0 ? "No bound tabs" : "No matches"}
             </div>
           )}
           {results.map((item, i) => {
@@ -331,7 +331,7 @@ export function TabSwitcher({ onClose }: TabSwitcherProps) {
                 <span className="min-w-0">
                   <span className="flex items-center gap-2 min-w-0">
                     <span className="truncate text-[13px] text-text">{highlightMatches(item.tab.title, item.source === "title" ? item.indices : [])}</span>
-                    {isActive && <span className="text-[10px] text-accent shrink-0">активный</span>}
+                    {isActive && <span className="text-[10px] text-accent shrink-0">active</span>}
                     {/* Метка группы: только цвет и имя, БЕЗ участия в fuzzy-скоринге —
                         иначе bestMatch пришлось бы расширять пятым источником
                         (tasks/14, решение 7). */}
@@ -340,7 +340,7 @@ export function TabSwitcher({ onClose }: TabSwitcherProps) {
                       <span
                         className="shrink-0 truncate max-w-[90px] text-[9px] leading-none"
                         style={{ color: `var(--color-group-${groupOf(item.tab)!.color})` }}
-                        title={`группа → ${groupOf(item.tab)!.name}`}
+                        title={`group → ${groupOf(item.tab)!.name}`}
                       >
                         {groupOf(item.tab)!.name}
                       </span>
@@ -348,7 +348,7 @@ export function TabSwitcher({ onClose }: TabSwitcherProps) {
                     {item.tab.binding && (
                       <span
                         className="shrink-0 px-1.5 py-0.5 rounded-[3px] bg-accent/10 text-accent text-[9px] font-mono leading-none"
-                        title={`терминал → ${bindingLabel(item.tab)}`}
+                        title={`terminal → ${bindingLabel(item.tab)}`}
                       >
                         {item.source === "binding"
                           ? highlightMatches(bindingLabel(item.tab), item.indices)
@@ -381,15 +381,15 @@ export function TabSwitcher({ onClose }: TabSwitcherProps) {
                     type="button"
                     onClick={() => closeSelected(selectedIndex, setSelectedIndex)}
                     className="h-6 px-2 rounded-[3px] border border-danger/20 bg-danger/10 text-[10px] text-danger hover:bg-danger/20 transition-colors shrink-0"
-                    title="Закрыть выбранный таб"
+                    title="Close selected tab"
                   >
-                    Закрыть
+                    Close
                   </button>
                 </div>
                 <div className="mt-1 flex items-center gap-2 text-[10px] text-text-muted/50">
-                  {selectedResult.tab.id === activeTabId && <span className="text-accent">активный</span>}
-                  {selectedResult.source === "content" && <span>совпадение в тексте</span>}
-                  {selectedResult.source === "binding" && <span>совпадение в привязке</span>}
+                  {selectedResult.tab.id === activeTabId && <span className="text-accent">active</span>}
+                  {selectedResult.source === "content" && <span>match in text</span>}
+                  {selectedResult.source === "binding" && <span>match in binding</span>}
                 </div>
               </div>
 
@@ -404,14 +404,14 @@ export function TabSwitcher({ onClose }: TabSwitcherProps) {
                   </div>
                 ) : (
                   <div className="h-full flex items-center justify-center rounded-md border border-dashed border-border text-xs text-text-muted/60">
-                    Пустой таб
+                    Empty tab
                   </div>
                 )}
               </div>
             </>
           ) : (
             <div className="flex flex-1 items-center justify-center text-xs text-text-muted/60">
-              Выберите таб
+              Select a tab
             </div>
           )}
         </aside>

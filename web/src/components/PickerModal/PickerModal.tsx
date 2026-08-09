@@ -43,9 +43,9 @@ export function PickerModal({
 function PickerFooter() {
   return (
     <div className="flex items-center gap-3 px-4 py-2 border-t border-border text-[10px] text-text-muted/50">
-      <span>↑↓ навигация</span>
-      <span>↵ выбрать</span>
-      <span>Esc закрыть</span>
+      <span>↑↓ navigate</span>
+      <span>↵ select</span>
+      <span>Esc close</span>
     </div>
   );
 }

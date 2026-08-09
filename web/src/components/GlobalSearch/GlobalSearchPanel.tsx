@@ -113,9 +113,9 @@ export function GlobalSearchPanel({ onClose, onOpenMatch }: GlobalSearchPanelPro
       paddingTop="10vh"
       footer={
         <PickerHint>
-          <span>↑↓ навигация</span>
-          <span>↵ открыть</span>
-          <span>Esc закрыть</span>
+          <span>↑↓ navigate</span>
+          <span>↵ open</span>
+          <span>Esc close</span>
         </PickerHint>
       }
     >
@@ -123,7 +123,7 @@ export function GlobalSearchPanel({ onClose, onOpenMatch }: GlobalSearchPanelPro
         inputRef={inputRef}
         value={query}
         onChange={setQuery}
-        placeholder="Поиск по всем табам..."
+        placeholder="Search across all tabs..."
         prefix={
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" className="text-text-muted shrink-0">
             <circle cx="7" cy="7" r="4" stroke="currentColor" strokeWidth="1.4" />
@@ -139,7 +139,7 @@ export function GlobalSearchPanel({ onClose, onOpenMatch }: GlobalSearchPanelPro
               .*
             </ToggleButton>
             <span className="text-[10px] text-text-muted/50 tabular-nums w-24 text-right">
-              {query.trim() ? `${totalMatches} совп.` : `${tabs.length} табов`}
+              {query.trim() ? `${totalMatches} matches` : `${tabs.length} tabs`}
             </span>
           </>
         }
@@ -148,13 +148,13 @@ export function GlobalSearchPanel({ onClose, onOpenMatch }: GlobalSearchPanelPro
       <div ref={listRef} className="max-h-[62vh] overflow-y-auto py-1">
         {!query.trim() && (
           <div className="px-4 py-10 text-center text-xs text-text-muted/60">
-            Введите текст для поиска по открытым табам
+            Type to search across open tabs
           </div>
         )}
 
         {query.trim() && groupedResults.length === 0 && (
           <div className="px-4 py-10 text-center text-xs text-text-muted/60">
-            Совпадений нет
+            No matches
           </div>
         )}
 
@@ -168,7 +168,7 @@ export function GlobalSearchPanel({ onClose, onOpenMatch }: GlobalSearchPanelPro
                   {workspaces.find((w) => w.id === group.tab.workspaceId)?.name ?? "?"}
                 </span>
               )}
-              {group.tab.id === activeTabId && <span className="text-[10px] text-accent shrink-0">активный</span>}
+              {group.tab.id === activeTabId && <span className="text-[10px] text-accent shrink-0">active</span>}
               <span className="ml-auto text-[10px] text-text-muted/50 tabular-nums shrink-0">
                 #{group.tabIndex + 1} · {group.matches.length}
               </span>

@@ -10,9 +10,9 @@ export interface TriggerPhrase {
 }
 
 export const DEFAULT_PHRASES: TriggerPhrase[] = [
-  { id: "direct", label: "Сделай напрямую", body: "Сделай напрямую:\n\n", order: 0 },
-  { id: "plan-then-act", label: "Короткий план + действие", body: "Сначала короткий план, потом делай:\n\n", order: 1 },
-  { id: "plan-only", label: "Только план", body: "Только план, без изменений:\n\n", order: 2 },
+  { id: "direct", label: "Do it directly", body: "Do it directly:\n\n", order: 0 },
+  { id: "plan-then-act", label: "Short plan + act", body: "Short plan first, then do it:\n\n", order: 1 },
+  { id: "plan-only", label: "Plan only", body: "Plan only, no changes:\n\n", order: 2 },
 ];
 
 interface TriggerPhrasesStore {

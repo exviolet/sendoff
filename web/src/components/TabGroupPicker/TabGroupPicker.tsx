@@ -109,9 +109,9 @@ export function TabGroupPicker({ onClose, tabId }: TabGroupPickerProps) {
       width="min(94vw, 560px)"
       footer={
         <PickerHint>
-          <span>↑↓ навигация</span>
-          <span>↵ в группу</span>
-          <span>Esc закрыть</span>
+          <span>↑↓ navigate</span>
+          <span>↵ add to group</span>
+          <span>Esc close</span>
         </PickerHint>
       }
     >
@@ -122,15 +122,15 @@ export function TabGroupPicker({ onClose, tabId }: TabGroupPickerProps) {
           setQuery(v);
           setSelectedIndex(0);
         }}
-        placeholder={batch.length > 1 ? `Положить ${batch.length} таба в группу или создать...` : "Положить таб в группу или создать..."}
-        prefix={<span className="text-[11px] font-mono text-accent shrink-0">группа</span>}
+        placeholder={batch.length > 1 ? `Add ${batch.length} tabs to a group or create...` : "Add tab to a group or create..."}
+        prefix={<span className="text-[11px] font-mono text-accent shrink-0">group</span>}
         suffix={<span className="text-[10px] text-text-muted/50 tabular-nums shrink-0">{rows.length}</span>}
       />
 
       <div ref={listRef} className="max-h-[58vh] overflow-y-auto py-1">
         {rows.length === 0 && !canCreate && !canUngroup && (
           <div className="px-4 py-10 text-center text-xs text-text-muted/60">
-            {query.trim() ? "Ничего не найдено" : "В этом workspace ещё нет групп"}
+            {query.trim() ? "No matches" : "No groups in this workspace yet"}
           </div>
         )}
 
@@ -154,8 +154,8 @@ export function TabGroupPicker({ onClose, tabId }: TabGroupPickerProps) {
               />
               <span className="min-w-0 flex items-center gap-2">
                 <span className="truncate text-[12px] text-text">{row.name}</span>
-                {isCurrent && <span className="shrink-0 text-[9px] text-accent">текущая</span>}
-                {row.collapsed && <span className="shrink-0 text-[9px] text-text-muted/60">свёрнута</span>}
+                {isCurrent && <span className="shrink-0 text-[9px] text-accent">current</span>}
+                {row.collapsed && <span className="shrink-0 text-[9px] text-text-muted/60">collapsed</span>}
               </span>
               <span className="text-[10px] text-text-muted/45 tabular-nums">{counts.get(row.id) ?? 0}</span>
             </button>
@@ -173,7 +173,7 @@ export function TabGroupPicker({ onClose, tabId }: TabGroupPickerProps) {
             `}
           >
             <span className="text-text-muted text-[13px] leading-none">−</span>
-            <span className="truncate text-[12px] text-text">Убрать из группы</span>
+            <span className="truncate text-[12px] text-text">Remove from group</span>
           </button>
         )}
 
@@ -188,7 +188,7 @@ export function TabGroupPicker({ onClose, tabId }: TabGroupPickerProps) {
             `}
           >
             <span className="text-accent text-[13px] leading-none">+</span>
-            <span className="truncate text-[12px] text-text">Новая группа «{trimmed}»</span>
+            <span className="truncate text-[12px] text-text">New group “{trimmed}”</span>
           </button>
         )}
       </div>

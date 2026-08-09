@@ -40,18 +40,18 @@ export type TabGroupColor = (typeof TAB_GROUP_COLORS)[number];
 // Ключи английские (они же имена CSS-переменных), подписи — для тултипов палитры:
 // на двенадцати цветах «accent» и «purple» на глаз уже не различить.
 export const TAB_GROUP_COLOR_LABELS: Record<TabGroupColor, string> = {
-  accent: "фиолетовый",
-  green: "зелёный",
-  yellow: "жёлтый",
-  red: "красный",
-  purple: "пурпурный",
-  gray: "серый",
-  blue: "синий",
-  orange: "оранжевый",
-  cyan: "голубой",
-  pink: "розовый",
-  lime: "лаймовый",
-  brown: "коричневый",
+  accent: "violet",
+  green: "green",
+  yellow: "yellow",
+  red: "red",
+  purple: "purple",
+  gray: "gray",
+  blue: "blue",
+  orange: "orange",
+  cyan: "cyan",
+  pink: "pink",
+  lime: "lime",
+  brown: "brown",
 };
 
 export interface TabGroup {
@@ -703,7 +703,7 @@ export const useEditorStore = create<EditorStore>((set, get) => {
     set((s) => {
       const group: TabGroup = {
         id: crypto.randomUUID(),
-        name: name.trim() || "Группа",
+        name: name.trim() || "Group",
         color,
         collapsed: false,
         workspaceId: s.activeWorkspaceId,

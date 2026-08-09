@@ -56,7 +56,7 @@ export function CommandPalette({ commands, onClose }: CommandPaletteProps) {
           setQuery(v);
           setSelectedIndex(0);
         }}
-        placeholder="Введите команду..."
+        placeholder="Type a command..."
         prefix={
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" className="text-text-muted shrink-0">
             <circle cx="7" cy="7" r="5" stroke="currentColor" strokeWidth="1.5" />
@@ -68,7 +68,7 @@ export function CommandPalette({ commands, onClose }: CommandPaletteProps) {
       <div ref={listRef} className="max-h-64 overflow-y-auto py-1">
         {filtered.length === 0 && (
           <div className="px-4 py-6 text-center text-text-muted text-xs">
-            Ничего не найдено
+            No matches
           </div>
         )}
         {filtered.map((item, i) => (

@@ -33,7 +33,7 @@ async function exportPreset(preset: ReplacePreset) {
     });
     if (path) {
       await writeTextFile(path, json);
-      toast(`Пресет экспортирован: ${preset.name}`, "success");
+      toast(`Preset exported: ${preset.name}`, "success");
     }
     return;
   }
@@ -45,7 +45,7 @@ async function exportPreset(preset: ReplacePreset) {
   a.download = fileName;
   a.click();
   URL.revokeObjectURL(url);
-  toast(`Пресет экспортирован: ${preset.name}`, "success");
+  toast(`Preset exported: ${preset.name}`, "success");
 }
 
 interface PresetsPanelProps {
@@ -87,7 +87,7 @@ export function PresetsPanel({ onClose }: PresetsPanelProps) {
     function processPresetData(raw: string) {
       const data: unknown = JSON.parse(raw);
       if (!isValidPreset(data)) {
-        setImportError("Неверный формат пресета");
+        setImportError("Invalid preset format");
         return;
       }
       const preset: ReplacePreset = {
@@ -102,7 +102,7 @@ export function PresetsPanel({ onClose }: PresetsPanelProps) {
       };
       addPreset(preset);
       setImportError(null);
-      toast(`Пресет импортирован: ${data.name}`, "success");
+      toast(`Preset imported: ${data.name}`, "success");
     }
 
     if (isTauri) {
@@ -116,7 +116,7 @@ export function PresetsPanel({ onClose }: PresetsPanelProps) {
         const raw = await readTextFile(path);
         processPresetData(raw);
       } catch {
-        setImportError("Ошибка чтения файла");
+        setImportError("Failed to read file");
       }
       return;
     }
@@ -132,7 +132,7 @@ export function PresetsPanel({ onClose }: PresetsPanelProps) {
         try {
           processPresetData(reader.result as string);
         } catch {
-          setImportError("Ошибка чтения файла");
+          setImportError("Failed to read file");
         }
       };
       reader.readAsText(file);
@@ -197,8 +197,8 @@ export function PresetsPanel({ onClose }: PresetsPanelProps) {
             <button
               onClick={toggleAll}
               className="flex items-center justify-center w-6 h-6 rounded-[3px] text-text-muted hover:text-text hover:bg-surface-hover transition-colors"
-              title={allExpanded ? "Скрыть все" : "Раскрыть все"}
-              aria-label={allExpanded ? "Скрыть все пресеты" : "Раскрыть все пресеты"}
+              title={allExpanded ? "Collapse all" : "Expand all"}
+              aria-label={allExpanded ? "Collapse all presets" : "Expand all presets"}
             >
               {allExpanded ? (
                 <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
@@ -357,7 +357,7 @@ export function PresetsPanel({ onClose }: PresetsPanelProps) {
             <button
               onClick={handleImportPreset}
               className="h-7 px-3 text-[10px] rounded-[4px] border border-dashed border-border text-text-muted hover:text-text hover:border-accent/30 transition-colors"
-              title="Импорт пресета из .json"
+              title="Import preset from .json"
             >
               Import
             </button>
@@ -378,7 +378,7 @@ function DiffPreviewPanel({ entries, totalCount, onConfirm, onCancel }: {
     <div className="mx-3 mt-2 border border-accent/20 rounded-[4px] bg-bg/50 animate-slide-down">
       <div className="px-2.5 py-1.5 border-b border-border/50">
         <span className="text-[10px] text-text-muted tracking-wide">
-          {totalCount > 0 ? `${totalCount} замен` : "Совпадений нет"}
+          {totalCount > 0 ? `${totalCount} replacements` : "No matches"}
         </span>
       </div>
 
@@ -401,13 +401,13 @@ function DiffPreviewPanel({ entries, totalCount, onConfirm, onCancel }: {
           disabled={totalCount === 0}
           className="flex-1 h-6 text-[10px] rounded-[3px] bg-accent/15 text-accent hover:bg-accent/25 disabled:opacity-30 disabled:pointer-events-none transition-colors"
         >
-          Применить
+          Apply
         </button>
         <button
           onClick={onCancel}
           className="flex-1 h-6 text-[10px] rounded-[3px] bg-surface-hover text-text-muted hover:text-text transition-colors"
         >
-          Отмена
+          Cancel
         </button>
       </div>
     </div>

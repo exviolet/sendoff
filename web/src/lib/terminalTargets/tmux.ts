@@ -9,7 +9,7 @@ const BUFFER_NAME = "rewrite-desktop";
 const run = (args: string[]) => runScoped("tmux", args, "tmux error");
 
 async function listSessions(): Promise<TmuxSessionInfo[]> {
-  if (!isTauri) throw new Error("tmux доступен только в desktop-сборке");
+  if (!isTauri) throw new Error("tmux is available only in the desktop build");
   const output = await run(["list-panes", "-a", "-F", TARGET_FIELDS]);
   return parseTmuxTargets(output.stdout);
 }

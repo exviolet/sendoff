@@ -18,7 +18,7 @@ interface OrcaAgent {
 // `worktree ps` даёт семантику агента (agentType/state/prompt/paneKey), `terminal list` —
 // send-хендл (term_…). Джоин по paneKey === `${tabId}:${leafId}`.
 async function listAgents(): Promise<OrcaAgent[]> {
-  if (!isTauri) throw new Error("Orca доступна только в desktop-сборке");
+  if (!isTauri) throw new Error("Orca is available only in the desktop build");
 
   const [psOut, listOut] = await Promise.all([
     run("orca-worktree-ps", ["worktree", "ps", "--json"]),
