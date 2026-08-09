@@ -16,7 +16,7 @@ interface HerdrAgent extends HerdrAgentRef {
 // В отличие от Orca джоин не нужен ради хендла (`agent list` уже отдаёт pane_id), но
 // нужен ради лейблов: в `agent list` только id (wK, wK:t1), имена — в других командах.
 async function listAgents(): Promise<HerdrAgent[]> {
-  if (!isTauri) throw new Error("Herdr доступен только в desktop-сборке");
+  if (!isTauri) throw new Error("Herdr is available only in the desktop build");
 
   const [agentsOut, wsOut, tabsOut] = await Promise.all([
     run("herdr-agent-list", ["agent", "list"]),

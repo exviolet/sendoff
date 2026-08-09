@@ -13,7 +13,7 @@ import {
 } from "../../lib/shortcuts";
 import { useSettingsStore } from "../../store/settingsStore";
 
-const GROUP_ORDER = ["Табы", "Редактирование", "Markdown", "Панели", "Файлы", "Справка"] as const;
+const GROUP_ORDER = ["Tabs", "Editing", "Markdown", "Panels", "Files", "Help"] as const;
 type ShortcutGroup = (typeof GROUP_ORDER)[number];
 
 // Эти строки описывают семантику ввода и структурный выход, а не команды.
@@ -23,12 +23,12 @@ const NON_COMMAND_SHORTCUTS: Partial<
   Record<ShortcutGroup, readonly { keys: string; action: string }[]>
 > = {
   Markdown: [
-    { keys: "Tab", action: "Отступ / вложить пункт списка" },
-    { keys: "Shift+Tab", action: "Убрать отступ" },
-    { keys: "Enter", action: "Продолжить список или цитату" },
-    { keys: "`", action: "Обернуть выделение (третий подряд — блок кода)" },
+    { keys: "Tab", action: "Indent / nest list item" },
+    { keys: "Shift+Tab", action: "Outdent" },
+    { keys: "Enter", action: "Continue list or quote" },
+    { keys: "`", action: "Wrap selection (third in a row — code block)" },
   ],
-  Панели: [{ keys: "Escape", action: "Закрыть панели" }],
+  Panels: [{ keys: "Escape", action: "Close panels" }],
 };
 
 type Recording = { commandId: ShortcutCommandId; chord: Chord };
@@ -108,8 +108,8 @@ export function ShortcutsModal({ onClose }: { onClose: () => void }) {
       if (!result.ok) {
         setError(
           result.reason === "would-unbind-shortcuts"
-            ? "Это единственная комбинация для списка хоткеев — иначе окно станет недоступно."
-            : "Такое сочетание назначить нельзя.",
+            ? "This is the only chord for the shortcuts list — otherwise the window becomes unreachable."
+            : "That chord cannot be assigned.",
         );
         setRecording(null);
         return;
@@ -149,14 +149,14 @@ export function ShortcutsModal({ onClose }: { onClose: () => void }) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-5 py-3 border-b border-border">
-          <h2 className="text-sm font-medium text-text">Клавиатурные сокращения</h2>
+          <h2 className="text-sm font-medium text-text">Keyboard shortcuts</h2>
           <div className="flex items-center gap-2">
             {hasOverrides && (
               <button
                 onClick={() => apply(resetAllShortcuts())}
                 className="text-[10px] text-text-muted hover:text-text px-2 py-1 rounded hover:bg-surface-hover transition-colors"
               >
-                Сбросить все
+                Reset all
               </button>
             )}
             <button
@@ -174,26 +174,26 @@ export function ShortcutsModal({ onClose }: { onClose: () => void }) {
           <div className="px-5 py-2 border-b border-border bg-surface-hover/40 text-[11px]">
             {recording && (
               <span className="text-accent">
-                Нажми новое сочетание для «{labelOf(recording.commandId)}» — Esc отменит.
+                Press a new chord for “{labelOf(recording.commandId)}” — Esc cancels.
               </span>
             )}
             {conflict && (
               <div className="flex items-center justify-between gap-3">
                 <span className="text-text-muted">
-                  {formatChord(conflict.newChord)} занят: «{conflict.ownerLabel}». Отобрать?
+                  {formatChord(conflict.newChord)} is taken by “{conflict.ownerLabel}”. Reassign?
                 </span>
                 <div className="flex gap-1 shrink-0">
                   <button
                     onClick={() => setConflict(null)}
                     className="px-2 py-0.5 rounded border border-border text-text-muted hover:text-text"
                   >
-                    Отмена
+                    Cancel
                   </button>
                   <button
                     onClick={confirmSteal}
                     className="px-2 py-0.5 rounded bg-accent/15 text-accent hover:bg-accent/25"
                   >
-                    Отобрать
+                    Reassign
                   </button>
                 </div>
               </div>
@@ -221,14 +221,14 @@ export function ShortcutsModal({ onClose }: { onClose: () => void }) {
                           {changed && (
                             <button
                               onClick={() => apply(resetShortcut(overrides, command.id))}
-                              title="Вернуть сочетание по умолчанию"
+                              title="Restore default chord"
                               className="text-[10px] text-text-muted/60 hover:text-text px-1"
                             >
                               ↺
                             </button>
                           )}
                           {chords.length === 0 && (
-                            <span className="text-[10px] text-text-muted/40 italic">не назначено</span>
+                            <span className="text-[10px] text-text-muted/40 italic">unassigned</span>
                           )}
                           {chords.map((chord) => {
                             const isRecording =
@@ -242,14 +242,14 @@ export function ShortcutsModal({ onClose }: { onClose: () => void }) {
                                   setConflict(null);
                                   setRecording({ commandId: command.id, chord });
                                 }}
-                                title="Нажми, чтобы перевесить"
+                                title="Click to rebind"
                                 className={`text-[10px] px-2 py-0.5 rounded border font-mono transition-colors ${
                                   isRecording
                                     ? "border-accent text-accent bg-accent/10 animate-pulse"
                                     : "border-border/50 bg-surface-hover text-text-muted/80 hover:border-accent/50 hover:text-text"
                                 }`}
                               >
-                                {isRecording ? "жду…" : formatChord(chord)}
+                                {isRecording ? "waiting…" : formatChord(chord)}
                               </button>
                             );
                           })}

@@ -17,7 +17,7 @@ export async function runScoped(
   const output = await Command.create(scopedName, args).execute();
 
   if (output.code !== 0) {
-    const detail = output.stderr.trim() || output.stdout.trim() || `код ${output.code ?? "unknown"}`;
+    const detail = output.stderr.trim() || output.stdout.trim() || `exit code ${output.code ?? "unknown"}`;
     throw new Error(`${errorPrefix}: ${detail}`);
   }
 
@@ -33,14 +33,14 @@ export async function runScoped(
 // 2-го пользователя оказался нерасследуемым — «Неизвестная ошибка» без единой
 // детали. Заглушка остаётся только на случай, когда показывать реально нечего.
 export function describeError(error: unknown): string {
-  if (error == null) return "ошибка без описания"; // иначе тост скажет «undefined»
+  if (error == null) return "error without description"; // иначе тост скажет «undefined»
   const text =
     error instanceof Error
       ? error.message
       : typeof error === "string"
         ? error
         : safeStringify(error);
-  return text.trim() || "ошибка без описания";
+  return text.trim() || "error without description";
 }
 
 function safeStringify(value: unknown): string {

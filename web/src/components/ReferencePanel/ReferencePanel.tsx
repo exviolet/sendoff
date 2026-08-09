@@ -68,7 +68,7 @@ export function ReferencePanel({ onClose, textareaRef }: ReferencePanelProps) {
   function insertIntoPrompt() {
     const reference = text.trim();
     if (!reference) {
-      toast("Reference пустой", "info");
+      toast("Reference is empty", "info");
       return;
     }
 
@@ -91,7 +91,7 @@ export function ReferencePanel({ onClose, textareaRef }: ReferencePanelProps) {
       textareaRef.current?.focus();
       textareaRef.current?.setSelectionRange(cursor, cursor);
     });
-    toast("Reference вставлен в prompt", "success");
+    toast("Reference inserted into prompt", "success");
   }
 
   return (
@@ -102,7 +102,7 @@ export function ReferencePanel({ onClose, textareaRef }: ReferencePanelProps) {
       <div
         onMouseDown={handleResizeStart}
         className="absolute inset-y-0 -left-0.5 w-1 cursor-col-resize hover:bg-accent/40 active:bg-accent/60 transition-colors z-30"
-        title="Перетащите, чтобы изменить ширину"
+        title="Drag to resize"
       />
 
       <div className="flex items-center justify-between h-9 px-3 border-b border-border shrink-0">
@@ -112,7 +112,7 @@ export function ReferencePanel({ onClose, textareaRef }: ReferencePanelProps) {
         <button
           onClick={onClose}
           className="flex items-center justify-center w-5 h-5 rounded text-text-muted hover:text-text hover:bg-surface-hover transition-colors"
-          title="Закрыть"
+          title="Close"
         >
           <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
             <path
@@ -129,7 +129,7 @@ export function ReferencePanel({ onClose, textareaRef }: ReferencePanelProps) {
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder="Временный контекст, требования, ошибка, факты для промпта..."
+          placeholder="Scratch context, requirements, an error, facts for the prompt..."
           // Шаг меньше редактора — панель остаётся вторичной поверхностью, но следует
           // настройке размера (раньше была прибита к 12px и не менялась вовсе).
           style={{ fontSize: "calc(var(--editor-font-size, 13px) - 1px)" }}
@@ -142,19 +142,19 @@ export function ReferencePanel({ onClose, textareaRef }: ReferencePanelProps) {
             disabled={!text.trim()}
             className="h-8 text-[11px] bg-accent/20 text-accent hover:bg-accent/30 rounded transition-colors disabled:opacity-40"
           >
-            Вставить
+            Insert
           </button>
           <button
             onClick={clear}
             disabled={!text}
             className="h-8 text-[11px] text-text-muted hover:text-danger hover:bg-danger/10 rounded transition-colors disabled:opacity-40"
           >
-            Очистить
+            Clear
           </button>
         </div>
 
         <div className="text-[10px] leading-relaxed text-text-muted/60">
-          Текст хранится локально и не привязан к табам.
+          Text is stored locally and is not tied to any tab.
         </div>
       </div>
     </aside>

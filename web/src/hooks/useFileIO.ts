@@ -12,7 +12,7 @@ export function useFileIO() {
   // честный flush: дожать отложенную запись немедленно.
   async function saveCurrentTab() {
     await flushSession();
-    toast("Записано", "success");
+    toast("Written", "success");
   }
 
   async function downloadCurrentTab(format: "txt" | "md" = "txt") {
@@ -33,11 +33,11 @@ export function useFileIO() {
         });
         if (path) {
           await writeTextFile(path, tab.content);
-          toast(`Сохранено: ${baseName}${ext}`, "success");
+          toast(`Saved: ${baseName}${ext}`, "success");
         }
       } catch (err) {
         console.error("[Tauri] Failed to save file:", err);
-        toast("Ошибка сохранения файла", "error");
+        toast("Failed to save file", "error");
       }
       return;
     }
@@ -50,7 +50,7 @@ export function useFileIO() {
     a.download = `${baseName}${ext}`;
     a.click();
     URL.revokeObjectURL(url);
-    toast(`Сохранено: ${baseName}${ext}`, "success");
+    toast(`Saved: ${baseName}${ext}`, "success");
   }
 
   async function openFile() {
@@ -65,10 +65,10 @@ export function useFileIO() {
         const content = await readTextFile(path as string);
         const fileName = (path as string).split(/[\\/]/).pop() ?? "Untitled";
         useEditorStore.getState().addTabFromFile(fileName, content);
-        toast(`Открыт: ${fileName}`, "success");
+        toast(`Opened: ${fileName}`, "success");
       } catch (err) {
         console.error("[Tauri] Failed to read file:", err);
-        toast("Ошибка чтения файла", "error");
+        toast("Failed to read file", "error");
       }
       return;
     }
@@ -83,7 +83,7 @@ export function useFileIO() {
       reader.onload = () => {
         const content = reader.result as string;
         useEditorStore.getState().addTabFromFile(file.name, content);
-        toast(`Открыт: ${file.name}`, "success");
+        toast(`Opened: ${file.name}`, "success");
       };
       reader.readAsText(file);
     };
@@ -108,11 +108,11 @@ export function useFileIO() {
         });
         if (path) {
           await writeTextFile(path, data);
-          toast("Бэкап экспортирован", "success");
+          toast("Backup exported", "success");
         }
       } catch (err) {
         console.error("[Tauri] Failed to export:", err);
-        toast("Ошибка экспорта", "error");
+        toast("Export failed", "error");
       }
       return;
     }
@@ -124,7 +124,7 @@ export function useFileIO() {
     a.download = "rewrite-backup.json";
     a.click();
     URL.revokeObjectURL(url);
-    toast("Бэкап экспортирован", "success");
+    toast("Backup exported", "success");
   }
 
   async function importBackup() {
@@ -139,10 +139,10 @@ export function useFileIO() {
         const raw = await readTextFile(path as string);
         const data = JSON.parse(raw);
         hydrateFromBackup(data);
-        toast("Бэкап импортирован", "success");
+        toast("Backup imported", "success");
       } catch (err) {
         console.error("[Tauri] Failed to import backup:", err);
-        toast("Ошибка импорта бэкапа", "error");
+        toast("Backup import failed", "error");
       }
       return;
     }
@@ -158,9 +158,9 @@ export function useFileIO() {
         try {
           const data = JSON.parse(reader.result as string);
           hydrateFromBackup(data);
-          toast("Бэкап импортирован", "success");
+          toast("Backup imported", "success");
         } catch {
-          toast("Неверный формат файла", "error");
+          toast("Invalid file format", "error");
         }
       };
       reader.readAsText(file);

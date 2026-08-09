@@ -44,14 +44,14 @@ export function useTerminalActions(textareaRef: RefObject<HTMLTextAreaElement | 
       const provider = providerBySource(source);
       try {
         const where = await provider.send(handle, text, autoSubmit);
-        toast(`Отправлено в ${provider.label}: ${where} (${text.length} симв.)`, "success");
+        toast(`Sent to ${provider.label}: ${where} (${text.length} chars)`, "success");
       } catch (error) {
         // describeError, а не `instanceof Error`: у не-Error тут была заглушка
         // «Неизвестная ошибка», и настоящая причина сбоя терялась (см. коммент
         // у самой функции). Формулировки провайдеров (`herdr error: …`) приходят
         // Error'ом и выглядят как раньше.
         toast(`${provider.label}: ${describeError(error)}`, "error");
-        console.error(`[${provider.label}] отправка не удалась`, error);
+        console.error(`[${provider.label}] send failed`, error);
       }
     },
     [autoSubmit],
@@ -63,14 +63,14 @@ export function useTerminalActions(textareaRef: RefObject<HTMLTextAreaElement | 
     if (text === null) return;
 
     if (!text) {
-      toast("Нечего отправлять", "info");
+      toast("Nothing to send", "info");
       return;
     }
 
     // Браузер: shell недоступен — единый clipboard-фолбэк вместо трёх копий.
     if (!isTauri) {
       await navigator.clipboard.writeText(text);
-      toast(`Скопировано: ${text.length} симв.`, "success");
+      toast(`Copied: ${text.length} chars`, "success");
       return;
     }
 
@@ -87,13 +87,13 @@ export function useTerminalActions(textareaRef: RefObject<HTMLTextAreaElement | 
       if (resolution.kind === "ambiguous") {
         // Не угадываем: промпт чужому агенту хуже лишнего клика. Зовём перепривязать —
         // новая привязка запомнит уникальный ключ и станет однозначной.
-        toast(`${provider.label}: целей «${where}» несколько (${resolution.count}) — привяжи заново`, "error");
+        toast(`${provider.label}: several targets named “${where}” (${resolution.count}) — rebind the tab`, "error");
         setTargetPicker({ mode: "bind", tabId: tab.id });
         return;
       }
 
       if (resolution.kind === "not-found") {
-        toast(`${provider.label}: цель «${where}» не найдена — выбери другую`, "info");
+        toast(`${provider.label}: target “${where}” not found — pick another`, "info");
         setTargetPicker({ mode: "send" });
         return;
       }
@@ -128,7 +128,7 @@ export function useTerminalActions(textareaRef: RefObject<HTMLTextAreaElement | 
 
       if (picker.mode === "bind") {
         useEditorStore.getState().setTabBinding(picker.tabId, target.binding);
-        toast(`Таб привязан: ${describeBinding(target.binding)}`, "success");
+        toast(`Tab bound: ${describeBinding(target.binding)}`, "success");
         return;
       }
 
@@ -158,12 +158,12 @@ export function useTerminalActions(textareaRef: RefObject<HTMLTextAreaElement | 
     const tab = tabs.find((t) => t.id === activeTabId);
     if (!tab) return;
     if (!tab.binding) {
-      toast("Таб не привязан к терминалу", "info");
+      toast("Tab is not bound to a terminal", "info");
       return;
     }
     const where = describeBinding(tab.binding);
     useEditorStore.getState().setTabBinding(tab.id, null);
-    toast(`Таб отвязан: ${where}`, "success");
+    toast(`Tab unbound: ${where}`, "success");
   }, []);
 
   return {

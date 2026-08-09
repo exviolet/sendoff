@@ -110,9 +110,9 @@ export function TargetPicker({ onClose, onPick, mode = "send" }: TargetPickerPro
       width="min(94vw, 640px)"
       footer={
         <PickerHint>
-          <span>↑↓ навигация</span>
-          <span>↵ {mode === "bind" ? "привязать" : "отправить"}</span>
-          <span>Esc закрыть</span>
+          <span>↑↓ navigate</span>
+          <span>↵ {mode === "bind" ? "bind" : "send"}</span>
+          <span>Esc close</span>
         </PickerHint>
       }
     >
@@ -120,7 +120,7 @@ export function TargetPicker({ onClose, onPick, mode = "send" }: TargetPickerPro
         inputRef={inputRef}
         value={query}
         onChange={setQuery}
-        placeholder={mode === "bind" ? "Привязать таб к терминалу..." : "Выбрать цель для отправки..."}
+        placeholder={mode === "bind" ? "Bind tab to a terminal..." : "Pick a target to send to..."}
         prefix={<span className="text-[11px] font-mono text-accent shrink-0">target</span>}
         suffix={
           <span className="text-[10px] text-text-muted/50 tabular-nums shrink-0">
@@ -131,15 +131,15 @@ export function TargetPicker({ onClose, onPick, mode = "send" }: TargetPickerPro
 
       <div ref={listRef} className="max-h-[58vh] overflow-y-auto py-1">
         {loading && (
-          <div className="px-4 py-10 text-center text-xs text-text-muted/60">Опрос терминалов...</div>
+          <div className="px-4 py-10 text-center text-xs text-text-muted/60">Polling terminals...</div>
         )}
 
         {!loading && rows.length === 0 && (
           <div className="px-4 py-10 text-center text-xs text-text-muted/60">
-            {query.trim() ? "Ничего не найдено" : "Нет доступных целей"}
+            {query.trim() ? "No matches" : "No targets available"}
             {!query.trim() && (
               <div className="mt-1 text-[10px] text-text-muted/40">
-                Ни herdr, ни Orca, ни tmux не отвечают
+                Neither herdr, Orca nor tmux is responding
               </div>
             )}
           </div>

@@ -14,11 +14,11 @@ const STATUS_COLOR: Record<string, string> = {
 };
 
 const STATUS_LABEL: Record<string, string> = {
-  working: "работает",
-  blocked: "ждёт ответа",
-  waiting: "ждёт ответа",
-  idle: "свободен",
-  done: "готово",
+  working: "working",
+  blocked: "waiting for you",
+  waiting: "waiting for you",
+  idle: "idle",
+  done: "done",
 };
 
 // Состояния, которые ждут ДЕЙСТВИЯ ПОЛЬЗОВАТЕЛЯ, а не просто сообщают о себе.
@@ -51,14 +51,14 @@ export function StatusBar({ onBindTarget, onWorkspaceSwitch }: StatusBarProps) {
   const binding = tab.binding;
   const bindingLabel = binding ? describeBinding(binding) : null;
   const bindTitle = binding
-    ? `Привязан: ${bindingLabel} — Ctrl+Alt+B перепривязать, Ctrl+Alt+Shift+B отвязать`
-    : "Не привязан — Ctrl+Alt+B привязать к терминалу";
+    ? `Bound: ${bindingLabel} — Ctrl+Alt+B to rebind, Ctrl+Alt+Shift+B to unbind`
+    : "Not bound — Ctrl+Alt+B to bind a terminal";
 
   return (
     <footer className="flex items-center h-6 px-3 bg-surface border-t border-border text-[10px] tracking-wide text-text-muted shrink-0 select-none gap-4">
       <button
         onClick={onWorkspaceSwitch}
-        title="Активный workspace — Ctrl+Shift+W переключить"
+        title="Active workspace — Ctrl+Shift+W to switch"
         className="flex items-center gap-1 px-1.5 h-4 rounded-[3px] text-accent bg-accent/10 hover:bg-accent/20 transition-colors max-w-[160px]"
       >
         <svg width="11" height="11" viewBox="0 0 16 16" fill="none">
@@ -79,14 +79,14 @@ export function StatusBar({ onBindTarget, onWorkspaceSwitch }: StatusBarProps) {
         <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
           <path d="M6.5 9.5l3-3M7 4.5l1-1a2.5 2.5 0 0 1 3.5 3.5l-1 1M9 11.5l-1 1a2.5 2.5 0 0 1-3.5-3.5l1-1" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
-        <span className="tabular-nums">{binding ? bindingLabel : "привязать"}</span>
+        <span className="tabular-nums">{binding ? bindingLabel : "bind"}</span>
       </button>
 
       {/* Живой статус привязанного агента. tmux статусов не отдаёт — чипа просто нет. */}
       {binding && status && (
         <span
           className="flex items-center gap-1.5 -ml-2.5"
-          title={`Агент: ${STATUS_LABEL[status] ?? status}`}
+          title={`Agent: ${STATUS_LABEL[status] ?? status}`}
         >
           <span
             className={`

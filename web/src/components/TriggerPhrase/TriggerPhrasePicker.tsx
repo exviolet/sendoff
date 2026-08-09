@@ -164,7 +164,7 @@ export function TriggerPhrasePicker({ onClose, textareaRef }: TriggerPhrasePicke
                   setQuery(e.target.value);
                   setSelectedIndex(0);
                 }}
-                placeholder="Фраза-триггер..."
+                placeholder="Trigger phrase..."
                 className="flex-1 bg-transparent text-text text-sm outline-none placeholder:text-text-muted/50"
               />
               <span className="text-[10px] text-text-muted/50 tabular-nums shrink-0">{results.length}</span>
@@ -173,7 +173,7 @@ export function TriggerPhrasePicker({ onClose, textareaRef }: TriggerPhrasePicke
             <div ref={listRef} className="max-h-[48vh] overflow-y-auto py-1">
               {results.length === 0 && (
                 <div className="px-4 py-8 text-center text-text-muted text-xs">
-                  {phrases.length === 0 ? "Нет фраз — создай первую" : "Ничего не найдено"}
+                  {phrases.length === 0 ? "No phrases yet — create the first one" : "No matches"}
                 </div>
               )}
               {results.map((p, i) => {
@@ -203,15 +203,15 @@ export function TriggerPhrasePicker({ onClose, textareaRef }: TriggerPhrasePicke
 
             <div className="flex items-center justify-between gap-3 px-4 py-2 border-t border-border">
               <div className="flex items-center gap-3 text-[10px] text-text-muted/50">
-                <span>↑↓ навигация</span>
-                <span>↵ вставить</span>
-                <span>Esc закрыть</span>
+                <span>↑↓ navigate</span>
+                <span>↵ insert</span>
+                <span>Esc close</span>
               </div>
               <button
                 onClick={startNew}
                 className="text-[11px] text-text-muted hover:text-accent transition-colors"
               >
-                + Новая фраза
+                + New phrase
               </button>
             </div>
           </>
@@ -219,33 +219,33 @@ export function TriggerPhrasePicker({ onClose, textareaRef }: TriggerPhrasePicke
           <div className="flex flex-col">
             <div className="flex items-center justify-between px-4 py-3 border-b border-border">
               <span className="text-[11px] tracking-wide text-text-muted uppercase">
-                {mode === "new" ? "Новая фраза" : "Редактировать фразу"}
+                {mode === "new" ? "New phrase" : "Edit phrase"}
               </span>
               <button onClick={() => setMode("list")} className="text-text-muted hover:text-text text-xs">
-                Назад
+                Back
               </button>
             </div>
             <div className="p-4 flex flex-col gap-3">
               <label className="flex flex-col gap-1">
-                <span className="text-[10px] uppercase tracking-wider text-text-muted">Название</span>
+                <span className="text-[10px] uppercase tracking-wider text-text-muted">Name</span>
                 <input
                   value={editLabel}
                   onChange={(e) => setEditLabel(e.target.value)}
                   autoFocus
                   className="bg-bg border border-border rounded px-2 py-1.5 text-[12px] text-text outline-none focus:border-accent/50"
-                  placeholder="Только план"
+                  placeholder="Plan only"
                 />
               </label>
               <label className="flex flex-col gap-1">
-                <span className="text-[10px] uppercase tracking-wider text-text-muted">Префикс</span>
+                <span className="text-[10px] uppercase tracking-wider text-text-muted">Prefix</span>
                 <textarea
                   value={editBody}
                   onChange={(e) => setEditBody(e.target.value)}
                   rows={4}
                   className="bg-bg border border-border rounded px-2 py-1.5 text-[12px] text-text outline-none focus:border-accent/50 resize-none leading-relaxed font-mono"
-                  placeholder={"Только план, без изменений:\n\n"}
+                  placeholder={"Plan only, no changes:\n\n"}
                 />
-                <span className="text-[10px] text-text-muted/60">Вставляется в начало промпта как есть.</span>
+                <span className="text-[10px] text-text-muted/60">Inserted at the start of the prompt as is.</span>
               </label>
             </div>
             <div className="px-4 py-3 border-t border-border flex gap-2">
@@ -254,7 +254,7 @@ export function TriggerPhrasePicker({ onClose, textareaRef }: TriggerPhrasePicke
                   onClick={removeCurrent}
                   className="px-2 py-1.5 text-[11px] text-danger hover:bg-danger/10 rounded transition-colors"
                 >
-                  Удалить
+                  Delete
                 </button>
               )}
               <div className="flex-1" />
@@ -263,7 +263,7 @@ export function TriggerPhrasePicker({ onClose, textareaRef }: TriggerPhrasePicke
                 disabled={!editLabel.trim() || !editBody}
                 className="px-3 py-1.5 text-[11px] bg-accent/20 text-accent hover:bg-accent/30 rounded transition-colors disabled:opacity-40"
               >
-                Сохранить
+                Save
               </button>
             </div>
           </div>

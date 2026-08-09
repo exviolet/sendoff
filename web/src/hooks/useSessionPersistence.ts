@@ -41,7 +41,7 @@ export function useSessionPersistence() {
     }).catch(() => {
       // Leave isHydrated=false on purpose: blocks the persist effect below, so a
       // failed read can't clobber existing IndexedDB data with empty defaults.
-      toast("Не удалось загрузить сессию из хранилища", "error");
+      toast("Failed to load session from storage", "error");
     });
   }, []);
 
@@ -100,7 +100,7 @@ function writeSession(): Promise<void> {
       // Throttle: one toast per failure streak, not every 500ms tick.
       if (!saveErrorShown) {
         saveErrorShown = true;
-        toast("Не удалось сохранить сессию", "error");
+        toast("Failed to save session", "error");
       }
     });
 }

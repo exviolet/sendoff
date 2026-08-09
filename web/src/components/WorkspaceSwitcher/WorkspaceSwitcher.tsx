@@ -70,9 +70,9 @@ export function WorkspaceSwitcher({ onClose, mode, onPick }: WorkspaceSwitcherPr
       width="min(94vw, 560px)"
       footer={
         <PickerHint>
-          <span>↑↓ навигация</span>
-          <span>↵ {mode === "move" ? "переместить" : "переключить"}</span>
-          <span>Esc закрыть</span>
+          <span>↑↓ navigate</span>
+          <span>↵ {mode === "move" ? "move" : "switch"}</span>
+          <span>Esc close</span>
         </PickerHint>
       }
     >
@@ -83,14 +83,14 @@ export function WorkspaceSwitcher({ onClose, mode, onPick }: WorkspaceSwitcherPr
           setQuery(v);
           setSelectedIndex(0);
         }}
-        placeholder={mode === "move" ? "Переместить таб в workspace..." : "Переключить workspace или создать..."}
+        placeholder={mode === "move" ? "Move tab to a workspace..." : "Switch workspace or create..."}
         prefix={<span className="text-[11px] font-mono text-accent shrink-0">workspace</span>}
         suffix={<span className="text-[10px] text-text-muted/50 tabular-nums shrink-0">{rows.length}</span>}
       />
 
       <div ref={listRef} className="max-h-[58vh] overflow-y-auto py-1">
         {rows.length === 0 && !canCreate && (
-          <div className="px-4 py-10 text-center text-xs text-text-muted/60">Ничего не найдено</div>
+          <div className="px-4 py-10 text-center text-xs text-text-muted/60">No matches</div>
         )}
 
         {rows.map((row, index) => {
@@ -133,7 +133,7 @@ export function WorkspaceSwitcher({ onClose, mode, onPick }: WorkspaceSwitcherPr
           >
             <span className="text-accent text-[13px] leading-none">+</span>
             <span className="truncate text-[12px] text-text">
-              Новый workspace «{trimmed}»
+              New workspace “{trimmed}”
             </span>
           </button>
         )}

@@ -223,10 +223,10 @@ export function FindReplacePanel({ mode, onClose, onMatchesChange }: FindReplace
               <>
                 <div className="flex-1 text-[10px] text-text-muted">
                   {activeBulkPairs.length === 0
-                    ? "Добавь пары замен"
+                    ? "Add replace pairs"
                     : bulkPreview.totalCount > 0
-                      ? `${bulkPreview.totalCount} замен в ${bulkPreview.entries.length} парах`
-                      : "Совпадений нет"}
+                      ? `${bulkPreview.totalCount} replacements in ${bulkPreview.entries.length} pairs`
+                      : "No matches"}
                 </div>
                 <button
                   onClick={applyBulkReplace}
@@ -306,7 +306,7 @@ export function FindReplacePanel({ mode, onClose, onMatchesChange }: FindReplace
                     </div>
                   ) : (
                     <div className="text-[10px] text-text-muted/60 py-0.5">
-                      Preview появится после совпадений
+                      Preview appears once there are matches
                     </div>
                   )}
                 </div>

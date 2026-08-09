@@ -145,7 +145,7 @@ function App() {
 
   const cleanupEmptyTabs = useCallback(() => {
     const n = useEditorStore.getState().cleanupEmptyTabs();
-    toast(n === 0 ? "Пустых табов нет" : `Закрыто пустых табов: ${n}`, n === 0 ? "info" : "success");
+    toast(n === 0 ? "No empty tabs" : `Empty tabs closed: ${n}`, n === 0 ? "info" : "success");
   }, []);
 
   const toggleActivePin = useCallback(() => {
@@ -323,8 +323,8 @@ function App() {
               store.moveTabsToWorkspace(batch, workspaceId);
               toast(
                 batch.length > 1
-                  ? `Перемещено табов: ${batch.length}`
-                  : "Таб перемещён в другой workspace",
+                  ? `Tabs moved: ${batch.length}`
+                  : "Tab moved to another workspace",
                 "success",
               );
             } else {
@@ -344,11 +344,11 @@ function App() {
         const ws = s.workspaces.find((w) => w.id === s.activeWorkspaceId);
         return (
           <ConfirmDialog
-            title="Переименовать workspace"
-            message="Новое имя активного workspace."
-            confirmLabel="Переименовать"
+            title="Rename workspace"
+            message="New name for the active workspace."
+            confirmLabel="Rename"
             inputDefault={ws?.name ?? ""}
-            inputPlaceholder="Имя workspace"
+            inputPlaceholder="Workspace name"
             onConfirm={(value) => {
               if (ws) useEditorStore.getState().renameWorkspace(ws.id, value);
               setWorkspaceDialog(null);
@@ -364,13 +364,13 @@ function App() {
         const count = s.tabs.filter((t) => t.workspaceId === s.activeWorkspaceId).length;
         return (
           <ConfirmDialog
-            title={`Удалить workspace «${ws?.name ?? ""}»?`}
+            title={`Delete workspace “${ws?.name ?? ""}”?`}
             message={
               target
-                ? `${count} таб(ов) переедут в «${target.name}» — ничего не будет удалено.`
-                : "Нельзя удалить единственный workspace."
+                ? `${count} tab(s) will move to “${target.name}” — nothing will be deleted.`
+                : "Cannot delete the only workspace."
             }
-            confirmLabel="Удалить"
+            confirmLabel="Delete"
             danger
             onConfirm={() => {
               if (ws && target) useEditorStore.getState().deleteWorkspace(ws.id);
@@ -383,16 +383,16 @@ function App() {
       {shortcutsOpen && <ShortcutsModal onClose={() => setShortcutsOpen(false)} />}
       {pendingClose && (
         <ConfirmDialog
-          title={`Закрыть ${pendingClose.ids.length} вкладок?`}
+          title={`Close ${pendingClose.ids.length} tabs?`}
           // Спрашиваем не про потерю данных — архив закрытых переживает перезапуск.
           // Спрашиваем про масштаб: доставать десятки табов обратно по одному больно.
-          message="Каждую можно будет вернуть через Ctrl+Shift+T — по одной."
-          confirmLabel="Закрыть"
-          cancelLabel="Отмена"
+          message="Each one can be reopened with Ctrl+Shift+T — one at a time."
+          confirmLabel="Close"
+          cancelLabel="Cancel"
           danger
           onConfirm={() => {
             const n = confirmPendingClose();
-            if (n > 0) toast(`Закрыто: ${n}`, "success");
+            if (n > 0) toast(`Closed: ${n}`, "success");
           }}
           onCancel={cancelPendingClose}
         />
