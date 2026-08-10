@@ -6,6 +6,7 @@ import { PresetsPanel } from "./components/Presets/PresetsPanel";
 import { TriggerPhrasePicker } from "./components/TriggerPhrase/TriggerPhrasePicker";
 import { ReferencePanel } from "./components/ReferencePanel/ReferencePanel";
 import { StatusBar } from "./components/StatusBar/StatusBar";
+import { StorageErrorBanner } from "./components/StorageError/StorageErrorBanner";
 import { CommandPalette } from "./components/CommandPalette/CommandPalette";
 import { ShortcutsModal } from "./components/ShortcutsModal/ShortcutsModal";
 import { SettingsPanel } from "./components/Settings/SettingsPanel";
@@ -229,6 +230,9 @@ function App() {
 
   return (
     <div className="flex flex-col h-full">
+      {/* Вне !distractionFree намеренно: в distraction-free полоса табов скрыта, но
+          сообщение «ничего не сохраняется» скрывать вместе с ней нельзя. */}
+      <StorageErrorBanner />
       {!distractionFree && (
         <TabBar
           sidePanel={sidePanel}
