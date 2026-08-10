@@ -16,9 +16,10 @@ English · [Русский](README.ru.md)
 
 <div align="center">
 
-<img src="public/rewrite-demo.gif" alt="Draft a prompt in Rewrite, press Ctrl+Enter, and it lands in the tmux pane running Claude Code" width="900" />
+<img src="public/rewrite-demo.gif" alt="Drafting a multi-line prompt in Rewrite — the list continues itself — then Ctrl+Enter delivers it as one block to the tmux pane running Claude Code, which starts answering" width="900" />
 
-<sub>Draft a prompt → <code>Ctrl+Enter</code> → it lands in the <code>tmux</code> pane running your agent.</sub>
+<sub>Draft the prompt → <code>Ctrl+Enter</code> → it arrives in the <code>tmux</code> pane running your agent
+as a single block, already submitted.</sub>
 
 </div>
 

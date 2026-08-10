@@ -16,9 +16,10 @@
 
 <div align="center">
 
-<img src="public/rewrite-demo.gif" alt="Пишешь промпт в Rewrite, жмёшь Ctrl+Enter — и он улетает в tmux-пейн с Claude Code" width="900" />
+<img src="public/rewrite-demo.gif" alt="Многострочный промпт набирается в Rewrite — список продолжается сам — затем Ctrl+Enter доставляет его одним блоком в tmux-пейн с Claude Code, и агент начинает отвечать" width="900" />
 
-<sub>Пишешь промпт → <code>Ctrl+Enter</code> → он улетает в <code>tmux</code>-пейн с твоим агентом.</sub>
+<sub>Пишешь промпт → <code>Ctrl+Enter</code> → он приезжает в <code>tmux</code>-пейн с твоим агентом
+одним блоком и сразу отправленным.</sub>
 
 </div>
 
