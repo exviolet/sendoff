@@ -103,6 +103,10 @@ interface EditorStore {
   activeTabId: string | null;
   tabCounter: number;
   isHydrated: boolean;
+  // Текст ошибки чтения базы, если оно провалилось. Не «флаг сбоя», а именно текст: без
+  // него сбой нерасследуем — ровно так «Failed to load session from storage» скрыл за
+  // собой несовместимость версий WebKit (2026-08-10). null = проблемы не было.
+  storageError: string | null;
   closedTabs: Tab[];
   // Подтверждение осталось только у ПАКЕТНОГО закрытия, и уже не про потерю данных
   // (архив всё вернёт), а про масштаб: «закрыть остальные» одним кликом меню уносит
@@ -321,6 +325,7 @@ export const useEditorStore = create<EditorStore>((set, get) => {
   activeTabId: initialTab.id,
   tabCounter: 1,
   isHydrated: false,
+  storageError: null,
   closedTabs: [],
   pendingClose: null,
   workspaces: [initialWorkspace],

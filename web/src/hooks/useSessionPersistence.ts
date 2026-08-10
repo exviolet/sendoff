@@ -6,6 +6,7 @@ import { useThemeStore } from "../store/themeStore";
 import { useSettingsStore } from "../store/settingsStore";
 import { useReferenceStore } from "../store/referenceStore";
 import { loadSession, saveSession } from "../lib/db";
+import { describeError } from "../lib/terminalTargets";
 import { toast } from "../store/toastStore";
 
 export function useSessionPersistence() {
@@ -38,9 +39,21 @@ export function useSessionPersistence() {
         text: referenceText,
         width: referenceWidth ?? useReferenceStore.getState().width,
       });
-    }).catch(() => {
+    }).catch((error: unknown) => {
       // Leave isHydrated=false on purpose: blocks the persist effect below, so a
       // failed read can't clobber existing IndexedDB data with empty defaults.
+      //
+      // Причину ОБЯЗАТЕЛЬНО протаскиваем наружу. Раньше здесь стоял `.catch(() => …)`
+      // без аргумента, и настоящая ошибка выбрасывалась: пользователь видел только
+      // «Failed to load session from storage», за которым 2026-08-10 пряталась
+      // несовместимость форматов IndexedDB между версиями WebKit (AppImage несёт
+      // 2.50.4 и не читает базу, записанную хостовым 2.52.5). Тот же класс, что
+      // gotcha #9 в web/CLAUDE.md — ошибка из движка не обязана быть Error.
+      const reason = describeError(error);
+      console.error("loadSession failed:", error);
+      useEditorStore.setState({ storageError: reason });
+      // Тост живёт 2.5с и уходит, а редактор остаётся пустым — это читается как
+      // «данные пропали». Незатухающую правду показывает StorageErrorBanner.
       toast("Failed to load session from storage", "error");
     });
   }, []);
