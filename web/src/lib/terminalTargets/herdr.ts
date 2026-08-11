@@ -3,7 +3,8 @@ import { resolveHerdrTarget, type HerdrAgentRef } from "../herdrResolve";
 import { runScoped, asArray, asRecord, asString, parseResult } from "./shell";
 import type { Resolution, TabBinding, TerminalProvider, TerminalTarget } from "./types";
 
-const run = (name: string, args: string[]) => runScoped(name, args, "herdr error");
+const run = (name: string, args: string[], target?: string) =>
+  runScoped(name, args, "herdr error", target);
 
 interface HerdrAgent extends HerdrAgentRef {
   agentType: string;
@@ -99,9 +100,9 @@ export const herdrProvider: TerminalProvider = {
     // держит многострочник одним буфером и сам сабмитит. Обёртка \x1b[200~, нужная
     // tmux и Orca, здесь уехала бы в промпт литералом.
     if (submit) {
-      await run("herdr-agent-prompt", ["agent", "prompt", handle, text]);
+      await run("herdr-agent-prompt", ["agent", "prompt", handle, text], handle);
     } else {
-      await run("herdr-pane-send-text", ["pane", "send-text", handle, text]);
+      await run("herdr-pane-send-text", ["pane", "send-text", handle, text], handle);
     }
     return handle;
   },

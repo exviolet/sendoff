@@ -1,6 +1,6 @@
 import { describe, test, expect } from "bun:test";
 import { describeBinding, sameBinding } from "./index";
-import { asArray, asRecord, asString, describeError, parseResult } from "./shell";
+import { asArray, asRecord, asString, describeError, parseResult, withTarget } from "./shell";
 import type { TabBinding } from "./types";
 
 const herdr: TabBinding = { source: "herdr", paneId: "wK:p1", workspace: "rw", tab: "claude" };
@@ -67,6 +67,28 @@ describe("describeError: причина не должна теряться", () 
     Object.defineProperty(throwing, "x", { get() { throw new Error("boom"); }, enumerable: true });
     expect(typeof describeError(cyclic)).toBe("string");
     expect(typeof describeError(throwing)).toBe("string");
+  });
+});
+
+// plugin-shell схлопывает провал валидатора аргумента в «program not allowed»,
+// то есть текст ошибки указывает не на ту причину. Хендл в сообщении — это всё,
+// чем мы можем помочь следующему репорту.
+describe("withTarget: хендл дописывается к ошибке", () => {
+  test("хендл виден в сообщении", () => {
+    expect(withTarget("program not allowed on the configured shell scope: herdr-agent-prompt", "w657cefe818690a-1"))
+      .toBe("program not allowed on the configured shell scope: herdr-agent-prompt (target: w657cefe818690a-1)");
+  });
+
+  test("без хендла сообщение не меняется", () => {
+    expect(withTarget("tmux error: no such session")).toBe("tmux error: no such session");
+  });
+
+  test("пустой хендл не даёт «(target: )»", () => {
+    expect(withTarget("boom", "")).toBe("boom");
+  });
+
+  test("пробелы вокруг сообщения срезаются до склейки", () => {
+    expect(withTarget("  boom  ", "wK:p1")).toBe("boom (target: wK:p1)");
   });
 });
 

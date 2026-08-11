@@ -8,17 +8,44 @@ export interface CommandOutput {
   stdout: string;
 }
 
+// Дописывает к сообщению об ошибке хендл, которому команда предназначалась.
+//
+// Зачем это вообще нужно: plugin-shell схлопывает ЛЮБОЙ отказ подготовки команды
+// в одно сообщение «program not allowed on the configured shell scope: <entry>»
+// (`commands.rs`: результат `scope.prepare` разбирается, а настоящая ошибка
+// печатается только под `#[cfg(debug_assertions)]` — в релизной сборке она
+// теряется совсем). Поэтому провал регекс-валидатора аргумента выглядит как
+// запрет самой программы, и по тексту их не различить.
+//
+// Так и вышло у 2-го пользователя: herdr 0.6.10 отдаёт `pane_id` вида
+// `w657cefe818690a-1`, а валидатор в манифесте ждёт `wK:p1` — отправка падала,
+// а сообщение указывало не туда. Хендл в тексте делает следующий такой случай
+// диагностируемым с первого репорта: видно и что не так, и с чем именно.
+export function withTarget(message: string, target?: string): string {
+  const text = message.trim();
+  return target ? `${text} (target: ${target})` : text;
+}
+
 export async function runScoped(
   scopedName: string,
   args: string[],
   errorPrefix: string,
+  target?: string,
 ): Promise<CommandOutput> {
   const { Command } = await import("@tauri-apps/plugin-shell");
-  const output = await Command.create(scopedName, args).execute();
+
+  let output: CommandOutput;
+  try {
+    output = await Command.create(scopedName, args).execute();
+  } catch (error) {
+    // Префикс тут НЕ добавляем: сообщение уже несёт имя scope-entry, а тост
+    // сверху клеит ярлык провайдера — иначе вышло бы «Herdr: herdr error: …».
+    throw new Error(withTarget(describeError(error), target));
+  }
 
   if (output.code !== 0) {
     const detail = output.stderr.trim() || output.stdout.trim() || `exit code ${output.code ?? "unknown"}`;
-    throw new Error(`${errorPrefix}: ${detail}`);
+    throw new Error(withTarget(`${errorPrefix}: ${detail}`, target));
   }
 
   return output;

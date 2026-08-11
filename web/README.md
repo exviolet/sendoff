@@ -60,9 +60,10 @@ keep the agent's reply pinned in the reference panel while you write the next on
 **Prompt workflow**
 - **Send the prompt** (`Ctrl+Enter`) — push the current buffer into the terminal
   the tab is bound to, without leaving the keyboard. Three kinds of target are
-  supported: [Herdr](https://herdr.dev) agents, [Orca ADE](https://github.com/stablyai/orca)
-  agents, and plain `tmux` panes. Multi-line prompts arrive as one block and are
-  submitted once.
+  supported: [Herdr](https://herdr.dev) agents (**0.7 or newer** — pane ids changed
+  shape after 0.6 and the older form is rejected by the command allowlist),
+  [Orca ADE](https://github.com/stablyai/orca) agents, and plain `tmux` panes.
+  Multi-line prompts arrive as one block and are submitted once.
 - **Target picker** (`Ctrl+Shift+Enter`) — one list, sectioned by source, so you
   pick an agent or a pane by name instead of relying on whatever is focused.
   A source that is not running simply has no section.

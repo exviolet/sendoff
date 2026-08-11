@@ -2,7 +2,8 @@ import { isTauri } from "../platform";
 import { runScoped, asArray, asRecord, asString, parseResult } from "./shell";
 import type { Resolution, TabBinding, TerminalProvider, TerminalTarget } from "./types";
 
-const run = (name: string, args: string[]) => runScoped(name, args, "orca error");
+const run = (name: string, args: string[], target?: string) =>
+  runScoped(name, args, "orca error", target);
 
 interface OrcaAgent {
   handle: string;
@@ -107,13 +108,13 @@ export const orcaProvider: TerminalProvider = {
     const wrapped = `\x1b[200~${text}\x1b[201~`;
     await run("orca-terminal-send-text", [
       "terminal", "send", "--terminal", handle, "--text", wrapped, "--json",
-    ]);
+    ], handle);
 
     if (submit) {
       await new Promise((resolve) => setTimeout(resolve, 80));
       await run("orca-terminal-send-enter", [
         "terminal", "send", "--terminal", handle, "--enter", "--json",
-      ]);
+      ], handle);
     }
     return handle;
   },

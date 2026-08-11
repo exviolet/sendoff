@@ -6,7 +6,7 @@ import type { Resolution, TabBinding, TerminalProvider, TerminalTarget } from ".
 
 const BUFFER_NAME = "rewrite-desktop";
 
-const run = (args: string[]) => runScoped("tmux", args, "tmux error");
+const run = (args: string[], target?: string) => runScoped("tmux", args, "tmux error", target);
 
 async function listSessions(): Promise<TmuxSessionInfo[]> {
   if (!isTauri) throw new Error("tmux is available only in the desktop build");
@@ -60,12 +60,12 @@ export const tmuxProvider: TerminalProvider = {
     await run(["set-buffer", "-b", BUFFER_NAME, "--", text]);
     // -p: bracketed paste, если приложение его запросило (codex/Claude Code).
     // Даёт чёткую границу вставки, иначе TUI глотает следующий Enter как часть пасты.
-    await run(["paste-buffer", "-d", "-p", "-b", BUFFER_NAME, "-t", handle]);
+    await run(["paste-buffer", "-d", "-p", "-b", BUFFER_NAME, "-t", handle], handle);
 
     if (submit) {
       // settle-задержка: детерминирует тайминг-эвристику «вставка vs ввод».
       await new Promise((resolve) => setTimeout(resolve, 80));
-      await run(["send-keys", "-t", handle, "Enter"]);
+      await run(["send-keys", "-t", handle, "Enter"], handle);
     }
     return handle;
   },
