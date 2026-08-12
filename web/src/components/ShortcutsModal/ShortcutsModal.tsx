@@ -23,6 +23,7 @@ const NON_COMMAND_SHORTCUTS: Partial<
   Record<ShortcutGroup, readonly { keys: string; action: string }[]>
 > = {
   Markdown: [
+    { keys: "/", action: "Insert menu (formatting and trigger phrases)" },
     { keys: "Tab", action: "Indent / nest list item" },
     { keys: "Shift+Tab", action: "Outdent" },
     { keys: "Enter", action: "Continue list or quote" },
