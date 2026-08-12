@@ -12,6 +12,7 @@ import {
   canCleanupTab,
   tabsOf,
   stepTab,
+  reorderTabs,
 } from "../lib/tabUtils";
 
 export interface Workspace {
@@ -481,20 +482,9 @@ export const useEditorStore = create<EditorStore>((set, get) => {
   // не совпадают с глобальными.
   reorderTab: (fromId, toId) =>
     set((s) => {
-      if (fromId === toId) return {};
-      const tabs = [...s.tabs];
-      const from = tabs.findIndex((t) => t.id === fromId);
-      if (from < 0) return {};
-      const [moved] = tabs.splice(from, 1);
-      const to = tabs.findIndex((t) => t.id === toId);
-      if (to < 0) return {};
-
-      // Членство определяется местом приземления: бросил внутрь группы — таб в ней,
-      // бросил наружу — вышел. Иначе таб сел бы в run визуально, оставшись вне группы
-      // логически, и уехал бы обратно при следующем arrangeTabs (tasks/14, ловушки).
-      const landed = moved.pinned ? moved : { ...moved, groupId: tabs[to].groupId };
-      tabs.splice(to, 0, landed);
-      return { tabs: arrangeTabs(tabs), tabGroups: pruneGroups(tabs, s.tabGroups) };
+      const next = reorderTabs(s.tabs, fromId, toId);
+      if (!next) return {};
+      return { tabs: arrangeTabs(next), tabGroups: pruneGroups(next, s.tabGroups) };
     }),
 
   // Клавиатурный сдвиг таба на соседнюю видимую позицию (Ctrl+Shift+PgUp/PgDn).
