@@ -25,7 +25,7 @@ export function StorageErrorBanner() {
       </div>
       <div className="mt-1 text-danger/85 leading-relaxed">
         Nothing you type now will be saved. Your existing data has{" "}
-        <strong className="font-semibold">not</strong> been changed or deleted — Rewrite
+        <strong className="font-semibold">not</strong> been changed or deleted — Sendoff
         stops writing entirely when it cannot read, so a failed read can never overwrite
         your tabs.
       </div>

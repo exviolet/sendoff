@@ -2,7 +2,7 @@
 
 Guidance for AI agents (Claude Code, Codex) working in this repo.
 
-> **Это `web/` — SPA-часть.** Она подключена submodule'ом в `rewrite-desktop` (Tauri-обёртка).
+> **Это `web/` — SPA-часть.** Она подключена submodule'ом в `sendoff-desktop` (Tauri-обёртка).
 > Контракт сотрудничества, git-workflow, safety rails и позиционирование — в **корневом
 > `CLAUDE.md` десктоп-репо**. Здесь только то, что специфично для `web/`.
 >
@@ -11,7 +11,7 @@ Guidance for AI agents (Claude Code, Codex) working in this repo.
 
 ## Project Overview
 
-**Rewrite — prompt-first редактор.** Цель: быстро формулировать LLM-промпты вне тесного input
+**Sendoff — prompt-first редактор.** Цель: быстро формулировать LLM-промпты вне тесного input
 в Claude Code / Codex и неудобного скролла в tmux, и **отправлять их прямо в терминал агента**
 (`Ctrl+Enter` → агент herdr, агент Orca или tmux-pane).
 
@@ -45,7 +45,7 @@ bun run preview       # прод-сборка локально
 | Styling | Tailwind CSS v4 (`@tailwindcss/vite`, CSS-first `@theme` в `src/index.css`) |
 | Editor | Нативный `<textarea>` + кастомные хуки (без Monaco/CodeMirror) |
 | State | Zustand v5 |
-| Persistence | IndexedDB через `idb` — **`rewrite-db` v4** |
+| Persistence | IndexedDB через `idb` — **`rewrite-db` v6** (имя базы намеренно осталось от прежнего названия — см. комментарий в `db.ts`) |
 | Desktop bridge | `@tauri-apps/api` + плагины `shell` / `fs` / `dialog` |
 
 Версии — в `package.json` (единственный источник правды, не дублировать сюда).
@@ -257,7 +257,7 @@ interface ReplacePreset  { id: string; name: string; pairs: ReplacePair[] }
 
 ## Данные и IndexedDB — правила
 
-Схема — в `src/lib/db.ts` (типизирована через `RewriteDB extends DBSchema`). **Не дублировать
+Схема — в `src/lib/db.ts` (типизирована через `SendoffDB extends DBSchema`). **Не дублировать
 её в markdown** — рукописная копия протухнет.
 
 Правила (их из кода не вывести):

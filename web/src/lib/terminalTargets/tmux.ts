@@ -4,7 +4,7 @@ import type { TmuxSessionInfo } from "../tmuxResolve";
 import { runScoped } from "./shell";
 import type { Resolution, TabBinding, TerminalProvider, TerminalTarget } from "./types";
 
-const BUFFER_NAME = "rewrite-desktop";
+const BUFFER_NAME = "sendoff-desktop";
 
 const run = (args: string[], target?: string) => runScoped("tmux", args, "tmux error", target);
 

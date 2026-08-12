@@ -8,7 +8,7 @@ import {
   type ShortcutOverrides,
 } from "./shortcuts";
 
-interface RewriteDB extends DBSchema {
+interface SendoffDB extends DBSchema {
   tabs: {
     key: string;
     // closedAt — маркер архива: таб закрыт, но не удалён. Живёт в том же сторе, чтобы
@@ -37,6 +37,9 @@ interface RewriteDB extends DBSchema {
   };
 }
 
+// НЕ переименовывать вслед за продуктом (Rewrite → Sendoff, 2026-08-13). Имя базы —
+// это путь к данным, а не подпись: другое имя откроет ПУСТУЮ базу, а накопленное
+// останется лежать рядом невидимым. Снаружи имя не показывается никому.
 const DB_NAME = "rewrite-db";
 const DB_VERSION = 6;
 
@@ -44,7 +47,7 @@ const DB_VERSION = 6;
 // новое и не закрывал: при записи раз в 500 мс за сессию их копились сотни. Дело не
 // только в утечке — открытые соединения БЛОКИРУЮТ апгрейд версии, то есть следующий
 // же bump DB_VERSION повис бы у пользователя навсегда.
-let dbPromise: Promise<IDBPDatabase<RewriteDB>> | null = null;
+let dbPromise: Promise<IDBPDatabase<SendoffDB>> | null = null;
 
 // Закрыть и забыть соединение. Нужно тестам, которые пересоздают базу с нуля;
 // в приложении не зовётся — там соединение живёт столько же, сколько окно.
@@ -56,7 +59,7 @@ export function closeDB() {
 
 function getDB() {
   if (dbPromise) return dbPromise;
-  dbPromise = openDB<RewriteDB>(DB_NAME, DB_VERSION, {
+  dbPromise = openDB<SendoffDB>(DB_NAME, DB_VERSION, {
     upgrade(db, oldVersion) {
       // v1: tabs, presets, meta
       if (!db.objectStoreNames.contains("tabs")) {

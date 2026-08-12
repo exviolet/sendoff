@@ -5,8 +5,8 @@
 Два отдельных репозитория:
 
 ```
-rewrite          — browser SPA (текущий репо, деплой на Vercel/Pages)
-rewrite-desktop  — Tauri v2 обёртка, web подключается как git submodule
+sendoff-web      — browser SPA (текущий репо, деплой на Vercel/Pages)
+sendoff-desktop  — Tauri v2 обёртка, web подключается как git submodule
 ```
 
 **Почему два репо:**
@@ -17,11 +17,11 @@ rewrite-desktop  — Tauri v2 обёртка, web подключается ка�
 
 ---
 
-## Структура rewrite-desktop
+## Структура sendoff-desktop
 
 ```
-rewrite-desktop/
-├── web/                          # git submodule → rewrite
+sendoff-desktop/
+├── web/                          # git submodule → sendoff-web
 ├── src-tauri/
 │   ├── src/
 │   │   └── lib.rs                # минимальный Tauri entry point
@@ -45,11 +45,11 @@ rewrite-desktop/
 
 ```bash
 # Создать репо
-mkdir rewrite-desktop && cd rewrite-desktop
+mkdir sendoff-desktop && cd sendoff-desktop
 git init
 
 # Подключить web как submodule
-git submodule add git@github.com:<user>/rewrite.git web
+git submodule add git@github.com:<user>/sendoff-web.git web
 
 # Инициализировать Tauri v2 в существующем проекте
 bun add -d @tauri-apps/cli
@@ -59,8 +59,8 @@ bun tauri init
 **tauri.conf.json** — ключевые настройки:
 - `devUrl`: `http://localhost:5173` (Vite dev server из web/)
 - `frontendDist`: `../web/dist` (production build)
-- `productName`: `Rewrite`
-- `identifier`: `com.rewrite.app`
+- `productName`: `Sendoff`
+- `identifier`: `dev.sendoff.app`
 - Размер окна: `1200×800`, `minWidth: 800`, `minHeight: 500`
 
 **package.json** — скрипты:
@@ -164,7 +164,7 @@ bun tauri build  # собирает web + компилирует Rust → бин
 
 ## Что НЕ меняется
 
-- Frontend код в `rewrite` — ноль изменений для Step 1–3
+- Frontend код в `sendoff-web` — ноль изменений для Step 1–3
 - IndexedDB persistence — работает в Tauri WebView
 - Все Zustand stores — без изменений
 - Все компоненты — без изменений
