@@ -13,7 +13,7 @@ function agent(paneId: string, workspace: string, tab: string): HerdrAgentRef {
 
 describe("herdr: резолв привязки", () => {
   test("точное совпадение id и пары лейблов", () => {
-    const agents = [agent("wK:p1", "rewrite", "claude"), agent("wP:p3", "steam", "codex")];
+    const agents = [agent("wK:p1", "sendoff", "claude"), agent("wP:p3", "steam", "codex")];
     expect(resolveHerdrTarget(agents, { paneId: "wP:p3", workspace: "steam", tab: "codex" }))
       .toEqual({ kind: "ok", paneId: "wP:p3" });
   });
@@ -21,13 +21,13 @@ describe("herdr: резолв привязки", () => {
   test("номер панели переиспользован другим агентом → НЕ отправляем", () => {
     // pane_id персистится, но номера переиспользуются: id совпал, а лейблы чужие.
     const agents = [agent("wK:p1", "другой-проект", "codex")];
-    expect(resolveHerdrTarget(agents, { paneId: "wK:p1", workspace: "rewrite", tab: "claude" }))
+    expect(resolveHerdrTarget(agents, { paneId: "wK:p1", workspace: "sendoff", tab: "claude" }))
       .toEqual({ kind: "not-found" });
   });
 
   test("панель пересоздана: id протух, лейблы уникальны → самочинится", () => {
-    const agents = [agent("wK:p7", "rewrite", "claude")];
-    expect(resolveHerdrTarget(agents, { paneId: "wK:p1", workspace: "rewrite", tab: "claude" }))
+    const agents = [agent("wK:p7", "sendoff", "claude")];
+    expect(resolveHerdrTarget(agents, { paneId: "wK:p1", workspace: "sendoff", tab: "claude" }))
       .toEqual({ kind: "ok", paneId: "wK:p7" });
   });
 
@@ -44,7 +44,7 @@ describe("herdr: резолв привязки", () => {
   });
 
   test("агентов нет вовсе", () => {
-    expect(resolveHerdrTarget([], { paneId: "wK:p1", workspace: "rewrite", tab: "claude" }))
+    expect(resolveHerdrTarget([], { paneId: "wK:p1", workspace: "sendoff", tab: "claude" }))
       .toEqual({ kind: "not-found" });
   });
 });

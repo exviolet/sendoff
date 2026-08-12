@@ -104,7 +104,7 @@ export function useFileIO() {
         const { writeTextFile } = await import("@tauri-apps/plugin-fs");
         const path = await save({
           filters: [{ name: "JSON", extensions: ["json"] }],
-          defaultPath: "rewrite-backup.json",
+          defaultPath: "sendoff-backup.json",
         });
         if (path) {
           await writeTextFile(path, data);
@@ -121,7 +121,7 @@ export function useFileIO() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "rewrite-backup.json";
+    a.download = "sendoff-backup.json";
     a.click();
     URL.revokeObjectURL(url);
     toast("Backup exported", "success");

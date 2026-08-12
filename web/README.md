@@ -1,8 +1,8 @@
 <div align="center">
 
-<img src="public/favicon.svg" alt="Rewrite" width="112" height="112" />
+<img src="public/favicon.svg" alt="Sendoff" width="112" height="112" />
 
-# Rewrite
+# Sendoff
 
 **A prompt-first editor for drafting LLM prompts — fast, local, keyboard-driven.**
 
@@ -16,17 +16,17 @@ English · [Русский](README.ru.md)
 
 <div align="center">
 
-<img src="public/rewrite-demo.gif" alt="Drafting a multi-line prompt in Rewrite — the list continues itself — then Ctrl+Enter delivers it as one block to the tmux pane running Claude Code, which starts answering" width="900" />
+<img src="public/sendoff-demo.gif" alt="Drafting a multi-line prompt in Sendoff — the list continues itself — then Ctrl+Enter delivers it as one block to the tmux pane running Claude Code, which starts answering" width="900" />
 
 <sub>Draft the prompt → <code>Ctrl+Enter</code> → it arrives in the <code>tmux</code> pane running your agent
 as a single block, already submitted.</sub>
 
 </div>
 
-Rewrite is a minimal text editor built around one workflow: write a prompt in a
+Sendoff is a minimal text editor built around one workflow: write a prompt in a
 real editing surface, then fire it straight into the terminal agent you're
 already running. It was born from a concrete annoyance — the cramped input box
-in Claude Code and the awkward scrollback in long `tmux` sessions. Rewrite gives
+in Claude Code and the awkward scrollback in long `tmux` sessions. Sendoff gives
 the prompt room to breathe before it's sent.
 
 No backend, no API keys, no telemetry. Everything runs client-side.
@@ -37,7 +37,7 @@ No backend, no API keys, no telemetry. Everything runs client-side.
 
 ```mermaid
 flowchart LR
-    R["Rewrite<br/>draft the prompt"]
+    R["Sendoff<br/>draft the prompt"]
     T["Bound target<br/>Herdr · Orca · tmux"]
     P["Reference panel<br/>Ctrl+R"]
 
@@ -49,10 +49,10 @@ flowchart LR
 Draft the prompt → `Ctrl+Enter` sends it to the terminal the tab is bound to →
 keep the agent's reply pinned in the reference panel while you write the next one.
 
-> **Sending needs the [desktop build](https://github.com/exviolet/rewrite-desktop).**
+> **Sending needs the [desktop build](https://github.com/exviolet/sendoff).**
 > The direct write into an agent's terminal goes through the Tauri shell, which
 > only the desktop app has. In a plain browser tab `Ctrl+Enter` falls back to copying
-> the buffer to the clipboard. Rewrite is **desktop-first**; the browser build is
+> the buffer to the clipboard. Sendoff is **desktop-first**; the browser build is
 > a limited editor without the terminal bridge.
 
 ## Features
@@ -70,7 +70,7 @@ keep the agent's reply pinned in the reference panel while you write the next on
 - **Tab binding** (`Ctrl+Alt+B` / `Ctrl+Alt+Shift+B`) — pin a tab to one target;
   the status bar shows the live binding so `Ctrl+Enter` always lands in the right
   place. Bindings store a stable descriptor and resolve the live handle on every
-  send, so they survive restarts. **When a binding is ambiguous, Rewrite asks
+  send, so they survive restarts. **When a binding is ambiguous, Sendoff asks
   instead of guessing** — a prompt in the wrong agent is worse than an extra click.
 - **Live agent status** — the status bar shows what the bound agent is doing.
   It stays a quiet dot while the agent works, and speaks up only when the agent
@@ -137,7 +137,7 @@ bun run preview    # serve the production build locally
 ```
 
 > Looking for the native desktop app? See
-> [**rewrite-desktop**](https://github.com/exviolet/rewrite-desktop) — a Tauri v2
+> [**sendoff-desktop**](https://github.com/exviolet/sendoff) — a Tauri v2
 > wrapper with native dialogs, a custom title bar, and the terminal integrations.
 
 ## Keyboard shortcuts

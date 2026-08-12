@@ -7,13 +7,15 @@
   </defs>
   <rect width="512" height="512" rx="108" fill="url(#bg)"/>
 
-  <!-- Ghost R — from I colors, shifted more left, H stroke style -->
-  <path d="M120,388 L120,108 L248,108 C310,108 352,150 352,200
-           C352,250 310,292 248,292 L200,292 L352,388"
+  <!-- Ghost S — same offset and opacity the ghost R had -->
+  <path d="M336,178 C336,138 293,108 236,108 C179,108 136,138 136,180
+           C136,222 179,246 236,252 C293,258 336,282 336,324
+           C336,366 293,396 236,396 C179,396 136,366 136,326"
         fill="none" stroke="#c4b5fd" stroke-width="24" stroke-linecap="round" stroke-linejoin="round" opacity="0.2"/>
 
-  <!-- Bold R — from H style, I white color -->
-  <path d="M172,408 L172,120 L300,120 C362,120 408,166 408,220
-           C408,274 362,320 300,320 L250,320 L408,408"
+  <!-- Bold S -->
+  <path d="M388,190 C388,150 345,120 288,120 C231,120 188,150 188,192
+           C188,234 231,258 288,264 C345,270 388,294 388,336
+           C388,378 345,408 288,408 C231,408 188,378 188,338"
         fill="none" stroke="#ffffff" stroke-width="30" stroke-linecap="round" stroke-linejoin="round" opacity="0.95"/>
 </svg>
