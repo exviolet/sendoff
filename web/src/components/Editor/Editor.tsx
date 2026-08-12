@@ -1,9 +1,21 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { marked } from "marked";
 import { useEditorStore } from "../../store/editorStore";
+import { useTriggerPhrasesStore } from "../../store/triggerPhrasesStore";
 import { isTauri } from "../../lib/platform";
 import { useEditorKeymap } from "../../hooks/useEditorKeymap";
 import type { EditPatch } from "../../lib/markdownEdit";
+import {
+  applySlashItem,
+  detectSlashQuery,
+  filterSlashItems,
+  phraseSlashItem,
+  slashItems,
+  type SlashItem,
+  type SlashTrigger,
+} from "../../lib/slashMenu";
+import { caretCoords, type CaretPoint } from "./caretCoords";
+import { SlashMenu } from "./SlashMenu";
 
 interface HighlightMatch {
   index: number;
@@ -41,7 +53,22 @@ export function Editor({ highlights = [], activeHighlight = -1, textareaRef, mar
   // hasTab нужен только для null-guard — не подписываемся на content
   const hasTab = useEditorStore((s) => s.tabs.some((t) => t.id === s.activeTabId));
 
+  const phrases = useTriggerPhrasesStore((s) => s.phrases);
+
   const backdropRef = useRef<HTMLDivElement>(null);
+  // Состояние слэш-меню держится здесь и равно null, пока меню закрыто: пока оно null,
+  // ввод не вызывает ни одного ре-рендера сверх обычного (см. renderContent выше).
+  const [slash, setSlash] = useState<{
+    trigger: SlashTrigger;
+    point: CaretPoint;
+    // Замеряются вместе с кареткой: читать ref.current в рендере запрещено правилом
+    // react-hooks/refs, а меню должно знать, куда ему не вылезать.
+    bounds: { width: number; height: number };
+  } | null>(null);
+  const [slashIndex, setSlashIndex] = useState(0);
+  // Индекс слэша, который пользователь закрыл Escape'ом. Без этого Escape бесполезен:
+  // следующая же буква снова открывала бы меню, и написать «/h2» текстом было бы нельзя.
+  const [slashDismissed, setSlashDismissed] = useState<number | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const dragCounter = useRef(0);
   const rafRef = useRef<number | undefined>(undefined);
@@ -71,6 +98,10 @@ export function Editor({ highlights = [], activeHighlight = -1, textareaRef, mar
       const content = state.tabs.find((t) => t.id === state.activeTabId)?.content ?? "";
       if (content !== prevStoreContent.current) {
         prevStoreContent.current = content;
+        // Смена таба, undo/redo, применение пресета — текст под меню больше не тот,
+        // на котором оно открылось. Свои же правки сюда не доходят: applyPatch и
+        // onChange обновляют prevStoreContent до записи в стор.
+        setSlash(null);
         if (textareaRef.current && textareaRef.current.value !== content) {
           const { selectionStart, selectionEnd } = textareaRef.current;
           textareaRef.current.value = content;
@@ -143,7 +174,99 @@ export function Editor({ highlights = [], activeHighlight = -1, textareaRef, mar
     [textareaRef, activeTabId, updateContent]
   );
 
-  const handleKeyDown = useEditorKeymap(applyPatch);
+  const editorKeyDown = useEditorKeymap(applyPatch);
+
+  const slashList = useMemo(() => {
+    if (!slash) return [];
+    const catalog = slashItems(
+      phrases.map((p) => phraseSlashItem(p.id, p.label, p.body)),
+    );
+    return filterSlashItems(catalog, slash.trigger.query);
+  }, [slash, phrases]);
+
+  // Пересчёт триггера по тексту слева от каретки. Раскладконезависим по построению:
+  // смотрим на вставленный символ, а не на код клавиши (на ЙЦУКЕН Slash даёт «.»).
+  const refreshSlash = useCallback(() => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    if (ta.selectionStart !== ta.selectionEnd) {
+      setSlash(null);
+      return;
+    }
+    const trigger = detectSlashQuery(ta.value, ta.selectionStart);
+    if (!trigger) {
+      setSlash(null);
+      setSlashDismissed(null);
+      return;
+    }
+    // Тот же слэш, что закрыли Escape'ом, второй раз не открываем. Другой слэш —
+    // другое намерение, метка снимается сама сравнением индексов.
+    if (trigger.from === slashDismissed) {
+      setSlash(null);
+      return;
+    }
+    setSlash({
+      // Меню висит под самим слэшем, а не под кареткой: иначе оно ползло бы вбок,
+      // пока набирается запрос.
+      point: caretCoords(ta, trigger.from),
+      trigger,
+      bounds: { width: ta.clientWidth, height: ta.clientHeight },
+    });
+    setSlashIndex(0);
+  }, [textareaRef, slashDismissed]);
+
+  const pickSlash = useCallback(
+    (item: SlashItem) => {
+      const ta = textareaRef.current;
+      if (!ta) return;
+      // Триггер перечитывается из живой textarea, а не берётся из состояния: сохранённый
+      // мог устареть (внешняя правка, смена таба), и вставка ушла бы по чужим индексам.
+      const trigger = detectSlashQuery(ta.value, ta.selectionStart);
+      setSlash(null);
+      if (!trigger) return;
+      applyPatch(applySlashItem(ta.value, trigger, ta.selectionStart, item));
+    },
+    [applyPatch, textareaRef],
+  );
+
+  // Перехват обязан стоять ДО useEditorKeymap: иначе Enter уйдёт в continueList, а Tab —
+  // в indentSelection. stopPropagation нужен для Escape — глобальный листенер закрыл бы
+  // заодно панели, которых пользователь не трогал.
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (slash && slashList.length > 0 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        const total = slashList.length;
+        switch (e.code) {
+          case "ArrowDown":
+            e.preventDefault();
+            setSlashIndex((i) => (i + 1) % total);
+            return;
+          case "ArrowUp":
+            e.preventDefault();
+            setSlashIndex((i) => (i - 1 + total) % total);
+            return;
+          case "Enter":
+          case "Tab":
+            e.preventDefault();
+            e.stopPropagation();
+            pickSlash(slashList[Math.min(slashIndex, total - 1)]);
+            return;
+          case "Escape":
+            e.preventDefault();
+            e.stopPropagation();
+            setSlashDismissed(slash.trigger.from);
+            setSlash(null);
+            return;
+        }
+      }
+      // Уход каретки вбок или по строкам — запрос больше не про эту позицию.
+      if (slash && ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"].includes(e.code)) {
+        setSlash(null);
+      }
+      editorKeyDown(e);
+    },
+    [slash, slashList, slashIndex, pickSlash, editorKeyDown],
+  );
 
   const syncScroll = useCallback(() => {
     if (textareaRef.current && backdropRef.current) {
@@ -239,8 +362,11 @@ export function Editor({ highlights = [], activeHighlight = -1, textareaRef, mar
               const id = activeTabId;
               if (rafRef.current) cancelAnimationFrame(rafRef.current);
               rafRef.current = requestAnimationFrame(() => { if (id) updateContent(id, value); });
+              refreshSlash();
             }}
             onKeyDown={handleKeyDown}
+            onClick={() => { if (slash) setSlash(null); }}
+            onBlur={() => { if (slash) setSlash(null); }}
             onScroll={syncScroll}
             placeholder="Start typing or paste text..."
             spellCheck={false}
@@ -259,6 +385,19 @@ export function Editor({ highlights = [], activeHighlight = -1, textareaRef, mar
               overflowX: wordWrap ? "hidden" : "auto",
             }}
           />
+
+          {/* Пустой список — меню не рисуется вовсе: висящая пустая рамка читалась бы
+              как «редактор завис», а не как «ничего не нашлось». */}
+          {slash && slashList.length > 0 && (
+            <SlashMenu
+              items={slashList}
+              index={Math.min(slashIndex, slashList.length - 1)}
+              point={slash.point}
+              bounds={slash.bounds}
+              onPick={pickSlash}
+              onHover={setSlashIndex}
+            />
+          )}
         </>
       )}
 

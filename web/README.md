@@ -78,6 +78,12 @@ keep the agent's reply pinned in the reference panel while you write the next on
 - **Trigger phrases** (`Ctrl+K`) — reusable prompt fragments. By default they go
   in front of the whole prompt (they are usually role prefixes); a setting
   switches insertion to the caret instead.
+- **Slash menu** (`/`) — the only trigger with no modifier at all. Typing `/` at
+  the start of a line or after a space opens an inline list: your trigger
+  phrases first, then markdown scaffolding (code block, headings, lists,
+  horizontal rule). It stays out of the way — a slash inside a word (`src/lib`,
+  `12/08`) is just text, `Escape` dismisses that slash for good, and phrases
+  picked here always land at the caret.
 - **Reference panel** (`Ctrl+R`) — a resizable, persisted side panel to keep an
   agent's reply visible while you compose the follow-up.
 
@@ -144,6 +150,7 @@ bun run preview    # serve the production build locally
 | `Tab` / `Shift+Tab` | Indent / outdent — nests list items |
 | `Ctrl+R` | Toggle reference panel |
 | `Ctrl+K` | Trigger phrases |
+| `/` | Insert menu — trigger phrases and markdown scaffolding |
 | `Ctrl+T` | Tab switcher (with preview) |
 | `Ctrl+Shift+W` | Workspace switcher |
 | `Ctrl+G` | Put the tab into a group (picker with a create row) |

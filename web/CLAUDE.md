@@ -120,6 +120,22 @@ ROADMAP в заметке про agent-hooks (listener сломал бы no-egre
 через `setRangeText`, потом руками зовётся `updateContent`. Обязательный шаг — **отменить висящий
 `rafRef`**: он держит значение, снятое ДО патча, и, сработав следом, откатил бы правку.
 
+**Слэш-меню** (`lib/slashMenu.ts` + `Editor/SlashMenu.tsx` + `Editor/caretCoords.ts`, tasks/17):
+`/` в начале строки или после пробела открывает инлайн-список — фразы-триггеры, затем
+markdown-леса. Четыре вещи, которые тут легко сломать:
+- **Детект по тексту слева от каретки, НЕ по коду клавиши.** На ЙЦУКЕН физическая `Slash` даёт
+  «.», проверка по `e.code`/`e.key` открывала бы меню не от того символа.
+- **Перехват клавиш стоит ДО `useEditorKeymap`**, иначе `Enter` уходит в `continueList`, а `Tab`
+  — в `indentSelection`. `Escape` требует `stopPropagation`: глобальный листенер закрыл бы
+  заодно панели, которых пользователь не трогал.
+- **Состояние `null`, пока меню закрыто** — иначе вернётся ре-рендер на каждую букву, ровно тот,
+  которого избегает `renderContent`.
+- **Триггер перечитывается из живой textarea в момент вставки**, а не берётся из состояния:
+  сохранённый мог устареть (внешняя правка, смена таба) и увести патч по чужим индексам.
+
+Фразы отсюда встают **всегда в каретку**, даже когда `phraseInsertMode` стоит на `prepend`:
+`/` вызывается в конкретной точке текста. `Ctrl+K` свою настройку сохраняет.
+
 ### Panels
 `App.tsx` держит состояние панелей (find/replace, presets, settings, reference, trigger phrases,
 command palette, global search, shortcuts, distraction-free). Боковые панели взаимоисключимы.
@@ -174,6 +190,7 @@ interface ReplacePreset  { id: string; name: string; pairs: ReplacePair[] }
 | `Ctrl+P` | **Закрепить/открепить таб** (не палитра!) |
 | `Ctrl+Shift+P` | Command palette |
 | `Ctrl+K` | Trigger phrases |
+| `/` | **Редактор:** слэш-меню (фразы + markdown), в начале строки или после пробела |
 | `Ctrl+F` / `Ctrl+H` | Find / Find & Replace |
 | `Ctrl+S` / `Ctrl+O` | Записать сейчас (запись и так автоматическая) / открыть файл |
 | `Ctrl+Z` / `Ctrl+Shift+Z` | Undo / redo |
