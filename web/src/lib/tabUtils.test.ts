@@ -8,6 +8,7 @@ import {
   partitionGroups,
   partitionPinned,
   pruneGroups,
+  reorderTabs,
   stepTab,
   visibleTabsOf,
 } from "./tabUtils";
@@ -217,6 +218,66 @@ describe("stepTab: одно нажатие — ровно одно измене�
     const tabs = [tab("a"), tab("b")];
     expect(stepTab(tabs, [], "b", 1)).toBeNull();
     expect(stepTab(tabs, [], "a", -1)).toBeNull();
+  });
+});
+
+describe("reorderTabs: перенос броском", () => {
+  // Тот самый дефект: вставка «перед целью» на шаге вправо возвращает таб на его же
+  // место, и перетаскивание выглядит неработающим. Дефект жил с 2026-08-07.
+  test("бросок на соседа СПРАВА реально двигает таб", () => {
+    const tabs = [tab("a"), tab("b"), tab("c")];
+    expect(reorderTabs(tabs, "a", "b")?.map((t) => t.id)).toEqual(["b", "a", "c"]);
+  });
+
+  test("бросок на соседа слева работал и раньше — не сломан", () => {
+    const tabs = [tab("a"), tab("b"), tab("c")];
+    expect(reorderTabs(tabs, "c", "b")?.map((t) => t.id)).toEqual(["a", "c", "b"]);
+  });
+
+  test("бросок на последний таб уносит в конец, на первый — в начало", () => {
+    const tabs = [tab("a"), tab("b"), tab("c")];
+    expect(reorderTabs(tabs, "a", "c")?.map((t) => t.id)).toEqual(["b", "c", "a"]);
+    expect(reorderTabs(tabs, "c", "a")?.map((t) => t.id)).toEqual(["c", "a", "b"]);
+  });
+
+  test("бросок на себя и на несуществующий таб — null", () => {
+    const tabs = [tab("a"), tab("b")];
+    expect(reorderTabs(tabs, "a", "a")).toBeNull();
+    expect(reorderTabs(tabs, "a", "zzz")).toBeNull();
+    expect(reorderTabs(tabs, "zzz", "a")).toBeNull();
+  });
+
+  // Членство берётся у ЦЕЛИ, а не у соседа по индексу вставки: вправо таб встаёт после
+  // цели, и на позиции вставки стоит уже следующий таб — с чужой группой.
+  test("бросок вправо на член группы вводит таб в ЕЁ группу, а не в следующую", () => {
+    const tabs = [tab("a"), tab("c", { groupId: "g" }), tab("z", { groupId: "g2" })];
+    const out = reorderTabs(tabs, "a", "c")!;
+    expect(out.find((t) => t.id === "a")?.groupId).toBe("g");
+  });
+
+  test("бросок наружу выводит таб из группы", () => {
+    const tabs = [tab("x"), tab("c", { groupId: "g" })];
+    const out = reorderTabs(tabs, "c", "x")!;
+    expect(out.find((t) => t.id === "c")?.groupId).toBeUndefined();
+  });
+
+  test("закреплённый таб группу не меняет", () => {
+    const tabs = [tab("p", { pinned: true }), tab("c", { groupId: "g" })];
+    const out = reorderTabs(tabs, "p", "c")!;
+    expect(out.find((t) => t.id === "p")?.groupId).toBeUndefined();
+  });
+
+  test("исходный массив не мутируется", () => {
+    const tabs = [tab("a"), tab("b")];
+    reorderTabs(tabs, "a", "b");
+    expect(tabs.map((t) => t.id)).toEqual(["a", "b"]);
+  });
+
+  test("порядок после arrangeTabs остаётся законным", () => {
+    const tabs = [tab("a"), tab("b"), tab("c", { groupId: "g" }), tab("d", { groupId: "g" })];
+    const out = arrangeTabs(reorderTabs(tabs, "a", "c")!);
+    expect(out.map((t) => t.id)).toEqual(["b", "c", "a", "d"]);
+    expect(out.filter((t) => t.groupId === "g").map((t) => t.id)).toEqual(["c", "a", "d"]);
   });
 });
 

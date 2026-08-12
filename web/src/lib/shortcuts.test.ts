@@ -11,6 +11,7 @@ import {
   resetAllShortcuts,
   resetShortcut,
   sanitizeShortcutOverrides,
+  shortcutCommands,
   type ShortcutEvent,
   type ShortcutOverrides,
 } from "./shortcuts";
@@ -28,6 +29,35 @@ function key(
     ...modifiers,
   };
 }
+
+describe("реестр дефолтов", () => {
+  // matchShortcut отдаёт ПЕРВУЮ подошедшую команду, поэтому коллизия не падает, а тихо
+  // делает вторую команду недостижимой. Проверяем весь реестр разом: добавить аккорд,
+  // уже занятый в той же области, теперь нельзя молча.
+  test("ни один аккорд не занят двумя командами одной области", () => {
+    const seen = new Map<string, string>();
+    for (const command of shortcutCommands) {
+      for (const chord of command.defaults) {
+        const key = `${command.scope}|${formatChord(chord)}`;
+        expect(seen.get(key) ?? command.id).toBe(command.id);
+        seen.set(key, command.id);
+      }
+    }
+  });
+
+  // Единственная привязка на nav-клавише = команда, недоступная без Fn-слоя на 60%
+  // клавиатурах. У next/previous альтернатива была всегда, у move-tab её не было.
+  test("у команд на PgUp/PgDn есть аккорд без nav-клавиш", () => {
+    const NAV = new Set(["PageUp", "PageDown", "Home", "End", "Insert", "Delete"]);
+    for (const command of shortcutCommands) {
+      if (!command.defaults.some((chord) => NAV.has(chord.code))) continue;
+      expect({
+        id: command.id,
+        hasNonNav: command.defaults.some((chord) => !NAV.has(chord.code)),
+      }).toEqual({ id: command.id, hasNonNav: true });
+    }
+  });
+});
 
 describe("shortcut matching", () => {
   test("requires exact equality of every modifier", () => {

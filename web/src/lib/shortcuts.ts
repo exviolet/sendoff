@@ -106,19 +106,29 @@ export const shortcutCommands = [
     scope: "global",
     defaults: [{ code: "KeyT", ctrl: true, shift: true }],
   },
+  // Второй аккорд обязателен, а не «для удобства»: PgUp/PgDn на 60% клавиатурах живут
+  // на Fn-слое, и это была ЕДИНСТВЕННАЯ привязка move-tab — в отличие от next/previous,
+  // у которых альтернатива Ctrl+Tab есть. Comma/Period — буквенный ряд, есть везде,
+  // и мнемоника «<» / «>» совпадает с направлением.
   {
     id: "move-tab-left",
     label: "Move tab left",
     group: "Tabs",
     scope: "global",
-    defaults: [{ code: "PageUp", ctrl: true, shift: true }],
+    defaults: [
+      { code: "PageUp", ctrl: true, shift: true },
+      { code: "Comma", ctrl: true, shift: true },
+    ],
   },
   {
     id: "move-tab-right",
     label: "Move tab right",
     group: "Tabs",
     scope: "global",
-    defaults: [{ code: "PageDown", ctrl: true, shift: true }],
+    defaults: [
+      { code: "PageDown", ctrl: true, shift: true },
+      { code: "Period", ctrl: true, shift: true },
+    ],
   },
   {
     id: "next-tab",

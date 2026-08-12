@@ -179,7 +179,7 @@ interface ReplacePreset  { id: string; name: string; pairs: ReplacePair[] }
 | `Ctrl+B` / `Ctrl+I` | **Редактор:** жирный / курсив |
 | `Ctrl+M` / `Ctrl+Shift+M` | **Редактор:** инлайн-код / блок кода |
 | `Tab` / `Shift+Tab` | **Редактор:** отступ / убрать отступ (вкладывает пункт списка) |
-| `Ctrl+Shift+PgUp` / `PgDn` | Сдвинуть таб влево / вправо по полосе |
+| `Ctrl+Shift+,` / `.` | Сдвинуть таб влево / вправо (второй аккорд — `Ctrl+Shift+PgUp`/`PgDn`) |
 | `Ctrl+G` | Положить таб в группу (пикер) |
 | `Ctrl+Shift+W` | Workspace: переключить / создать |
 | `Ctrl+N` / `Ctrl+W` | Новый / закрыть таб |

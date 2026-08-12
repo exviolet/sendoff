@@ -89,6 +89,8 @@ keep the agent's reply pinned in the reference panel while you write the next on
 
 **Tabs that scale**
 - Tabbed editor with drag-and-drop reorder; survives restarts (75+ tabs daily).
+  Moving a tab never depends on a navigation cluster: `Ctrl+Shift+,` / `Ctrl+Shift+.`
+  work on 60% keyboards where `PgUp`/`PgDn` live on a function layer.
 - Tabs auto-name themselves from the first line; empty tabs auto-clean.
 - **Workspaces** (`Ctrl+Shift+W`) — group tabs by project; the tab bar shows
   only the active workspace, and pins are per-workspace.
@@ -159,7 +161,8 @@ bun run preview    # serve the production build locally
 | `Ctrl+N` / `Ctrl+W` | New / close tab |
 | `Ctrl+Shift+T` | Reopen closed tab |
 | `Ctrl+Tab` / `Ctrl+Shift+Tab` | Next / previous tab |
-| `Ctrl+Shift+PgUp` / `PgDn` | Move the tab left / right along the bar |
+| `Ctrl+Shift+,` / `.` | Move the tab left / right along the bar |
+| `Ctrl+Shift+PgUp` / `PgDn` | Same, for keyboards with a nav cluster |
 | `Ctrl+Z` / `Ctrl+Shift+Z` | Undo / redo |
 | `Ctrl+F` / `Ctrl+H` | Find / Find & Replace |
 | `Ctrl+Shift+P` | Command palette |
