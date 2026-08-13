@@ -61,6 +61,7 @@ export interface CommandDeps {
   moveActiveTabToWorkspace: () => void;
   renameActiveWorkspace: () => void;
   deleteActiveWorkspace: () => void;
+  insertImagePath: () => void;
 }
 
 export function useCommands(deps: CommandDeps): Command[] {
@@ -72,6 +73,7 @@ export function useCommands(deps: CommandDeps): Command[] {
     markdownPreview, focusEditor, cleanupEmptyTabs, toggleActivePin,
     handleSend, setTargetPicker, bindActiveTab, unbindActiveTab,
     openWorkspaceSwitcher, moveActiveTabToWorkspace, renameActiveWorkspace, deleteActiveWorkspace,
+    insertImagePath,
   } = deps;
 
   return useMemo(() => addRegistryShortcuts([
@@ -110,6 +112,7 @@ export function useCommands(deps: CommandDeps): Command[] {
     { id: "target-unbind", label: "Unbind tab from terminal", action: unbindActiveTab },
     { id: "save", label: "Write now (usually automatic)", action: saveCurrentTab },
     { id: "open", label: "Open file", action: openFile },
+    { id: "insert-image-path", label: "Insert image path", action: insertImagePath },
     { id: "download", label: "Download tab", action: downloadCurrentTab },
     { id: "export", label: "Export backup", action: exportAll },
     { id: "import", label: "Import backup", action: importBackup },
@@ -122,5 +125,5 @@ export function useCommands(deps: CommandDeps): Command[] {
     { id: "toggle-md-preview", label: markdownPreview ? "Editor" : "Markdown preview", action: () => setMarkdownPreview((v) => !v) },
     { id: "settings", label: "Settings", action: () => toggleSidePanel("settings") },
     { id: "focus-editor", label: "Focus editor", action: focusEditor },
-  ], shortcutOverrides), [saveCurrentTab, openFile, downloadCurrentTab, exportAll, importBackup, toggleDistractionFree, toggleSidePanel, setSidePanel, setPanelMode, setTheme, setTabSwitcherOpen, setGlobalSearchOpen, setTriggerPhrasesOpen, setShortcutsOpen, setMarkdownPreview, markdownPreview, focusEditor, cleanupEmptyTabs, toggleActivePin, handleSend, setTargetPicker, bindActiveTab, unbindActiveTab, openWorkspaceSwitcher, moveActiveTabToWorkspace, renameActiveWorkspace, deleteActiveWorkspace, shortcutOverrides]);
+  ], shortcutOverrides), [saveCurrentTab, openFile, downloadCurrentTab, exportAll, importBackup, toggleDistractionFree, toggleSidePanel, setSidePanel, setPanelMode, setTheme, setTabSwitcherOpen, setGlobalSearchOpen, setTriggerPhrasesOpen, setShortcutsOpen, setMarkdownPreview, markdownPreview, focusEditor, cleanupEmptyTabs, toggleActivePin, handleSend, setTargetPicker, bindActiveTab, unbindActiveTab, openWorkspaceSwitcher, moveActiveTabToWorkspace, renameActiveWorkspace, deleteActiveWorkspace, insertImagePath, shortcutOverrides]);
 }
