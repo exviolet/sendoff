@@ -39,11 +39,11 @@ function App() {
   const [distractionFree, setDistractionFree] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [tabSwitcherOpen, setTabSwitcherOpen] = useState(false);
-  // null = закрыт; move хранит id таба, который переносим.
+  // null = закрыт; move хранит id таба, который переносим; editId открывает пикер
+  // сразу на правке (палитра — над активным workspace).
   const [workspacePicker, setWorkspacePicker] = useState<
-    null | { mode: "switch" } | { mode: "move"; tabId: string }
+    null | { mode: "switch"; editId?: string } | { mode: "move"; tabId: string }
   >(null);
-  const [workspaceDialog, setWorkspaceDialog] = useState<null | "rename" | "delete">(null);
   // null = закрыт; иначе id таба, который кладём в группу.
   const [groupPickerTabId, setGroupPickerTabId] = useState<string | null>(null);
   const [globalSearchOpen, setGlobalSearchOpen] = useState(false);
@@ -178,8 +178,12 @@ function App() {
     handleSend, setTargetPicker, bindActiveTab, unbindActiveTab,
     openWorkspaceSwitcher: openWorkspaceSwitcher,
     moveActiveTabToWorkspace: moveActiveTabToWorkspace,
-    renameActiveWorkspace: () => setWorkspaceDialog("rename"),
-    deleteActiveWorkspace: () => setWorkspaceDialog("delete"),
+    // Обе команды ведут в одну панель правки — переименование и удаление живут там
+    // вместе. Две записи в палитре сохранены ради поиска по слову «delete».
+    renameActiveWorkspace: () =>
+      setWorkspacePicker({ mode: "switch", editId: useEditorStore.getState().activeWorkspaceId }),
+    deleteActiveWorkspace: () =>
+      setWorkspacePicker({ mode: "switch", editId: useEditorStore.getState().activeWorkspaceId }),
   });
 
   useKeyboardShortcuts({
@@ -335,6 +339,7 @@ function App() {
               store.setActiveWorkspace(workspaceId);
             }
           }}
+          initialEdit={workspacePicker.mode === "switch" ? workspacePicker.editId : undefined}
         />
       )}
       {groupPickerTabId && (
@@ -343,47 +348,6 @@ function App() {
           onClose={() => setGroupPickerTabId(null)}
         />
       )}
-      {workspaceDialog === "rename" && (() => {
-        const s = useEditorStore.getState();
-        const ws = s.workspaces.find((w) => w.id === s.activeWorkspaceId);
-        return (
-          <ConfirmDialog
-            title="Rename workspace"
-            message="New name for the active workspace."
-            confirmLabel="Rename"
-            inputDefault={ws?.name ?? ""}
-            inputPlaceholder="Workspace name"
-            onConfirm={(value) => {
-              if (ws) useEditorStore.getState().renameWorkspace(ws.id, value);
-              setWorkspaceDialog(null);
-            }}
-            onCancel={() => setWorkspaceDialog(null)}
-          />
-        );
-      })()}
-      {workspaceDialog === "delete" && (() => {
-        const s = useEditorStore.getState();
-        const ws = s.workspaces.find((w) => w.id === s.activeWorkspaceId);
-        const target = s.workspaces.find((w) => w.id !== s.activeWorkspaceId);
-        const count = s.tabs.filter((t) => t.workspaceId === s.activeWorkspaceId).length;
-        return (
-          <ConfirmDialog
-            title={`Delete workspace “${ws?.name ?? ""}”?`}
-            message={
-              target
-                ? `${count} tab(s) will move to “${target.name}” — nothing will be deleted.`
-                : "Cannot delete the only workspace."
-            }
-            confirmLabel="Delete"
-            danger
-            onConfirm={() => {
-              if (ws && target) useEditorStore.getState().deleteWorkspace(ws.id);
-              setWorkspaceDialog(null);
-            }}
-            onCancel={() => setWorkspaceDialog(null)}
-          />
-        );
-      })()}
       {shortcutsOpen && <ShortcutsModal onClose={() => setShortcutsOpen(false)} />}
       {pendingClose && (
         <ConfirmDialog
