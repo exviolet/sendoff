@@ -1,11 +1,12 @@
 import { useCallback, type RefObject } from "react";
 import { isTauri } from "../lib/platform";
-import { IMAGE_EXTENSIONS, insertAttachmentPath } from "../lib/attachments";
+import { IMAGE_EXTENSIONS, insertAttachmentPath, isImagePath } from "../lib/attachments";
 import { useEditorStore } from "../store/editorStore";
 import { toast } from "../store/toastStore";
 
-// Оба канала сходятся здесь и дальше неразличимы: диалог отдаёт путь уже существующего
-// файла, буфер обмена — путь только что записанного. Сборка промпта об источнике не знает.
+// Все три канала сходятся здесь и дальше неразличимы: диалог и drag & drop отдают путь уже
+// существующего файла, буфер обмена — путь только что записанного. Сборка промпта об
+// источнике не знает.
 
 /// Отказ из Tauri приходит СТРОКОЙ, а не Error: ошибка родом из Rust, и в Error её никто
 /// не оборачивает (та же ловушка, что съела причину сбоя herdr у 2-го пользователя).
@@ -102,5 +103,18 @@ export function useImageAttachment(textareaRef: RefObject<HTMLTextAreaElement | 
     }
   }, [insertPath]);
 
-  return { pickImage, attachClipboardImage };
+  /// Канал C. Файлы брошены в окно — пути пришли готовыми, платить нечем.
+  ///
+  /// Все картинки уходят ОДНОЙ вставкой намеренно: `insertPath` берёт позицию из живой
+  /// textarea, а каретка после `updateContent` доезжает только следующим кадром (RAF выше).
+  /// Цикл по одному пути положил бы второй туда, где каретка стояла ДО первого.
+  const attachDroppedImages = useCallback(
+    (paths: readonly string[]) => {
+      const images = paths.filter(isImagePath);
+      if (images.length > 0) insertPath(images.join(" "));
+    },
+    [insertPath],
+  );
+
+  return { pickImage, attachClipboardImage, attachDroppedImages };
 }

@@ -42,7 +42,7 @@ export function Editor({ highlights = [], activeHighlight = -1, textareaRef, mar
   const activeTabId = useEditorStore((s) => s.activeTabId);
   const updateContent = useEditorStore((s) => s.updateContent);
   const addTabFromFile = useEditorStore((s) => s.addTabFromFile);
-  const { attachClipboardImage } = useImageAttachment(textareaRef);
+  const { attachClipboardImage, attachDroppedImages } = useImageAttachment(textareaRef);
 
   // Контент нужен в рендере только для markdown preview и highlight backdrop.
   // В обычном режиме возвращаем "" — Zustand не триггерит ре-рендер при вводе.
@@ -121,15 +121,20 @@ export function Editor({ highlights = [], activeHighlight = -1, textareaRef, mar
   useEffect(() => {
     if (!isTauri) return;
     let unlisten: (() => void) | undefined;
+    let cancelled = false;
 
     (async () => {
       const { getCurrentWebview } = await import("@tauri-apps/api/webview");
       const { readTextFile } = await import("@tauri-apps/plugin-fs");
 
-      unlisten = await getCurrentWebview().onDragDropEvent(async (event) => {
+      const stop = await getCurrentWebview().onDragDropEvent(async (event) => {
         if (event.payload.type === "over") {
           setIsDragging(true);
         } else if (event.payload.type === "drop") {
+          // Картинки — ПЕРВЫМИ и до открытия текстовых файлов: `addTabFromFile` заводит
+          // новый таб и делает его активным, после чего путь уехал бы не в тот таб.
+          attachDroppedImages(event.payload.paths);
+
           for (const filePath of event.payload.paths) {
             const ext = filePath.split(".").pop()?.toLowerCase();
             if (["txt", "md", "markdown", "text"].includes(ext ?? "")) {
@@ -145,10 +150,23 @@ export function Editor({ highlights = [], activeHighlight = -1, textareaRef, mar
           dragCounter.current = 0;
         }
       });
+
+      // Эффект мог быть свёрнут, пока шли `await`. Cleanup в этот момент видит `unlisten`
+      // ещё пустым и отписаться не может — слушатель того прохода остаётся жить навсегда,
+      // и КАЖДЫЙ drop отрабатывает лишний раз. В StrictMode это происходит на каждом
+      // монтировании, поэтому в dev один брошенный файл давал два пути (и два таба).
+      if (cancelled) {
+        stop();
+        return;
+      }
+      unlisten = stop;
     })();
 
-    return () => { unlisten?.(); };
-  }, [addTabFromFile]);
+    return () => {
+      cancelled = true;
+      unlisten?.();
+    };
+  }, [addTabFromFile, attachDroppedImages]);
 
   // Правки клавиатурных операций идут мимо onChange, поэтому стор обновляем руками.
   // Висящий RAF от предыдущего ввода обязателен к отмене: он держит значение,
@@ -428,7 +446,11 @@ export function Editor({ highlights = [], activeHighlight = -1, textareaRef, mar
               <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
             <span className="text-sm tracking-wide font-medium">Drop files here</span>
-            <span className="text-xs text-text-muted">.txt, .md, .markdown</span>
+            <span className="text-xs text-text-muted">.txt, .md, .markdown — opened as tabs</span>
+            {/* В браузере картинку принять нечем: у File нет пути, а вставляем мы путь. */}
+            {isTauri && (
+              <span className="text-xs text-text-muted">.png, .jpg, .gif, .webp — inserted as a path</span>
+            )}
           </div>
         </div>
       )}

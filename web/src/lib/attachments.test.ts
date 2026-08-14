@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { insertAttachmentPath } from "./attachments";
+import { insertAttachmentPath, isImagePath } from "./attachments";
 
 const P = "/home/u/img.png";
 
@@ -50,6 +50,36 @@ describe("insertAttachmentPath", () => {
     // Набор продолжается за путём, а не внутрь него.
     expect(content.slice(0, caret)).toBe(`до ${P} `);
     expect(content.slice(caret)).toBe("после");
+  });
+});
+
+describe("isImagePath", () => {
+  test("узнаёт все форматы из списка", () => {
+    for (const ext of ["png", "jpg", "jpeg", "gif", "webp"]) {
+      expect(isImagePath(`/home/u/shot.${ext}`)).toBe(true);
+    }
+  });
+
+  test("расширение регистронезависимо — скриншоты приходят и в .PNG", () => {
+    expect(isImagePath("/home/u/Shot.PNG")).toBe(true);
+  });
+
+  test("текстовые файлы не картинки — они открываются табом, а не путём", () => {
+    expect(isImagePath("/home/u/notes.md")).toBe(false);
+    expect(isImagePath("/home/u/notes.txt")).toBe(false);
+  });
+
+  test("формат вне списка отсекается — агент его всё равно не откроет", () => {
+    expect(isImagePath("/home/u/diagram.svg")).toBe(false);
+    expect(isImagePath("/home/u/photo.bmp")).toBe(false);
+  });
+
+  test("файл без расширения не принимается за картинку", () => {
+    expect(isImagePath("/home/u/screenshot")).toBe(false);
+  });
+
+  test("точка в каталоге, а не в имени файла, картинкой не делает", () => {
+    expect(isImagePath("/home/u/v1.2/README")).toBe(false);
   });
 });
 

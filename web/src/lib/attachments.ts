@@ -13,6 +13,18 @@
 /// сигнатурный sniff на Rust-стороне — там он источник правды, здесь фильтр диалога.
 export const IMAGE_EXTENSIONS = ["png", "jpg", "jpeg", "gif", "webp"] as const;
 
+/**
+ * Картинка ли это — решает расширение пути.
+ *
+ * Сигнатуру тут прочесть нечем и не нужно: брошенный файл уже лежит на диске, вебвью
+ * его не открывает (чтения бинарника ему не выдано), а вставляем мы только строку.
+ * Сигнатурный sniff остаётся там, где действительно создаётся файл, — в Rust.
+ */
+export function isImagePath(path: string): boolean {
+  const ext = path.split(".").pop()?.toLowerCase();
+  return ext !== undefined && (IMAGE_EXTENSIONS as readonly string[]).includes(ext);
+}
+
 export interface AttachmentInsertion {
   content: string;
   caret: number;
