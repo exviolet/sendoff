@@ -121,12 +121,13 @@ export function Editor({ highlights = [], activeHighlight = -1, textareaRef, mar
   useEffect(() => {
     if (!isTauri) return;
     let unlisten: (() => void) | undefined;
+    let cancelled = false;
 
     (async () => {
       const { getCurrentWebview } = await import("@tauri-apps/api/webview");
       const { readTextFile } = await import("@tauri-apps/plugin-fs");
 
-      unlisten = await getCurrentWebview().onDragDropEvent(async (event) => {
+      const stop = await getCurrentWebview().onDragDropEvent(async (event) => {
         if (event.payload.type === "over") {
           setIsDragging(true);
         } else if (event.payload.type === "drop") {
@@ -149,9 +150,22 @@ export function Editor({ highlights = [], activeHighlight = -1, textareaRef, mar
           dragCounter.current = 0;
         }
       });
+
+      // Эффект мог быть свёрнут, пока шли `await`. Cleanup в этот момент видит `unlisten`
+      // ещё пустым и отписаться не может — слушатель того прохода остаётся жить навсегда,
+      // и КАЖДЫЙ drop отрабатывает лишний раз. В StrictMode это происходит на каждом
+      // монтировании, поэтому в dev один брошенный файл давал два пути (и два таба).
+      if (cancelled) {
+        stop();
+        return;
+      }
+      unlisten = stop;
     })();
 
-    return () => { unlisten?.(); };
+    return () => {
+      cancelled = true;
+      unlisten?.();
+    };
   }, [addTabFromFile, attachDroppedImages]);
 
   // Правки клавиатурных операций идут мимо onChange, поэтому стор обновляем руками.
