@@ -4,6 +4,7 @@ import { useEditorStore } from "../../store/editorStore";
 import { useTriggerPhrasesStore } from "../../store/triggerPhrasesStore";
 import { isTauri } from "../../lib/platform";
 import { useEditorKeymap } from "../../hooks/useEditorKeymap";
+import { useImageAttachment } from "../../hooks/useImageAttachment";
 import type { EditPatch } from "../../lib/markdownEdit";
 import {
   applySlashItem,
@@ -41,6 +42,7 @@ export function Editor({ highlights = [], activeHighlight = -1, textareaRef, mar
   const activeTabId = useEditorStore((s) => s.activeTabId);
   const updateContent = useEditorStore((s) => s.updateContent);
   const addTabFromFile = useEditorStore((s) => s.addTabFromFile);
+  const { attachClipboardImage } = useImageAttachment(textareaRef);
 
   // Контент нужен в рендере только для markdown preview и highlight backdrop.
   // В обычном режиме возвращаем "" — Zustand не триггерит ре-рендер при вводе.
@@ -365,6 +367,20 @@ export function Editor({ highlights = [], activeHighlight = -1, textareaRef, mar
               refreshSlash();
             }}
             onKeyDown={handleKeyDown}
+            onPaste={(e) => {
+              // Текст пусть вставляется браузером как обычно — перехватываем только
+              // картинку, у которой в буфере нет файла на диске, а значит и пути.
+              if (!isTauri) return;
+              // Решение принимается по types события, а не по его содержимому: саму
+              // картинку WebKitGTK в событии не отдаёт (см. imageFromClipboard).
+              // Есть текст — это не наш случай, отдаём событие браузеру нетронутым.
+              const types = Array.from(e.clipboardData.types);
+              if (types.some((t) => t.startsWith("text/"))) return;
+              // Текста нет — значит браузеру вставлять всё равно нечего, гасим и
+              // читаем буфер сами. Читать надо здесь же: это жест пользователя.
+              e.preventDefault();
+              void attachClipboardImage();
+            }}
             onClick={() => { if (slash) setSlash(null); }}
             onBlur={() => { if (slash) setSlash(null); }}
             onScroll={syncScroll}

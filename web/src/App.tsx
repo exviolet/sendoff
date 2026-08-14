@@ -21,6 +21,7 @@ import { useSessionPersistence, flushSession } from "./hooks/useSessionPersisten
 import { useFileIO } from "./hooks/useFileIO";
 import { useTerminalActions } from "./hooks/useTerminalActions";
 import { useCommands, type PanelMode, type SidePanel } from "./hooks/useCommands";
+import { useImageAttachment } from "./hooks/useImageAttachment";
 import { useEditorStore } from "./store/editorStore";
 import { useThemeStore } from "./store/themeStore";
 import { useSettingsStore } from "./store/settingsStore";
@@ -170,12 +171,18 @@ function App() {
     requestAnimationFrame(() => textareaRef.current?.focus());
   }, []);
 
+  // Тот же хук зовёт и Editor — колбэки без состояния, второй вызов ничего не дублирует.
+  // Так же устроены ReferencePanel и TriggerPhrasePicker: каждый потребитель textareaRef
+  // делает вставку сам, а не тянет её пропом сверху.
+  const { pickImage } = useImageAttachment(textareaRef);
+
   const paletteCommands = useCommands({
     saveCurrentTab, openFile, downloadCurrentTab, exportAll, importBackup,
     toggleDistractionFree, toggleSidePanel, setSidePanel, setPanelMode, setTheme,
     setTabSwitcherOpen, setGlobalSearchOpen, setTriggerPhrasesOpen, setShortcutsOpen, setMarkdownPreview,
     markdownPreview, focusEditor, cleanupEmptyTabs, toggleActivePin,
     handleSend, setTargetPicker, bindActiveTab, unbindActiveTab,
+    insertImagePath: pickImage,
     openWorkspaceSwitcher: openWorkspaceSwitcher,
     moveActiveTabToWorkspace: moveActiveTabToWorkspace,
     // Обе команды ведут в одну панель правки — переименование и удаление живут там
