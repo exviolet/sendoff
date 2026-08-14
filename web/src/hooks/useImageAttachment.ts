@@ -14,6 +14,29 @@ function describe(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
+/**
+ * Картинка из системного буфера — через асинхронный Clipboard API, а НЕ из события
+ * вставки.
+ *
+ * Замерено 2026-08-13 на живом WebKitGTK: при скриншоте в буфере (`wl-paste
+ * --list-types` показывает ровно `image/png`) событие `paste` не несёт картинку
+ * НИКАК — ни в `clipboardData.files`, ни в `clipboardData.items`. Проверялись все
+ * три пути сразу, сработал только этот. То есть привычный по Chrome/Firefox код
+ * «взять файл из DataTransfer» здесь молча ничего не делает — ровно так эта фича
+ * и не работала в первой версии.
+ *
+ * Зовётся ВНУТРИ обработчика вставки намеренно: это жест пользователя, без него
+ * чтение буфера не разрешается.
+ */
+async function imageFromClipboard(): Promise<Blob | null> {
+  const items = await navigator.clipboard.read();
+  for (const item of items) {
+    const type = item.types.find((t) => t.startsWith("image/"));
+    if (type) return await item.getType(type);
+  }
+  return null;
+}
+
 export function useImageAttachment(textareaRef: RefObject<HTMLTextAreaElement | null>) {
   // Вставка идёт через updateContent по живому значению textarea — тем же путём, что
   // фразы-триггеры. Патч из markdownEdit тут не годится: команда палитры живёт вне
@@ -61,21 +84,23 @@ export function useImageAttachment(textareaRef: RefObject<HTMLTextAreaElement | 
 
   /// Канал B. Файла нет — только байты в буфере. Записывает их Rust: путь назначения
   /// вебвью не задаёт, расширение выводится из сигнатуры уже там.
-  const attachClipboardImage = useCallback(
-    async (file: File) => {
-      try {
-        const { invoke } = await import("@tauri-apps/api/core");
-        const bytes = new Uint8Array(await file.arrayBuffer());
-        // Uint8Array уезжает сырым телом запроса: скриншот на несколько мегабайт в виде
-        // JSON-массива чисел сериализуется дольше, чем пишется на диск.
-        const path = await invoke<string>("save_clipboard_image", bytes);
-        insertPath(path);
-      } catch (err) {
-        toast(`Could not save pasted image: ${describe(err)}`, "error");
+  const attachClipboardImage = useCallback(async () => {
+    try {
+      const blob = await imageFromClipboard();
+      if (!blob) {
+        toast("No image in clipboard", "info");
+        return;
       }
-    },
-    [insertPath],
-  );
+      const { invoke } = await import("@tauri-apps/api/core");
+      const bytes = new Uint8Array(await blob.arrayBuffer());
+      // Uint8Array уезжает сырым телом запроса: скриншот на несколько мегабайт в виде
+      // JSON-массива чисел сериализуется дольше, чем пишется на диск.
+      const path = await invoke<string>("save_clipboard_image", bytes);
+      insertPath(path);
+    } catch (err) {
+      toast(`Could not save pasted image: ${describe(err)}`, "error");
+    }
+  }, [insertPath]);
 
   return { pickImage, attachClipboardImage };
 }

@@ -13,10 +13,6 @@
 /// сигнатурный sniff на Rust-стороне — там он источник правды, здесь фильтр диалога.
 export const IMAGE_EXTENSIONS = ["png", "jpg", "jpeg", "gif", "webp"] as const;
 
-export function isImageFile(file: { type: string }): boolean {
-  return file.type.startsWith("image/");
-}
-
 export interface AttachmentInsertion {
   content: string;
   caret: number;

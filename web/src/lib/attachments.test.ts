@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { insertAttachmentPath, isImageFile } from "./attachments";
+import { insertAttachmentPath } from "./attachments";
 
 const P = "/home/u/img.png";
 
@@ -53,14 +53,3 @@ describe("insertAttachmentPath", () => {
   });
 });
 
-describe("isImageFile", () => {
-  test("любой image/* принимается — конкретный формат решает Rust по сигнатуре", () => {
-    expect(isImageFile({ type: "image/png" })).toBe(true);
-    expect(isImageFile({ type: "image/webp" })).toBe(true);
-  });
-
-  test("не-картинки отсеиваются здесь, чтобы не гонять байты впустую", () => {
-    expect(isImageFile({ type: "text/plain" })).toBe(false);
-    expect(isImageFile({ type: "" })).toBe(false);
-  });
-});
