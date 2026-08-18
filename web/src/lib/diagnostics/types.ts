@@ -18,10 +18,22 @@ export type ExecutableLocation =
   | { kind: "found"; path?: string }
   | { kind: "not-found" };
 
+// Разобранный отказ провайдера.
+//
+// Разделение осознанное: основной UI показывает summary (и code, если провайдер его
+// назвал), а полный сырой конверт нужен только в отчёте для отладки. Иначе экран
+// диагностики превращается в дамп JSON, который человеку читать нечем.
+export interface ProviderFailure {
+  code?: string;
+  summary: string;
+  // Сырой вывод команды как есть — но уже после замены домашнего каталога на `~`.
+  raw: string;
+}
+
 // Чем кончился реальный продуктовый вызов listTargets().
 export type DiscoveryOutcome =
   | { kind: "ok"; targets: DiagnosticTarget[] }
-  | { kind: "failed"; message: string };
+  | { kind: "failed"; failure: ProviderFailure };
 
 // Строка таргета в отчёте. Хендл здесь не для красоты: единственный случившийся отказ
 // у 2-го пользователя был отказом ВАЛИДАТОРА send-пути (herdr отдавал pane_id
@@ -46,8 +58,7 @@ export interface ProviderDiagnostic {
   location: ExecutableLocation;
   status: ProviderStatus;
   targets: DiagnosticTarget[];
-  // Сырое сообщение провайдера, как пришло. Не парсится и не переписывается.
-  detail?: string;
+  failure?: ProviderFailure;
 }
 
 export interface AppDiagnostic {
@@ -60,6 +71,9 @@ export interface AppDiagnostic {
   webkitVersion: string | null;
   dataDir: string | null;
   userAgent: string;
+  // Домашний каталог — не для показа, а чтобы им санитизировать остальные строки.
+  // В отчёт не печатается: он и есть то, что мы прячем.
+  home: string | null;
 }
 
 export interface Diagnostics {

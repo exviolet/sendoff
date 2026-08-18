@@ -243,13 +243,27 @@ export function SettingsPanel({ onClose, onOpenDoctor }: SettingsPanelProps) {
         </div>
 
         {/* Диагностика. Живёт в настройках, но настройкой не является: Doctor ничего
-            не меняет — поэтому отдельным блоком, а не среди тумблеров. */}
+            не меняет — поэтому отдельным блоком, а не среди тумблеров.
+
+            Строка-действие, а не ссылка-текст: рядом лежит «Reset to defaults», и
+            одинаково выглядящие строки не давали понять, что эта открывает экран.
+            Шеврон и рамка — единственное, что об этом сообщает. */}
         <div className="pt-2 border-t border-border">
           <button
             onClick={onOpenDoctor}
-            className="text-[11px] text-text-muted hover:text-accent transition-colors"
+            className="w-full flex items-center justify-between gap-3 px-2.5 py-2 rounded border border-border hover:border-accent hover:bg-surface-hover transition-colors text-left group"
           >
-            Open Sendoff Doctor
+            <span>
+              <span className="block text-[11px] text-text">Sendoff Doctor</span>
+              <span className="block text-[10px] text-text-muted">
+                View application and provider diagnostics
+              </span>
+            </span>
+            <span className="text-text-muted group-hover:text-accent transition-colors" aria-hidden>
+              <svg width="10" height="10" viewBox="0 0 8 8" fill="none">
+                <path d="M2.5 1l3 3-3 3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </span>
           </button>
         </div>
 

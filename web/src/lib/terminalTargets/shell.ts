@@ -26,6 +26,29 @@ export function withTarget(message: string, target?: string): string {
   return target ? `${text} (target: ${target})` : text;
 }
 
+// Отказ scoped-команды с сохранённым сырым выводом.
+//
+// Зачем класс, а не просто строка: и orca-ide, и herdr отвечают JSON-конвертом
+// ({"ok":false,"error":{"code","message"}}), но runScoped склеивает его в текст
+// сообщения. Doctor'у нужны code и message по отдельности — а доставать их обратно
+// из готовой строки значило бы резать её регексом. Здесь сырой вывод просто не
+// теряется, и разбирается он потом честным JSON.parse.
+//
+// `message` остаётся ровно прежним, поэтому тосты и console.error не меняются.
+export class ScopedCommandError extends Error {
+  readonly stdout: string;
+  readonly stderr: string;
+  readonly code: number | null;
+
+  constructor(message: string, output: CommandOutput) {
+    super(message);
+    this.name = "ScopedCommandError";
+    this.stdout = output.stdout;
+    this.stderr = output.stderr;
+    this.code = output.code;
+  }
+}
+
 export async function runScoped(
   scopedName: string,
   args: string[],
@@ -45,7 +68,7 @@ export async function runScoped(
 
   if (output.code !== 0) {
     const detail = output.stderr.trim() || output.stdout.trim() || `exit code ${output.code ?? "unknown"}`;
-    throw new Error(withTarget(`${errorPrefix}: ${detail}`, target));
+    throw new ScopedCommandError(withTarget(`${errorPrefix}: ${detail}`, target), output);
   }
 
   return output;

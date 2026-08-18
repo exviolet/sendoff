@@ -3,8 +3,10 @@
 
 import { isTauri } from "../platform";
 import { PROVIDERS } from "../terminalTargets";
-import { describeError } from "../terminalTargets/shell";
+import { describeError, ScopedCommandError } from "../terminalTargets/shell";
 import { classifyProvider } from "./classify";
+import { summarizeFailure } from "./failure";
+import { sanitizeHome } from "./sanitize";
 import type {
   AppDiagnostic,
   Diagnostics,
@@ -40,6 +42,7 @@ async function collectApp(): Promise<AppDiagnostic> {
       webkitVersion: null,
       dataDir: null,
       userAgent,
+      home: null,
     };
   }
 
@@ -49,19 +52,29 @@ async function collectApp(): Promise<AppDiagnostic> {
     import("@tauri-apps/api/core"),
   ]);
 
-  const [name, version, tauriVersion, identifier, dataDir, webkitVersion] = await Promise.all([
+  const [name, version, tauriVersion, identifier, dataDir, webkitVersion, home] = await Promise.all([
     safe(() => app.getName(), "unknown"),
     safe(() => app.getVersion(), "unknown"),
     safe(() => app.getTauriVersion(), "unknown"),
     safe(() => app.getIdentifier(), "unknown"),
     safe<string | null>(() => path.appLocalDataDir(), null),
     safe<string | null>(() => core.invoke<string | null>("webkit_version"), null),
+    safe<string | null>(() => path.homeDir(), null),
   ]);
 
-  return { name, version, tauriVersion, identifier, webkitVersion, dataDir, userAgent };
+  return {
+    name,
+    version,
+    tauriVersion,
+    identifier,
+    webkitVersion,
+    dataDir: dataDir === null ? null : sanitizeHome(dataDir, home),
+    userAgent,
+    home,
+  };
 }
 
-async function locateExecutables(): Promise<Map<string, ExecutableLocation>> {
+async function locateExecutables(home: string | null): Promise<Map<string, ExecutableLocation>> {
   const found = new Map<string, ExecutableLocation>();
   if (!isTauri) return found;
 
@@ -73,13 +86,16 @@ async function locateExecutables(): Promise<Map<string, ExecutableLocation>> {
   for (const entry of located) {
     found.set(
       entry.name,
-      entry.path ? { kind: "found", path: entry.path } : { kind: "not-found" },
+      entry.path ? { kind: "found", path: sanitizeHome(entry.path, home) } : { kind: "not-found" },
     );
   }
   return found;
 }
 
-async function discover(provider: (typeof PROVIDERS)[number]): Promise<DiscoveryOutcome> {
+async function discover(
+  provider: (typeof PROVIDERS)[number],
+  home: string | null,
+): Promise<DiscoveryOutcome> {
   try {
     const targets = await provider.listTargets();
     return {
@@ -89,17 +105,34 @@ async function discover(provider: (typeof PROVIDERS)[number]): Promise<Discovery
   } catch (error) {
     // describeError, а не error.message: plugin-shell отклоняет промис СТРОКОЙ, и
     // проверка instanceof Error выбросила бы настоящую причину в мусор.
-    return { kind: "failed", message: describeError(error) };
+    const message = describeError(error);
+    // Сырой конверт есть только у отказа с ненулевым кодом возврата. У отказа
+    // подготовки команды (scope) выводить нечего — там всё сообщение и есть причина.
+    const raw =
+      error instanceof ScopedCommandError
+        ? error.stderr.trim() || error.stdout.trim() || message
+        : message;
+    const { code, summary } = summarizeFailure(raw, message);
+
+    return {
+      kind: "failed",
+      failure: {
+        code,
+        summary: sanitizeHome(summary, home),
+        raw: sanitizeHome(raw, home),
+      },
+    };
   }
 }
 
 export async function collectDiagnostics(): Promise<Diagnostics> {
   // Провайдеры опрашиваются параллельно: последовательно самый медленный (упавший по
   // таймауту) задерживал бы весь экран.
-  const [app, executables, outcomes] = await Promise.all([
-    collectApp(),
-    locateExecutables(),
-    Promise.all(PROVIDERS.map(discover)),
+  // Домашний каталог нужен раньше остальных: им санитизируются пути и сообщения.
+  const app = await collectApp();
+  const [executables, outcomes] = await Promise.all([
+    locateExecutables(app.home),
+    Promise.all(PROVIDERS.map((provider) => discover(provider, app.home))),
   ]);
 
   const providers: ProviderDiagnostic[] = PROVIDERS.map((provider, i) =>

@@ -6,6 +6,7 @@ import type {
   DiscoveryOutcome,
   ExecutableLocation,
   ProviderDiagnostic,
+  ProviderFailure,
   ProviderStatus,
 } from "./types";
 import type { TargetSource } from "../terminalTargets/types";
@@ -32,15 +33,15 @@ export function classifyProvider(probe: ProviderProbe): ProviderDiagnostic {
 
   let status: ProviderStatus;
   let targets: DiagnosticTarget[] = [];
-  let detail: string | undefined;
+  let failure: ProviderFailure | undefined;
 
   if (discovery.kind === "ok") {
     status = "ready";
     targets = discovery.targets;
   } else {
     status = location.kind === "found" ? "error" : "not-found";
-    detail = discovery.message;
+    failure = discovery.failure;
   }
 
-  return { source, label, executable, location, status, targets, detail };
+  return { source, label, executable, location, status, targets, failure };
 }

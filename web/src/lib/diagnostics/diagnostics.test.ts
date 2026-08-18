@@ -1,6 +1,8 @@
 import { describe, test, expect } from "bun:test";
 import { classifyProvider, type ProviderProbe } from "./classify";
 import { formatReport } from "./report";
+import { sanitizeHome } from "./sanitize";
+import { summarizeFailure } from "./failure";
 import type { Diagnostics } from "./types";
 
 const probe = (over: Partial<ProviderProbe> = {}): ProviderProbe => ({
@@ -26,7 +28,10 @@ describe("classifyProvider: статус выводится из пары сиг
     const result = classifyProvider(
       probe({
         location: { kind: "not-found" },
-        discovery: { kind: "failed", message: "No such file or directory (os error 2)" },
+        discovery: {
+          kind: "failed",
+          failure: { summary: "No such file or directory (os error 2)", raw: "" },
+        },
       }),
     );
     expect(result.status).toBe("not-found");
@@ -34,15 +39,19 @@ describe("classifyProvider: статус выводится из пары сиг
 
   test("discovery упал + файл есть → error (scope/версия CLI), причина сохранена дословно", () => {
     const message = "program not allowed on the configured shell scope: herdr-agent-list";
-    const result = classifyProvider(probe({ discovery: { kind: "failed", message } }));
+    const result = classifyProvider(
+      probe({ discovery: { kind: "failed", failure: { summary: message, raw: message } } }),
+    );
     expect(result.status).toBe("error");
-    expect(result.detail).toBe(message);
+    expect(result.failure?.summary).toBe(message);
   });
 
-  test("успешный discovery не тащит detail, упавший не тащит таргеты", () => {
-    expect(classifyProvider(probe()).detail).toBeUndefined();
+  test("успешный discovery не тащит failure, упавший не тащит таргеты", () => {
+    expect(classifyProvider(probe()).failure).toBeUndefined();
     expect(
-      classifyProvider(probe({ discovery: { kind: "failed", message: "boom" } })).targets,
+      classifyProvider(
+        probe({ discovery: { kind: "failed", failure: { summary: "boom", raw: "boom" } } }),
+      ).targets,
     ).toEqual([]);
   });
 
@@ -62,6 +71,7 @@ const diagnostics: Diagnostics = {
     webkitVersion: "2.50.4",
     dataDir: "/home/u/.local/share/dev.sendoff.app",
     userAgent: "Mozilla/5.0 …",
+    home: "/home/u",
   },
   providers: [
     classifyProvider(
@@ -78,7 +88,13 @@ const diagnostics: Diagnostics = {
         label: "tmux",
         executable: "tmux",
         location: { kind: "not-found" },
-        discovery: { kind: "failed", message: "tmux error: no server running" },
+        discovery: {
+          kind: "failed",
+          failure: {
+            summary: "no server running",
+            raw: "tmux error: no server running",
+          },
+        },
       }),
     ),
   ],
@@ -102,7 +118,8 @@ describe("formatReport", () => {
     expect(report).not.toContain("not installed");
   });
 
-  test("причина отказа переносится дословно", () => {
+  test("отчёт несёт и короткую формулировку, и полный сырой вывод", () => {
+    expect(report).toContain("no server running");
     expect(report).toContain("tmux error: no server running");
   });
 
@@ -113,5 +130,71 @@ describe("formatReport", () => {
     });
     expect(unknown).toContain("WebKitGTK unknown");
     expect(unknown).toContain("Data: unknown");
+  });
+});
+
+// Отчёт вставляют в публичную issue — имя пользователя из путей уезжать не должно.
+describe("sanitizeHome", () => {
+  test("домашний каталог заменяется на ~ во всех вхождениях", () => {
+    expect(sanitizeHome("/home/ex1te/.local/bin/herdr", "/home/ex1te")).toBe("~/.local/bin/herdr");
+    expect(
+      sanitizeHome("cannot read /home/ex1te/a and /home/ex1te/b", "/home/ex1te"),
+    ).toBe("cannot read ~/a and ~/b");
+  });
+
+  test("хвостовой слэш не съедает разделитель", () => {
+    expect(sanitizeHome("/home/ex1te/.config/orca", "/home/ex1te/")).toBe("~/.config/orca");
+  });
+
+  test("без известного home текст не трогается", () => {
+    expect(sanitizeHome("/home/ex1te/x", null)).toBe("/home/ex1te/x");
+  });
+
+  test("корневой home не превращает текст в кашу из ~", () => {
+    expect(sanitizeHome("/usr/bin/tmux", "/")).toBe("/usr/bin/tmux");
+    expect(sanitizeHome("/usr/bin/tmux", "")).toBe("/usr/bin/tmux");
+  });
+
+  test("пути, не относящиеся к home, остаются как есть", () => {
+    expect(sanitizeHome("/usr/bin/tmux", "/home/ex1te")).toBe("/usr/bin/tmux");
+  });
+});
+
+// Разбор JSON-конверта, а не регекс по строке: и orca-ide, и herdr отвечают
+// {"ok":false,"error":{"code","message"}}.
+describe("summarizeFailure", () => {
+  const envelope = JSON.stringify({
+    id: "local",
+    ok: false,
+    error: {
+      code: "runtime_unavailable",
+      message: "Could not read Orca runtime metadata at ~/.config/orca/orca-runtime.json",
+    },
+  });
+
+  test("code и message достаются из конверта", () => {
+    const result = summarizeFailure(envelope, "fallback");
+    expect(result.code).toBe("runtime_unavailable");
+    expect(result.summary).toContain("Could not read Orca runtime metadata");
+  });
+
+  test("не-JSON отдаёт fallback без выдуманного кода", () => {
+    const result = summarizeFailure("tmux error: no server running", "tmux error: no server running");
+    expect(result.code).toBeUndefined();
+    expect(result.summary).toBe("tmux error: no server running");
+  });
+
+  test("JSON без конверта ошибки отдаёт fallback", () => {
+    expect(summarizeFailure('{"ok":true,"result":{}}', "fallback").summary).toBe("fallback");
+  });
+
+  test("пустой вывод отдаёт fallback", () => {
+    expect(summarizeFailure("   ", "fallback").summary).toBe("fallback");
+  });
+
+  test("код без сообщения не теряется, текст берётся из fallback", () => {
+    const result = summarizeFailure('{"error":{"code":"boom"}}', "fallback");
+    expect(result.code).toBe("boom");
+    expect(result.summary).toBe("fallback");
   });
 });

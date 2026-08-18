@@ -15,11 +15,23 @@ function providerBlock(p: ProviderDiagnostic): string[] {
       : `  Executable: ${p.executable} not found in Sendoff PATH`,
   );
 
-  if (p.detail) {
-    lines.push("  Target discovery failed:");
-    // Сообщение может быть многострочным (stderr CLI) — отступ на каждой строке,
-    // иначе продолжение сливается со следующим блоком.
-    for (const line of p.detail.split("\n")) lines.push(`    ${line}`);
+  if (p.failure) {
+    lines.push(
+      p.failure.code
+        ? `  Target discovery failed: ${p.failure.code}`
+        : "  Target discovery failed:",
+    );
+    lines.push(`    ${p.failure.summary}`);
+
+    // Полный сырой вывод остаётся ТОЛЬКО в отчёте: в UI он превращает экран в дамп
+    // JSON, а для отладки по чужому репорту он и есть самое ценное. Печатается лишь
+    // когда отличается от короткой формулировки — иначе это дубль.
+    if (p.failure.raw.trim() !== p.failure.summary.trim()) {
+      lines.push("    ---");
+      // Многострочный вывод CLI: отступ на каждой строке, иначе продолжение
+      // сливается со следующим блоком.
+      for (const line of p.failure.raw.split("\n")) lines.push(`    ${line}`);
+    }
   }
 
   if (p.status === "ready") {

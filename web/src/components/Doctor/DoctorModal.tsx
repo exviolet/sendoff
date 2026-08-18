@@ -43,11 +43,19 @@ function ProviderBlock({ provider }: { provider: ProviderDiagnostic }) {
           <div>Executable {provider.executable} not found in Sendoff PATH</div>
         )}
 
-        {provider.detail && (
+        {/* Короткая форма, а не сырой конверт: провайдеры отвечают JSON'ом на десятки
+            строк, и в дампе тонет сама причина. Полный вывод живёт в отчёте — он для
+            отладки по чужому репорту, а этот экран человек читает глазами. */}
+        {provider.failure && (
           <div className="mt-1">
             <div className="text-danger/90">Target discovery failed</div>
-            <div className="mt-0.5 font-mono text-[10px] break-all text-danger/70 whitespace-pre-wrap">
-              {provider.detail}
+            {provider.failure.code && (
+              <div className="mt-0.5 font-mono text-[10px] text-danger/70">
+                {provider.failure.code}
+              </div>
+            )}
+            <div className="mt-0.5 text-danger/70 leading-relaxed whitespace-pre-wrap break-words">
+              {provider.failure.summary}
             </div>
           </div>
         )}
