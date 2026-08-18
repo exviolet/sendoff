@@ -38,9 +38,18 @@ export function classifyProvider(probe: ProviderProbe): ProviderDiagnostic {
   if (discovery.kind === "ok") {
     status = "ready";
     targets = discovery.targets;
-  } else {
-    status = location.kind === "found" ? "error" : "not-found";
+  } else if (location.kind === "found") {
+    status = "error";
     failure = discovery.failure;
+  } else {
+    // Бинаря нет — причина отказа не прикладывается СОЗНАТЕЛЬНО.
+    //
+    // Там всегда «спавн не состоялся», то есть ровно то, что строкой выше уже сказано
+    // по-английски («Executable X not found in Sendoff PATH»). Причём сказано лучше:
+    // сообщение приходит из std::io::Error самого Sendoff и потому локализовано системной
+    // локалью («Нет такого файла или каталога (os error 2)»), а отчёт вставляют в
+    // публичную issue. Дубль, который к тому же не по-английски, — чистый вред.
+    status = "not-found";
   }
 
   return { source, label, executable, location, status, targets, failure };

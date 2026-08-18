@@ -37,6 +37,22 @@ describe("classifyProvider: статус выводится из пары сиг
     expect(result.status).toBe("not-found");
   });
 
+  // Сообщение приходит из std::io::Error самого Sendoff и локализовано системной
+  // локалью, а отчёт вставляют в публичную issue. Английская строка «not found in
+  // Sendoff PATH» говорит то же самое и лучше.
+  test("при not-found локализованная причина не прикладывается", () => {
+    const result = classifyProvider(
+      probe({
+        location: { kind: "not-found" },
+        discovery: {
+          kind: "failed",
+          failure: { summary: "Нет такого файла или каталога (os error 2)", raw: "" },
+        },
+      }),
+    );
+    expect(result.failure).toBeUndefined();
+  });
+
   test("discovery упал + файл есть → error (scope/версия CLI), причина сохранена дословно", () => {
     const message = "program not allowed on the configured shell scope: herdr-agent-list";
     const result = classifyProvider(
@@ -119,8 +135,34 @@ describe("formatReport", () => {
   });
 
   test("отчёт несёт и короткую формулировку, и полный сырой вывод", () => {
-    expect(report).toContain("no server running");
-    expect(report).toContain("tmux error: no server running");
+    const withRaw = formatReport({
+      ...diagnostics,
+      providers: [
+        classifyProvider(
+          probe({
+            source: "orca",
+            label: "Orca",
+            executable: "orca-ide",
+            discovery: {
+              kind: "failed",
+              failure: {
+                code: "runtime_unavailable",
+                summary: "Could not read Orca runtime metadata",
+                raw: '{"ok":false,"error":{"code":"runtime_unavailable"}}',
+              },
+            },
+          }),
+        ),
+      ],
+    });
+    expect(withRaw).toContain("Target discovery failed: runtime_unavailable");
+    expect(withRaw).toContain("Could not read Orca runtime metadata");
+    expect(withRaw).toContain('"code":"runtime_unavailable"');
+  });
+
+  test("у не найденного бинаря в отчёте только английская строка про PATH", () => {
+    expect(report).toContain("tmux not found in Sendoff PATH");
+    expect(report).not.toContain("Target discovery failed");
   });
 
   test("неизвестная версия WebKit печатается словом, а не пустотой", () => {
