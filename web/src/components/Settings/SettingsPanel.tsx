@@ -3,9 +3,10 @@ import { useThemeStore } from "../../store/themeStore";
 
 interface SettingsPanelProps {
   onClose: () => void;
+  onOpenDoctor: () => void;
 }
 
-export function SettingsPanel({ onClose }: SettingsPanelProps) {
+export function SettingsPanel({ onClose, onOpenDoctor }: SettingsPanelProps) {
   const fontSize = useSettingsStore((s) => s.fontSize);
   const wordWrap = useSettingsStore((s) => s.wordWrap);
   const tmuxAutoSubmit = useSettingsStore((s) => s.tmuxAutoSubmit);
@@ -238,6 +239,31 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                 `}
               />
             </div>
+          </button>
+        </div>
+
+        {/* Диагностика. Живёт в настройках, но настройкой не является: Doctor ничего
+            не меняет — поэтому отдельным блоком, а не среди тумблеров.
+
+            Строка-действие, а не ссылка-текст: рядом лежит «Reset to defaults», и
+            одинаково выглядящие строки не давали понять, что эта открывает экран.
+            Шеврон и рамка — единственное, что об этом сообщает. */}
+        <div className="pt-2 border-t border-border">
+          <button
+            onClick={onOpenDoctor}
+            className="w-full flex items-center justify-between gap-3 px-2.5 py-2 rounded border border-border hover:border-accent hover:bg-surface-hover transition-colors text-left group"
+          >
+            <span>
+              <span className="block text-[11px] text-text">Sendoff Doctor</span>
+              <span className="block text-[10px] text-text-muted">
+                View application and provider diagnostics
+              </span>
+            </span>
+            <span className="text-text-muted group-hover:text-accent transition-colors" aria-hidden>
+              <svg width="10" height="10" viewBox="0 0 8 8" fill="none">
+                <path d="M2.5 1l3 3-3 3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </span>
           </button>
         </div>
 

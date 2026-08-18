@@ -66,6 +66,7 @@ async function listAgents(): Promise<OrcaAgent[]> {
 export const orcaProvider: TerminalProvider = {
   source: "orca",
   label: "Orca",
+  executable: "orca-ide",
 
   async listTargets(): Promise<TerminalTarget[]> {
     const agents = await listAgents();

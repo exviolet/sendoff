@@ -5,7 +5,9 @@ import { useTriggerPhrasesStore } from "../store/triggerPhrasesStore";
 import { useThemeStore } from "../store/themeStore";
 import { useSettingsStore } from "../store/settingsStore";
 import { useReferenceStore } from "../store/referenceStore";
-import { loadSession, saveSession } from "../lib/db";
+import { loadSession, saveSession, setOnboardingVersion } from "../lib/db";
+import { decideOnboarding } from "../lib/onboarding";
+import { useOnboardingStore } from "../store/onboardingStore";
 import { describeError } from "../lib/terminalTargets";
 import { toast } from "../store/toastStore";
 
@@ -17,7 +19,7 @@ export function useSessionPersistence() {
     if (hasRestored.current) return;
     hasRestored.current = true;
 
-    loadSession().then(({ tabs, closedTabs, presets, triggerPhrases, workspaces, tabGroups, activeTabId, activeWorkspaceId, tabCounter, theme, fontSize, wordWrap, tmuxAutoSubmit, fontFamily, phraseInsertMode, shortcutOverrides, referenceText, referenceWidth }) => {
+    loadSession().then(({ tabs, closedTabs, presets, triggerPhrases, workspaces, tabGroups, activeTabId, activeWorkspaceId, tabCounter, theme, fontSize, wordWrap, tmuxAutoSubmit, fontFamily, phraseInsertMode, shortcutOverrides, referenceText, referenceWidth, onboardingVersion }) => {
       // hydrate зовём и при пустых табах: он поднимает workspaces и держит инвариант
       // «активный workspace непуст» (создаст свежий таб, если надо).
       if (tabs.length > 0 || workspaces.length > 0) {
@@ -39,6 +41,23 @@ export function useSessionPersistence() {
         text: referenceText,
         width: referenceWidth ?? useReferenceStore.getState().width,
       });
+
+      // Решение принимается по ПЕРСИСТЕНТНЫМ данным, а не по состоянию после hydrate:
+      // hydrate сам создаёт «Untitled 1» и workspace «Default», когда активного таба
+      // нет, и по ним любой первый запуск выглядел бы как существующий пользователь.
+      // storageError здесь всегда null — ветка отказа живёт в .catch ниже.
+      const decision = decideOnboarding({
+        storageError: null,
+        onboardingVersion,
+        data: { tabs, closedTabs, workspaces, tabGroups },
+      });
+      if (decision.kind === "show") {
+        useOnboardingStore.getState().start();
+      } else if (decision.kind === "backfill") {
+        // База уже обжитая, а ключа нет — значит фича новее этой базы. Проставляем
+        // тихо: показывать «добро пожаловать» человеку с накопленными табами нельзя.
+        void setOnboardingVersion(decision.version).catch(() => {});
+      }
     }).catch((error: unknown) => {
       // Leave isHydrated=false on purpose: blocks the persist effect below, so a
       // failed read can't clobber existing IndexedDB data with empty defaults.

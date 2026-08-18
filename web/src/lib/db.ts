@@ -160,6 +160,11 @@ export async function loadSession() {
   const shortcutOverrides = sanitizeShortcutOverrides(
     await db.get("meta", "shortcutOverrides"),
   );
+  // Версия пройденного онбординга. Отдельный ключ, а не вывод из пустоты базы:
+  // пустая база НЕ означает первый запуск (каталог данных мог не переехать — см.
+  // перенос Rewrite → Sendoff в src-tauri/src/lib.rs, там чтение не падает, читать
+  // просто нечего), а провал чтения не означает отсутствие данных.
+  const onboardingVersion = (await db.get("meta", "onboardingVersion")) as number | undefined;
   const referenceText = (await db.get("meta", "referenceText")) as string | undefined;
   const referenceWidth = (await db.get("meta", "referenceWidth")) as number | undefined;
   return {
@@ -174,6 +179,7 @@ export async function loadSession() {
     fontFamily: fontFamily ?? "",
     phraseInsertMode,
     shortcutOverrides,
+    onboardingVersion: typeof onboardingVersion === "number" ? onboardingVersion : null,
     referenceText: referenceText ?? "",
     referenceWidth: typeof referenceWidth === "number" ? referenceWidth : undefined,
   };
@@ -200,6 +206,18 @@ export interface SessionSnapshot {
   shortcutOverrides: ShortcutOverrides;
   referenceText: string;
   referenceWidth: number;
+}
+
+// Пишется ОТДЕЛЬНО от saveSession намеренно. Снапшот дебаунсится 500 мс, и убитый в
+// этом окне процесс вернул бы онбординг уже пройденному пользователю. Стор `meta`
+// целиком не чистится (в отличие от tabs/presets/workspaces/tabGroups), поэтому
+// точечная запись переживает любой последующий saveSession.
+//
+// Новый ключ в существующем сторе — bump DB_VERSION НЕ нужен: он сломал бы второму
+// пользователю откат на прежний бинарь.
+export async function setOnboardingVersion(version: number) {
+  const db = await getDB();
+  await db.put("meta", version, "onboardingVersion");
 }
 
 export async function saveSession(

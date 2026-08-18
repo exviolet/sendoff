@@ -58,6 +58,7 @@ export interface CommandDeps {
   bindActiveTab: () => void;
   unbindActiveTab: () => void;
   openWorkspaceSwitcher: () => void;
+  openDoctor: () => void;
   moveActiveTabToWorkspace: () => void;
   renameActiveWorkspace: () => void;
   deleteActiveWorkspace: () => void;
@@ -73,6 +74,7 @@ export function useCommands(deps: CommandDeps): Command[] {
     markdownPreview, focusEditor, cleanupEmptyTabs, toggleActivePin,
     handleSend, setTargetPicker, bindActiveTab, unbindActiveTab,
     openWorkspaceSwitcher, moveActiveTabToWorkspace, renameActiveWorkspace, deleteActiveWorkspace,
+    openDoctor,
     insertImagePath,
   } = deps;
 
@@ -124,6 +126,7 @@ export function useCommands(deps: CommandDeps): Command[] {
     { id: "toggle-sidebar", label: "Presets (sidebar)", action: () => toggleSidePanel("presets") },
     { id: "toggle-md-preview", label: markdownPreview ? "Editor" : "Markdown preview", action: () => setMarkdownPreview((v) => !v) },
     { id: "settings", label: "Settings", action: () => toggleSidePanel("settings") },
+    { id: "doctor", label: "Sendoff Doctor", action: openDoctor },
     { id: "focus-editor", label: "Focus editor", action: focusEditor },
-  ], shortcutOverrides), [saveCurrentTab, openFile, downloadCurrentTab, exportAll, importBackup, toggleDistractionFree, toggleSidePanel, setSidePanel, setPanelMode, setTheme, setTabSwitcherOpen, setGlobalSearchOpen, setTriggerPhrasesOpen, setShortcutsOpen, setMarkdownPreview, markdownPreview, focusEditor, cleanupEmptyTabs, toggleActivePin, handleSend, setTargetPicker, bindActiveTab, unbindActiveTab, openWorkspaceSwitcher, moveActiveTabToWorkspace, renameActiveWorkspace, deleteActiveWorkspace, insertImagePath, shortcutOverrides]);
+  ], shortcutOverrides), [saveCurrentTab, openFile, downloadCurrentTab, exportAll, importBackup, toggleDistractionFree, toggleSidePanel, setSidePanel, setPanelMode, setTheme, setTabSwitcherOpen, setGlobalSearchOpen, setTriggerPhrasesOpen, setShortcutsOpen, setMarkdownPreview, markdownPreview, focusEditor, cleanupEmptyTabs, toggleActivePin, handleSend, setTargetPicker, bindActiveTab, unbindActiveTab, openWorkspaceSwitcher, moveActiveTabToWorkspace, renameActiveWorkspace, deleteActiveWorkspace, insertImagePath, openDoctor, shortcutOverrides]);
 }
