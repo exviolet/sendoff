@@ -4,6 +4,7 @@ import { useSettingsStore } from "../store/settingsStore";
 import { useLastTargetStore } from "../store/lastTargetStore";
 import { isTauri } from "../lib/platform";
 import { toast } from "../store/toastStore";
+import { useOnboardingStore } from "../store/onboardingStore";
 import {
   describeBinding,
   describeError,
@@ -45,6 +46,11 @@ export function useTerminalActions(textareaRef: RefObject<HTMLTextAreaElement | 
       try {
         const where = await provider.send(handle, text, autoSubmit);
         toast(`Sent to ${provider.label}: ${where} (${text.length} chars)`, "success");
+        // Первый запуск закрывается ровно здесь — по факту успешно отработавшего
+        // send-пути. Это максимум, что Sendoff вправе утверждать: что агент прочитал
+        // промпт, он не знает (capture-pane отклонён 2026-06-16). Вне онбординга
+        // вызов — no-op.
+        useOnboardingStore.getState().finish();
       } catch (error) {
         // describeError, а не `instanceof Error`: у не-Error тут была заглушка
         // «Неизвестная ошибка», и настоящая причина сбоя терялась (см. коммент

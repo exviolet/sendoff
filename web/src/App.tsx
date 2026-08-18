@@ -9,6 +9,9 @@ import { StatusBar } from "./components/StatusBar/StatusBar";
 import { StorageErrorBanner } from "./components/StorageError/StorageErrorBanner";
 import { CommandPalette } from "./components/CommandPalette/CommandPalette";
 import { ShortcutsModal } from "./components/ShortcutsModal/ShortcutsModal";
+import { DoctorModal } from "./components/Doctor/DoctorModal";
+import { OnboardingOverlay } from "./components/Onboarding/OnboardingOverlay";
+import { useOnboardingStore } from "./store/onboardingStore";
 import { SettingsPanel } from "./components/Settings/SettingsPanel";
 import { TabSwitcher } from "./components/TabSwitcher/TabSwitcher";
 import { GlobalSearchPanel } from "./components/GlobalSearch/GlobalSearchPanel";
@@ -39,6 +42,8 @@ function App() {
   const [activeHighlight, setActiveHighlight] = useState(0);
   const [distractionFree, setDistractionFree] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [doctorOpen, setDoctorOpen] = useState(false);
+  const onboardingActive = useOnboardingStore((s) => s.active);
   const [tabSwitcherOpen, setTabSwitcherOpen] = useState(false);
   // null = закрыт; move хранит id таба, который переносим; editId открывает пикер
   // сразу на правке (палитра — над активным workspace).
@@ -191,6 +196,7 @@ function App() {
       setWorkspacePicker({ mode: "switch", editId: useEditorStore.getState().activeWorkspaceId }),
     deleteActiveWorkspace: () =>
       setWorkspacePicker({ mode: "switch", editId: useEditorStore.getState().activeWorkspaceId }),
+    openDoctor: () => setDoctorOpen(true),
   });
 
   useKeyboardShortcuts({
@@ -283,7 +289,7 @@ function App() {
         </div>
         {!distractionFree && sidePanel === "presets" && <PresetsPanel onClose={() => setSidePanel(null)} />}
         {!distractionFree && sidePanel === "reference" && <ReferencePanel onClose={() => setSidePanel(null)} textareaRef={textareaRef} />}
-        {!distractionFree && sidePanel === "settings" && <SettingsPanel onClose={() => setSidePanel(null)} />}
+        {!distractionFree && sidePanel === "settings" && <SettingsPanel onOpenDoctor={() => setDoctorOpen(true)} onClose={() => setSidePanel(null)} />}
       </div>
       {!distractionFree && (
         <StatusBar
@@ -298,6 +304,8 @@ function App() {
           onClose={() => setCommandPaletteOpen(false)}
         />
       )}
+      {doctorOpen && <DoctorModal onClose={() => setDoctorOpen(false)} />}
+      {onboardingActive && <OnboardingOverlay onOpenDoctor={() => setDoctorOpen(true)} />}
       {tabSwitcherOpen && (
         <TabSwitcher
           onClose={() => setTabSwitcherOpen(false)}

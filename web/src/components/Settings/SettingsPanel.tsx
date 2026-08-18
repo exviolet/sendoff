@@ -3,9 +3,10 @@ import { useThemeStore } from "../../store/themeStore";
 
 interface SettingsPanelProps {
   onClose: () => void;
+  onOpenDoctor: () => void;
 }
 
-export function SettingsPanel({ onClose }: SettingsPanelProps) {
+export function SettingsPanel({ onClose, onOpenDoctor }: SettingsPanelProps) {
   const fontSize = useSettingsStore((s) => s.fontSize);
   const wordWrap = useSettingsStore((s) => s.wordWrap);
   const tmuxAutoSubmit = useSettingsStore((s) => s.tmuxAutoSubmit);
@@ -238,6 +239,17 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                 `}
               />
             </div>
+          </button>
+        </div>
+
+        {/* Диагностика. Живёт в настройках, но настройкой не является: Doctor ничего
+            не меняет — поэтому отдельным блоком, а не среди тумблеров. */}
+        <div className="pt-2 border-t border-border">
+          <button
+            onClick={onOpenDoctor}
+            className="text-[11px] text-text-muted hover:text-accent transition-colors"
+          >
+            Open Sendoff Doctor
           </button>
         </div>
 

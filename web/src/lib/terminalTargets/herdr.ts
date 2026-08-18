@@ -68,6 +68,7 @@ async function listAgents(): Promise<HerdrAgent[]> {
 export const herdrProvider: TerminalProvider = {
   source: "herdr",
   label: "Herdr",
+  executable: "herdr",
 
   async listTargets(): Promise<TerminalTarget[]> {
     const agents = await listAgents();

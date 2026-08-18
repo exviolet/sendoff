@@ -17,6 +17,7 @@ async function listSessions(): Promise<TmuxSessionInfo[]> {
 export const tmuxProvider: TerminalProvider = {
   source: "tmux",
   label: "tmux",
+  executable: "tmux",
 
   async listTargets(): Promise<TerminalTarget[]> {
     const sessions = await listSessions();
