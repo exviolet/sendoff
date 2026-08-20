@@ -631,7 +631,9 @@
        .compatibility (0,1,0) и перебивал и отступ, и кегль — строка шла
        17px без верхнего margin вместо задуманных 12px и 30px. */
     .hero-copy > p.compatibility {
-      margin: 30px 0 0;
+      /* auto обязателен: max-width: 690px наследуется от .hero-copy > p,
+         и без него блок прижимается влево, а не центрируется */
+      margin: 30px auto 0;
       color: var(--faint);
       font-family: var(--mono);
       font-size: 12px;
