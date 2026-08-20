@@ -149,55 +149,6 @@
       margin-inline: auto;
     }
 
-    /* ---------- ambient: фон дышит, но ничего не сообщает ---------- */
-
-    /* fixed, а не absolute: свечение должно жить на всей странице, а не только в шапке */
-    .ambient {
-      position: fixed;
-      inset: 0;
-      z-index: 0;
-      overflow: hidden;
-      pointer-events: none;
-    }
-
-    .ambient i {
-      position: absolute;
-      display: block;
-      border-radius: 50%;
-      will-change: transform;
-    }
-
-    .ambient .a1 {
-      top: -26vh;
-      left: -14vw;
-      width: 66vw;
-      height: 66vw;
-      background: radial-gradient(circle, color-mix(in srgb, var(--blue) 20%, transparent) 0%, transparent 62%);
-      animation: drift-a 52s cubic-bezier(.37,0,.63,1) infinite alternate;
-    }
-
-    .ambient .a2 {
-      top: 46vh;
-      right: -20vw;
-      width: 58vw;
-      height: 58vw;
-      background: radial-gradient(circle, color-mix(in srgb, var(--warm) 12%, transparent) 0%, transparent 60%);
-      animation: drift-b 68s cubic-bezier(.37,0,.63,1) infinite alternate;
-    }
-
-    :root[data-theme="light"] .ambient .a1 { opacity: .5; }
-    :root[data-theme="light"] .ambient .a2 { opacity: .4; }
-
-    @keyframes drift-a {
-      from { transform: translate3d(0, 0, 0) scale(1); }
-      to { transform: translate3d(4vw, 3vh, 0) scale(1.08); }
-    }
-
-    @keyframes drift-b {
-      from { transform: translate3d(0, 0, 0) scale(1.06); }
-      to { transform: translate3d(-5vw, -4vh, 0) scale(1); }
-    }
-
     main { position: relative; z-index: 1; }
 
     footer { position: relative; z-index: 1; }
@@ -1754,7 +1705,6 @@
         animation-iteration-count: 1 !important;
       }
       .caret,
-      .ambient i,
       .sparks .run i { animation: none; }
       .rail::before { transform: scaleX(1); }
       [data-reveal] { opacity: 1; transform: none; }
@@ -1776,11 +1726,6 @@
 </head>
 <body>
   <div class="page">
-    <div class="ambient" aria-hidden="true">
-      <i class="a1"></i>
-      <i class="a2"></i>
-    </div>
-
     <nav class="site-nav" aria-label="Primary navigation">
       <div class="shell nav-inner">
         <a class="brand" href="#top" aria-label="Sendoff home">
