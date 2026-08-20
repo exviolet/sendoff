@@ -62,7 +62,12 @@
       --shot-pad: 0px;
       --shot-ring: transparent;
       --content: 1180px;
-      --rule-x: max(24px, calc(50% - 590px));
+      /* линейка обрамляет колонку, а не касается текста. Зазор непостоянен:
+         на широком экране 28px, на узком линейка упирается в край окна и
+         зазор становится равен отступу .shell — 24px. --gutter это отслеживает,
+         им же разделители дотягиваются до линеек. */
+      --rule-x: max(0px, calc(50% - 618px));
+      --gutter: 28px;
       --serif: "Newsreader Variable", Georgia, serif;
       --mono: "Commit Mono", ui-monospace, monospace;
       --ease: cubic-bezier(.22,.61,.36,1);
@@ -1564,13 +1569,21 @@
 
     .truth-table { border-top: 1px solid var(--line-strong); }
 
+    /* разделители дотягиваются до вертикальных линеек, текст остаётся в колонке —
+       иначе решётка не смыкается и по краям висят обрывки */
+    .truth-table,
+    .truth-row {
+      margin-inline: calc(var(--gutter) * -1);
+      padding-inline: var(--gutter);
+    }
+
     .truth-row {
       min-height: 76px;
       display: grid;
       grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) 152px;
       align-items: center;
       gap: 28px;
-      padding: 14px 0;
+      padding-block: 14px;
       border-bottom: 1px solid var(--line);
     }
 
@@ -1694,6 +1707,10 @@
 
     /* ---------- адаптив ---------- */
 
+    @media (max-width: 1235px) {
+      :root { --gutter: 24px; }
+    }
+
     @media (max-width: 1120px) {
       .lane { grid-template-columns: 118px minmax(0, 1fr); row-gap: 6px; }
       .lane code { grid-column: 2; grid-row: 2; }
@@ -1731,6 +1748,9 @@
     }
 
     @media (max-width: 600px) {
+      /* .shell здесь отступает на 16px — зазор обязан следовать за ним,
+         иначе разделители вылезут за вертикальные линейки */
+      :root { --gutter: 16px; }
       .shell { width: min(calc(100% - 32px), var(--content)); }
       .site-nav { padding-top: 12px; }
       .nav-inner { height: 56px; padding: 0 8px 0 14px; border-radius: 13px; }
