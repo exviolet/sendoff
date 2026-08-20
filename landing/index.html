@@ -56,11 +56,18 @@
       --green: #86c995;
       --button-ink: #100d1a;
       --grid: rgba(255,255,255,.035);
+      --grid-dot: rgba(255,255,255,.085);
       --nav: rgba(10, 9, 18, .94);
       --shadow: rgba(0, 0, 0, .42);
       --shot-pad: 0px;
       --shot-ring: transparent;
       --content: 1180px;
+      /* линейка обрамляет колонку, а не касается текста. Зазор непостоянен:
+         на широком экране 28px, на узком линейка упирается в край окна и
+         зазор становится равен отступу .shell — 24px. --gutter это отслеживает,
+         им же разделители дотягиваются до линеек. */
+      --rule-x: max(0px, calc(50% - 618px));
+      --gutter: 28px;
       --serif: "Newsreader Variable", Georgia, serif;
       --mono: "Commit Mono", ui-monospace, monospace;
       --ease: cubic-bezier(.22,.61,.36,1);
@@ -83,6 +90,7 @@
       --green: #2e7650;
       --button-ink: #fff;
       --grid: rgba(47, 34, 73, .055);
+      --grid-dot: rgba(47, 34, 73, .13);
       --nav: rgba(245, 242, 250, .94);
       --shadow: rgba(48, 34, 72, .12);
       --shot-pad: 9px;
@@ -143,6 +151,94 @@
       min-height: 100vh;
       border-inline: 1px solid var(--line);
     }
+
+    /* Решётка структурная, а не текстурная: линейки стоят на границах контентной
+       колонки и секций, между ними фон пустой. Пересечения помечены крестиком —
+       это и есть разреженный «дот-филд», привязанный к вёрстке. */
+    .page-rules {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .page-rules i {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 1px;
+      background: var(--line);
+      opacity: .7;
+    }
+
+    .page-rules .r-left { left: var(--rule-x); }
+    .page-rules .r-right { right: var(--rule-x); }
+
+    main > section { position: relative; }
+
+    /* :not(:first-of-type), а не section + section — между секциями лежит
+       декоративная полоса, и смежный комбинатор терял бы границу следующей */
+    main > section:not(:first-of-type) { border-top: 1px solid var(--line); }
+
+    main > section:not(:first-of-type)::before,
+    main > section:not(:first-of-type)::after {
+      content: "+";
+      position: absolute;
+      top: -12px;
+      font-family: var(--mono);
+      font-size: 12px;
+      line-height: 22px;
+      color: var(--faint);
+      opacity: .55;
+      pointer-events: none;
+    }
+
+    main > section:not(:first-of-type)::before { left: calc(var(--rule-x) - 3.5px); }
+    main > section:not(:first-of-type)::after { right: calc(var(--rule-x) - 3.5px); }
+
+    /* ---------- ASCII: те же знакоместа, только с символами ---------- */
+
+    .ascii-layer {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      margin: 0;
+      padding: 0;
+      font-family: var(--mono);
+      font-size: 13px;
+      line-height: 22px;
+      white-space: pre;
+      overflow: hidden;
+      color: var(--faint);
+      opacity: .5;
+      pointer-events: none;
+      user-select: none;
+    }
+
+    .ascii-layer b { font-weight: 400; color: var(--warm); }
+    .ascii-layer u { text-decoration: none; color: var(--blue); }
+
+    /* в CTA поток гасится к центру, чтобы не спорить с заголовком */
+    .final-cta .ascii-layer {
+      -webkit-mask-image: radial-gradient(125% 85% at 50% 50%, transparent 28%, #000 76%);
+      mask-image: radial-gradient(125% 85% at 50% 50%, transparent 28%, #000 76%);
+    }
+
+    .final-cta .shell { position: relative; z-index: 1; }
+
+    /* передышка между аргументами: полоса, в которой промпт осыпается */
+    .ascii-break {
+      position: relative;
+      height: 300px;
+      overflow: hidden;
+    }
+
+    .ascii-break .ascii-layer {
+      opacity: .45;
+      -webkit-mask-image: linear-gradient(to bottom, transparent, #000 24%, #000 76%, transparent);
+      mask-image: linear-gradient(to bottom, transparent, #000 24%, #000 76%, transparent);
+    }
+
 
     .shell {
       width: min(calc(100% - 48px), var(--content));
@@ -470,21 +566,6 @@
       mask-image: linear-gradient(to bottom, #000 0%, transparent 68%);
     }
 
-    .hero::before,
-    .hero::after {
-      content: "";
-      position: absolute;
-      top: 0;
-      bottom: 0;
-      width: 1px;
-      background: var(--line);
-      opacity: .55;
-      pointer-events: none;
-    }
-
-    .hero::before { left: max(24px, calc(50% - 590px)); }
-    .hero::after { right: max(24px, calc(50% - 590px)); }
-
     .hero-copy {
       position: relative;
       width: min(880px, 100%);
@@ -546,8 +627,13 @@
       gap: 11px;
     }
 
-    .compatibility {
-      margin: 30px 0 0;
+    /* Селектор с классом на p: .hero-copy > p (0,1,1) специфичнее голого
+       .compatibility (0,1,0) и перебивал и отступ, и кегль — строка шла
+       17px без верхнего margin вместо задуманных 12px и 30px. */
+    .hero-copy > p.compatibility {
+      /* auto обязателен: max-width: 690px наследуется от .hero-copy > p,
+         и без него блок прижимается влево, а не центрируется */
+      margin: 30px auto 0;
       color: var(--faint);
       font-family: var(--mono);
       font-size: 12px;
@@ -1488,13 +1574,21 @@
 
     .truth-table { border-top: 1px solid var(--line-strong); }
 
+    /* разделители дотягиваются до вертикальных линеек, текст остаётся в колонке —
+       иначе решётка не смыкается и по краям висят обрывки */
+    .truth-table,
+    .truth-row {
+      margin-inline: calc(var(--gutter) * -1);
+      padding-inline: var(--gutter);
+    }
+
     .truth-row {
       min-height: 76px;
       display: grid;
       grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) 152px;
       align-items: center;
       gap: 28px;
-      padding: 14px 0;
+      padding-block: 14px;
       border-bottom: 1px solid var(--line);
     }
 
@@ -1618,6 +1712,10 @@
 
     /* ---------- адаптив ---------- */
 
+    @media (max-width: 1235px) {
+      :root { --gutter: 24px; }
+    }
+
     @media (max-width: 1120px) {
       .lane { grid-template-columns: 118px minmax(0, 1fr); row-gap: 6px; }
       .lane code { grid-column: 2; grid-row: 2; }
@@ -1655,6 +1753,9 @@
     }
 
     @media (max-width: 600px) {
+      /* .shell здесь отступает на 16px — зазор обязан следовать за ним,
+         иначе разделители вылезут за вертикальные линейки */
+      :root { --gutter: 16px; }
       .shell { width: min(calc(100% - 32px), var(--content)); }
       .site-nav { padding-top: 12px; }
       .nav-inner { height: 56px; padding: 0 8px 0 14px; border-radius: 13px; }
@@ -1726,6 +1827,11 @@
 </head>
 <body>
   <div class="page">
+    <div class="page-rules" aria-hidden="true">
+      <i class="r-left"></i>
+      <i class="r-right"></i>
+    </div>
+
     <nav class="site-nav" aria-label="Primary navigation">
       <div class="shell nav-inner">
         <a class="brand" href="#top" aria-label="Sendoff home">
@@ -2061,6 +2167,10 @@
         </div>
       </section>
 
+      <div class="ascii-break" aria-hidden="true">
+        <pre class="ascii-layer" data-ascii="dissolve"></pre>
+      </div>
+
       <section class="honesty" id="boundaries">
         <div class="shell">
           <div class="honesty-head">
@@ -2094,6 +2204,7 @@
       </section>
 
       <section class="final-cta" id="download">
+        <pre class="ascii-layer" data-ascii="flow" aria-hidden="true"></pre>
         <div class="shell">
           <p class="eyebrow">Get it</p>
           <h2>The prompt arrives exactly as you wrote it.</h2>
@@ -2366,11 +2477,15 @@
       });
     });
 
+    /* Один источник текста промпта на всю страницу: живая сцена в hero и ASCII-распад
+       показывают одно и то же. Цифры в копирайте (234 chars, 7 lines, 42 words) считаны
+       с него же — менять только вместе. */
+    const PROMPT = 'Payment retries fire twice under load, and the second attempt charges the card again.\n\nWhat I know so far:\n- Only happens above ~150 rps\n- The webhook log shows two `charge.succeeded` for one order\n\nGive me a plan before touching code';
+
     /* --- живая сцена: тот же промпт, что и в записи, набирается и уходит в tmux --- */
     {
       const live = document.querySelector('[data-live]');
 
-      const PROMPT = 'Payment retries fire twice under load, and the second attempt charges the card again.\n\nWhat I know so far:\n- Only happens above ~150 rps\n- The webhook log shows two `charge.succeeded` for one order\n\nGive me a plan before touching code';
       const REPLY = "I'm going to frame this as a concurrency investigation first, and propose a staged plan without editing anything.";
 
       if (live) {
@@ -2656,6 +2771,124 @@
         sync();
       }
     }
+
+    /* ---------- ASCII-сцены: поток в CTA, распад в передышке ---------- */
+    (() => {
+      const layers = document.querySelectorAll('[data-ascii]');
+      if (!layers.length) return;
+
+      const esc = (c) => (c === '&' ? '&amp;' : c === '<' ? '&lt;' : c === '>' ? '&gt;' : c);
+
+      // общий движок: матрица символов размером в знакоместо 9x22
+      function engine(el, paint) {
+        const st = { cols: 0, rows: 0, t: 0, running: false };
+
+        const measure = () => {
+          const r = el.getBoundingClientRect();
+          st.cols = Math.max(1, Math.floor(r.width / 9));
+          st.rows = Math.max(1, Math.floor(r.height / 22));
+        };
+
+        let last = 0;
+        const frame = (now) => {
+          requestAnimationFrame(frame);
+          if (!st.running) return;
+          // 24 кадра в секунду: символьная анимация при 60 выглядит суетливой
+          if (now - last < 41) return;
+          last = now;
+          st.t += 1;
+          el.innerHTML = paint(st);
+        };
+
+        measure();
+        addEventListener('resize', measure, { passive: true });
+
+        if (reducedMotion.matches) {
+          st.t = 40;
+          el.innerHTML = paint(st);
+          return;
+        }
+
+        requestAnimationFrame(frame);
+        new IntersectionObserver((es) => {
+          for (const e of es) st.running = e.isIntersecting;
+        }, { threshold: 0.02 }).observe(el);
+      }
+
+      /* A: поток — символы дрейфуют вправо и сгущаются к кромке отправки */
+      const RAMP = ' .:-=+*#';
+
+      function paintFlow(s) {
+        const out = [];
+        for (let y = 0; y < s.rows; y++) {
+          let line = '';
+          for (let x = 0; x < s.cols; x++) {
+            const wave =
+              Math.sin(x * 0.16 - s.t * 0.11 + y * 0.35) +
+              Math.sin(x * 0.05 - s.t * 0.045 - y * 0.12) * 0.6;
+            const pull = Math.pow(x / Math.max(1, s.cols - 1), 1.7);
+            const v = (wave * 0.5 + 0.5) * pull;
+            const i = Math.max(0, Math.min(RAMP.length - 1, Math.round(v * (RAMP.length - 1) * 1.5)));
+            line += i >= 6 && pull > 0.72 ? '<b>' + esc(RAMP[i]) + '</b>' : esc(RAMP[i]);
+          }
+          out.push(line);
+        }
+        return out.join('\n');
+      }
+
+      /* B: распад — настоящий промпт печатается, держится и осыпается */
+      const LINES = PROMPT.split('\n');
+      const DECAY = '#*+=-:. ';
+      const TYPE = 60, HOLD = 55, ROT = 46, GAP = 18;
+      const CYCLE = TYPE + HOLD + ROT + GAP;
+
+      // у каждой ячейки свой момент распада, иначе текст осыпается фронтом
+      const jit = [];
+      const jitter = (y, x) => {
+        const k = y * 997 + x;
+        if (jit[k] === undefined) {
+          const n = Math.sin(k * 12.9898) * 43758.5453;
+          jit[k] = n - Math.floor(n);
+        }
+        return jit[k];
+      };
+
+      function paintDissolve(s) {
+        const p = s.t % CYCLE;
+        const top = Math.max(0, Math.floor((s.rows - LINES.length) / 2));
+        const left = Math.max(2, Math.floor((s.cols - 62) / 2));
+        const total = LINES.reduce((a, l) => a + l.length + 1, 0);
+        const typed = p < TYPE ? Math.round((p / TYPE) * total) : total;
+
+        const out = [];
+        let seen = 0;
+        for (let y = 0; y < s.rows; y++) {
+          const src = LINES[y - top];
+          if (src === undefined) { out.push(''); continue; }
+
+          let line = ' '.repeat(left);
+          for (let x = 0; x < src.length; x++) {
+            const ch = src[x];
+            if (seen + x >= typed || ch === ' ') { line += ' '; continue; }
+            if (p < TYPE + HOLD) { line += esc(ch); continue; }
+            const prog = (p - TYPE - HOLD) / ROT;
+            const step = Math.floor((prog * 1.9 - jitter(y, x) * 0.9) * DECAY.length);
+            line += step <= 0 ? esc(ch) : step >= DECAY.length ? ' ' : esc(DECAY[step]);
+          }
+
+          if (p < TYPE && seen <= typed && typed <= seen + src.length && (s.t >> 2) % 2 === 0) {
+            line += '<u>_</u>';
+          }
+          seen += src.length + 1;
+          out.push(line);
+        }
+        return out.join('\n');
+      }
+
+      for (const el of layers) {
+        engine(el, el.dataset.ascii === 'flow' ? paintFlow : paintDissolve);
+      }
+    })();
   </script>
 </body>
 </html>
