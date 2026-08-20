@@ -1,4 +1,0 @@
-# зависимости и сборка лендинга
-node_modules
-dist
-.astro
