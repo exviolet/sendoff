@@ -26,7 +26,7 @@
 - `src-tauri/tauri.conf.json` — Tauri-конфиг.
 - `install.sh` / `uninstall.sh` — установка/удаление бинарника в `~/.local/` (Linux only).
 - `update.sh` — обновление установленного Sendoff для консюмера (pull → sync submodule → `build:bin` → install).
-- `landing/` — лендинг `sendoff-editor.pages.dev` (Astro, статика, свой `package.json` и lockfile). Не часть приложения: в сборку десктопа не входит, зависимостей с `web/` не имеет.
+- `landing/` — лендинг `sendoff-editor.pages.dev` (чистая статика: один `index.html` + `assets/`, без сборщика и зависимостей). Не часть приложения: в сборку десктопа не входит, зависимостей с `web/` не имеет.
 - `docs/ROADMAP.md` — позиционирование, приоритеты, отказы. Источник правды по продуктовым решениям.
 - `tasks/` — детальные task-спеки для приоритетных фич (создаются по мере того, как фича становится active).
 - `HANDOFF.md` — per-session state (в `.gitignore`).
@@ -49,7 +49,7 @@
   > **Почему не хостом.** AppImage бандлит библиотеки, но **не glibc**: внутрь кладутся системные библиотеки сборочной машины, и они требуют её glibc. Собранный на Arch артефакт требовал **glibc 2.43** и не запускался нигде, кроме rolling-дистрибутивов — то есть ровно у тех, кто и так собирает из исходников. Ubuntu 22.04 даёт **2.35**: Ubuntu 22.04+, Debian 12+, Fedora 36+, Arch. Отдельный `CARGO_TARGET_DIR` обязателен — иначе Arch- и Ubuntu-объектники перетирают друг друга и обе сборки идут с нуля. Измерено 2026-08-09.
   >
   > Публикуется **только AppImage**. `.deb`/`.rpm` собираются той же командой, но их никто не ставил на Debian/Fedora — непроверенный артефакт в публичном релизе хуже его отсутствия.
-- Лендинг: `cd landing && bun install`, затем `bun dev` (превью на 4321) / `bun run build` (в `landing/dist`). Свой `node_modules`, из корня не ставится.
+- Лендинг: сборки нет. Превью — `cd landing && python3 -m http.server 4323 --bind 127.0.0.1`. Правится `index.html` напрямую; шрифты и медиа лежат в `landing/assets/`.
 - Update web submodule (dev, бамп указателя): `bun update-web`
 - Install / remove binary: `./install.sh` / `./uninstall.sh`
 - Обновить установленный Sendoff (консюмер): `./update.sh`
@@ -62,7 +62,7 @@
 | `src-tauri/src/**/*.rs` | `cd src-tauri && cargo check` |
 | `src-tauri/capabilities/*.json`, `tauri.conf.json` | `bun run build` (валидация Tauri-манифеста) |
 | указатель submodule обновлён | `git submodule status` должен быть чистый |
-| `landing/**` | `cd landing && bun run build` (0 ошибок). Перед публикацией — **убрать русские тексты-заглушки**: в `Gallery.astro` и `Hero.astro` они видны на странице, а не только в комментариях |
+| `landing/**` | Сборочного гейта нет — страница одна, проверяется в браузере: все ассеты отдаются 200, обе темы, нет переполнения на 1512 / 979 / 390. Перед публикацией — **проверить, что кириллица осталась только в комментариях**: `<!-- -->`, `/* */` и `//` по правилам проекта русские, любой пользовательский текст — английский |
 
 ## Git Workflow (GitHub Flow)
 - Базовая ветка: `master`. Без Git-Flow — нет `dev`, нет `release/*`.
