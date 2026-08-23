@@ -49,6 +49,8 @@
   > **Почему не хостом.** AppImage бандлит библиотеки, но **не glibc**: внутрь кладутся системные библиотеки сборочной машины, и они требуют её glibc. Собранный на Arch артефакт требовал **glibc 2.43** и не запускался нигде, кроме rolling-дистрибутивов — то есть ровно у тех, кто и так собирает из исходников. Ubuntu 22.04 даёт **2.35**: Ubuntu 22.04+, Debian 12+, Fedora 36+, Arch. Отдельный `CARGO_TARGET_DIR` обязателен — иначе Arch- и Ubuntu-объектники перетирают друг друга и обе сборки идут с нуля. Измерено 2026-08-09.
   >
   > Публикуется **только AppImage**. `.deb`/`.rpm` собираются той же командой, но их никто не ставил на Debian/Fedora — непроверенный артефакт в публичном релизе хуже его отсутствия.
+  >
+  > **Каждый релиз обязан нести две копии AppImage:** версионную (`Sendoff_<version>_amd64.AppImage`, как её называет бандлер) и версионезависимую `Sendoff_latest_amd64.AppImage` — `gh release upload <tag> Sendoff_latest_amd64.AppImage`. На вторую наведены три кнопки Download лендинга через `releases/latest/download/`; забыть её значит уронить их в 404. Имя выбрано так, чтобы подходить под глоб `Sendoff_*_amd64.AppImage` из `README.md`, `README.ru.md` и install-line лендинга — их править не нужно. Заведено 2026-08-23.
 - Лендинг: сборки нет. Превью — `cd landing && python3 -m http.server 4323 --bind 127.0.0.1`. Правится `index.html` напрямую; шрифты и медиа лежат в `landing/assets/`.
 - Update web submodule (dev, бамп указателя): `bun update-web`
 - Install / remove binary: `./install.sh` / `./uninstall.sh`
