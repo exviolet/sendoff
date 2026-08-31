@@ -243,7 +243,7 @@ manifest is `src-tauri/capabilities/default.json`.
 ### Setup
 
 ```bash
-git clone --recurse-submodules https://github.com/exviolet/sendoff.git
+git clone https://github.com/exviolet/sendoff.git
 cd sendoff
 bun install
 ```
@@ -269,11 +269,11 @@ bun run build:bin   # build just the binary (tauri build --no-bundle)
 ### Update an installed copy
 
 ```bash
-./update.sh   # git pull + sync web submodule + build:bin + install
+./update.sh   # git pull + build:bin + install
 ```
 
-Pulls `master`, checks out the pinned `web/` submodule commit, rebuilds the
-binary, and reinstalls in one step. Restart the app from your launcher after.
+Pulls `master`, rebuilds the binary, and reinstalls in one step. Restart the
+app from your launcher after.
 
 > Close the app before updating. `install.sh` refuses to run while an instance is
 > alive, because the data directory can move between versions.
@@ -300,14 +300,11 @@ packages is a promise this project cannot back.
 This repo is the product: the Tauri v2 shell, the release artifacts, and the
 integrations that make `Ctrl+Enter` land in a terminal.
 
-The editor itself — React + Zustand + Vite — lives in
-[**sendoff-web**](https://github.com/exviolet/sendoff-web) and is pinned here as
-the `web/` git submodule. Clone with `--recurse-submodules` (see [Setup](#setup)).
-
-```bash
-bun update-web                                  # bump web/ to its latest commit
-git add web && git commit -m "chore: bump web submodule"
-```
+The editor itself — React + Zustand + Vite — lives in `web/`, with its own
+`package.json`; Tauri installs and builds it from there. Until August 2026 it was
+a separate repository pinned as a git submodule, which bought nothing: the
+frontend depends on `@tauri-apps/*`, `Ctrl+Enter` degrades to a clipboard copy in
+a plain browser tab, and nothing consumed it on its own.
 
 ## Status
 
@@ -328,7 +325,7 @@ fork freely instead.
 ## Credits
 
 Bundles [JetBrains Mono](https://www.jetbrains.com/lp/mono/) (v2.304), licensed
-under the [SIL Open Font License 1.1](https://github.com/exviolet/sendoff-web/blob/master/public/assets/fonts/JetBrainsMono-OFL.txt).
+under the [SIL Open Font License 1.1](web/public/assets/fonts/JetBrainsMono-OFL.txt).
 A system Nerd Font is preferred when present, so agent output keeps its icons.
 
 ## License

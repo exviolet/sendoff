@@ -6,8 +6,7 @@
   "scripts": {
     "dev": "bun tauri dev --features mcp-bridge --config src-tauri/tauri.dev.conf.json",
     "build": "NO_STRIP=1 bun tauri build",
-    "build:bin": "bun tauri build --no-bundle",
-    "update-web": "git submodule update --remote web"
+    "build:bin": "bun tauri build --no-bundle"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.10.1"

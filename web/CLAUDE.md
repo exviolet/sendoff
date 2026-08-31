@@ -2,7 +2,7 @@
 
 Guidance for AI agents (Claude Code, Codex) working in this repo.
 
-> **Это `web/` — SPA-часть.** Она подключена submodule'ом в `sendoff-desktop` (Tauri-обёртка).
+> **Это `web/` — SPA-часть.** Каталог фронтенда внутри монорепозитория `sendoff`; Tauri-обёртка живёт в `src-tauri/`.
 > Контракт сотрудничества, git-workflow, safety rails и позиционирование — в **корневом
 > `CLAUDE.md` десктоп-репо**. Здесь только то, что специфично для `web/`.
 >
