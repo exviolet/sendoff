@@ -1,0 +1,239 @@
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
+import { findMatches, type MatchResult } from "../../lib/replaceEngine";
+import { highlightMatches } from "../../lib/highlight";
+import { usePickerModal } from "../../hooks/usePickerModal";
+import { PickerModal, PickerHeader, PickerHint } from "../PickerModal/PickerModal";
+import { useEditorStore } from "../../store/editorStore";
+import type { Tab } from "../../store/editorStore";
+
+interface GlobalSearchPanelProps {
+  onClose: () => void;
+  onOpenMatch: (tabId: string, match: MatchResult) => void;
+}
+
+interface TabMatches {
+  tab: Tab;
+  tabIndex: number;
+  matches: MatchResult[];
+}
+
+interface FlatResult {
+  tab: Tab;
+  tabIndex: number;
+  match: MatchResult;
+  matchIndex: number;
+}
+
+function makeSnippet(content: string, match: MatchResult) {
+  const radius = 72;
+  const rawStart = Math.max(0, match.index - radius);
+  const rawEnd = Math.min(content.length, match.index + match.length + radius);
+  const lineStart = content.lastIndexOf("\n", Math.max(0, match.index - 1));
+  const lineEnd = content.indexOf("\n", match.index + match.length);
+  const start = Math.max(rawStart, lineStart === -1 ? 0 : lineStart + 1);
+  const end = Math.min(rawEnd, lineEnd === -1 ? content.length : lineEnd);
+  const rawText = content.slice(start, end);
+  const leadingTrim = rawText.length - rawText.trimStart().length;
+  const text = rawText.trim();
+  const index = Math.max(0, match.index - start - Math.max(0, leadingTrim));
+
+  return {
+    text,
+    indices: Array.from({ length: match.length }, (_, i) => index + i).filter((i) => i >= 0 && i < text.length),
+    before: start > 0,
+    after: end < content.length,
+  };
+}
+
+export function GlobalSearchPanel({ onClose, onOpenMatch }: GlobalSearchPanelProps) {
+  // Намеренно кросс-workspace (в отличие от Ctrl+T): это escape hatch из изоляции.
+  // Выбор таба из чужого workspace переключит workspace — setActiveTab делает это сам.
+  const tabs = useEditorStore((s) => s.tabs);
+  const activeTabId = useEditorStore((s) => s.activeTabId);
+  const workspaces = useEditorStore((s) => s.workspaces);
+  const activeWorkspaceId = useEditorStore((s) => s.activeWorkspaceId);
+  const [query, setQuery] = useState("");
+  const [caseSensitive, setCaseSensitive] = useState(false);
+  const [regex, setRegex] = useState(false);
+
+  const groupedResults = useMemo<TabMatches[]>(() => {
+    const needle = query.trim();
+    if (!needle) return [];
+
+    return tabs
+      .map((tab, tabIndex) => ({
+        tab,
+        tabIndex,
+        matches: findMatches(tab.content, needle, { caseSensitive, regex }),
+      }))
+      .filter((item) => item.matches.length > 0);
+  }, [caseSensitive, query, regex, tabs]);
+
+  const flatResults = useMemo<FlatResult[]>(
+    () => groupedResults.flatMap((group) =>
+      group.matches.map((match, matchIndex) => ({
+        tab: group.tab,
+        tabIndex: group.tabIndex,
+        match,
+        matchIndex,
+      }))
+    ),
+    [groupedResults]
+  );
+
+  const totalMatches = flatResults.length;
+
+  const openResult = useCallback((result: FlatResult | undefined) => {
+    if (!result) return;
+    onOpenMatch(result.tab.id, result.match);
+    onClose();
+  }, [onClose, onOpenMatch]);
+
+  const onEnter = useCallback((i: number) => openResult(flatResults[i]), [flatResults, openResult]);
+
+  const { selectedIndex, setSelectedIndex, inputRef, listRef } = usePickerModal({
+    count: totalMatches,
+    onEnter,
+    onClose,
+  });
+
+  // Сброс выделения на смену запроса/режимов — как было (не на каждый ввод в инпут:
+  // тогглы Aa/.* тоже перестраивают результаты).
+  useEffect(() => {
+    setSelectedIndex(0);
+  }, [query, caseSensitive, regex, setSelectedIndex]);
+
+  let resultCursor = 0;
+
+  return (
+    <PickerModal
+      onClose={onClose}
+      width="min(94vw, 900px)"
+      paddingTop="10vh"
+      footer={
+        <PickerHint>
+          <span>↑↓ navigate</span>
+          <span>↵ open</span>
+          <span>Esc close</span>
+        </PickerHint>
+      }
+    >
+      <PickerHeader
+        inputRef={inputRef}
+        value={query}
+        onChange={setQuery}
+        placeholder="Search across all tabs..."
+        prefix={
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" className="text-text-muted shrink-0">
+            <circle cx="7" cy="7" r="4" stroke="currentColor" strokeWidth="1.4" />
+            <path d="M10.5 10.5L14 14" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+          </svg>
+        }
+        suffix={
+          <>
+            <ToggleButton active={caseSensitive} onClick={() => setCaseSensitive((v) => !v)} title="Case sensitive">
+              Aa
+            </ToggleButton>
+            <ToggleButton active={regex} onClick={() => setRegex((v) => !v)} title="Regex">
+              .*
+            </ToggleButton>
+            <span className="text-[10px] text-text-muted/50 tabular-nums w-24 text-right">
+              {query.trim() ? `${totalMatches} matches` : `${tabs.length} tabs`}
+            </span>
+          </>
+        }
+      />
+
+      <div ref={listRef} className="max-h-[62vh] overflow-y-auto py-1">
+        {!query.trim() && (
+          <div className="px-4 py-10 text-center text-xs text-text-muted/60">
+            Type to search across open tabs
+          </div>
+        )}
+
+        {query.trim() && groupedResults.length === 0 && (
+          <div className="px-4 py-10 text-center text-xs text-text-muted/60">
+            No matches
+          </div>
+        )}
+
+        {groupedResults.map((group) => (
+          <section key={group.tab.id} className="border-b border-border/40 last:border-b-0">
+            <div className="sticky top-0 z-10 flex items-center gap-2 px-4 py-2 bg-surface/95 border-b border-border/30">
+              <span className={`w-1.5 h-1.5 rounded-full ${group.tab.id === activeTabId ? "bg-accent" : "bg-border"}`} />
+              <span className="truncate text-[12px] text-text">{group.tab.title}</span>
+              {group.tab.workspaceId !== activeWorkspaceId && (
+                <span className="shrink-0 text-[9px] px-1 py-px rounded-sm bg-surface-hover text-text-muted/70">
+                  {workspaces.find((w) => w.id === group.tab.workspaceId)?.name ?? "?"}
+                </span>
+              )}
+              {group.tab.id === activeTabId && <span className="text-[10px] text-accent shrink-0">active</span>}
+              <span className="ml-auto text-[10px] text-text-muted/50 tabular-nums shrink-0">
+                #{group.tabIndex + 1} · {group.matches.length}
+              </span>
+            </div>
+
+            <div className="py-1">
+              {group.matches.map((match) => {
+                // Плоский курсор сквозь секции — тот же счётчик, что индексирует flatResults.
+                const current = resultCursor++;
+                const selected = current === selectedIndex;
+                const snippet = makeSnippet(group.tab.content, match);
+
+                return (
+                  <button
+                    key={`${group.tab.id}-${match.index}-${current}`}
+                    data-picker-index={current}
+                    onClick={() => openResult({ tab: group.tab, tabIndex: group.tabIndex, match, matchIndex: current })}
+                    onMouseEnter={() => setSelectedIndex(current)}
+                    className={`
+                      w-full grid grid-cols-[auto_1fr_auto] gap-3 px-4 py-2 text-left transition-colors duration-75
+                      ${selected ? "bg-accent/10" : "hover:bg-surface-hover/50"}
+                    `}
+                  >
+                    <span className="pt-0.5 text-[10px] text-text-muted/45 tabular-nums">
+                      {current + 1}
+                    </span>
+                    <span className="min-w-0 whitespace-pre-wrap break-words text-[11px] leading-5 text-text-muted">
+                      {snippet.before && <span className="text-text-muted/40">... </span>}
+                      {highlightMatches(snippet.text, snippet.indices)}
+                      {snippet.after && <span className="text-text-muted/40"> ...</span>}
+                    </span>
+                    <span className="pt-0.5 text-[10px] text-text-muted/45 tabular-nums">
+                      {match.index}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        ))}
+      </div>
+    </PickerModal>
+  );
+}
+
+function ToggleButton({ active, onClick, title, children }: {
+  active: boolean;
+  onClick: () => void;
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={title}
+      className={`
+        flex items-center justify-center h-6 px-1.5 rounded-[3px] text-[10px] font-medium transition-colors
+        ${active
+          ? "bg-accent/20 text-accent"
+          : "text-text-muted hover:text-text hover:bg-surface-hover"
+        }
+      `}
+    >
+      {children}
+    </button>
+  );
+}

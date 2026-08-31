@@ -20,12 +20,12 @@
 - GUI прошёл dogfooding: ежедневное использование, 75+ табов накопилось. Это значит UX-боль реальна, но не блокирует.
 
 ## Repo Layout
-- `web/` — git submodule [exviolet/sendoff-web] (browser SPA, React + Zustand + Vite).
+- `web/` — фронтенд редактора: React + Zustand + Vite, свой `package.json`, ставится и собирается из своего каталога. До 2026-08-31 жил отдельным репозиторием `exviolet/sendoff-web` и подключался сабмодулем — втянут в монорепо вместе со всей историей.
 - `src-tauri/src/lib.rs` — точка входа Tauri v2 wrapper.
 - `src-tauri/capabilities/default.json` — permission manifest.
 - `src-tauri/tauri.conf.json` — Tauri-конфиг.
 - `install.sh` / `uninstall.sh` — установка/удаление бинарника в `~/.local/` (Linux only).
-- `update.sh` — обновление установленного Sendoff для консюмера (pull → sync submodule → `build:bin` → install).
+- `update.sh` — обновление установленного Sendoff для консюмера (pull → `build:bin` → install).
 - `landing/` — лендинг `sendoff-editor.pages.dev` (чистая статика: один `index.html` + `assets/`, без сборщика и зависимостей). Не часть приложения: в сборку десктопа не входит, зависимостей с `web/` не имеет.
 - `docs/ROADMAP.md` — позиционирование, приоритеты, отказы. Источник правды по продуктовым решениям.
 - `tasks/` — детальные task-спеки для приоритетных фич (создаются по мере того, как фича становится active).
@@ -52,7 +52,6 @@
   >
   > **Каждый релиз обязан нести две копии AppImage:** версионную (`Sendoff_<version>_amd64.AppImage`, как её называет бандлер) и версионезависимую `Sendoff_latest_amd64.AppImage` — `gh release upload <tag> Sendoff_latest_amd64.AppImage`. На вторую наведены три кнопки Download лендинга через `releases/latest/download/`; забыть её значит уронить их в 404. Имя выбрано так, чтобы подходить под глоб `Sendoff_*_amd64.AppImage` из `README.md`, `README.ru.md` и install-line лендинга — их править не нужно. Заведено 2026-08-23.
 - Лендинг: сборки нет. Превью — `cd landing && python3 -m http.server 4323 --bind 127.0.0.1`. Правится `index.html` напрямую; шрифты и медиа лежат в `landing/assets/`.
-- Update web submodule (dev, бамп указателя): `bun update-web`
 - Install / remove binary: `./install.sh` / `./uninstall.sh`
 - Обновить установленный Sendoff (консюмер): `./update.sh`
 
@@ -63,7 +62,6 @@
 | `web/src/lib/**` (чистая логика, `db.ts`) | `bun test` обязателен: там резолв таргетов (промпт не тому агенту) и чтение чужой базы |
 | `src-tauri/src/**/*.rs` | `cd src-tauri && cargo check` |
 | `src-tauri/capabilities/*.json`, `tauri.conf.json` | `bun run build` (валидация Tauri-манифеста) |
-| указатель submodule обновлён | `git submodule status` должен быть чистый |
 | `landing/**` | Сборочного гейта нет — страница одна, проверяется в браузере: все ассеты отдаются 200, обе темы, нет переполнения на 1512 / 979 / 390. Перед публикацией — **проверить, что кириллица осталась только в комментариях**: `<!-- -->`, `/* */` и `//` по правилам проекта русские, любой пользовательский текст — английский |
 
 ## Git Workflow (GitHub Flow)
@@ -74,18 +72,10 @@
 - Коммиты: атомарные, русские, Conventional Commits (`feat(scope): описание`).
 - `git switch` вместо `git checkout`.
 
-## Submodule Order
-Изменения в `web/`:
-1. Сначала коммит **внутри** `web/` и push submodule.
-2. Возврат в desktop: `git add web && git commit -m "chore(web): обновлён указатель submodule"`.
-3. Push desktop.
-
-Никогда не обновлять указатель submodule в desktop до коммита в `web/` — иначе указатель ссылается на dangling commit.
-
 ## Safety Rails
 
 ### NEVER
-- Не добавлять Tauri permissions в `src-tauri/capabilities/default.json` без явного подтверждения. Модель: **редактор держит границу no-network-egress** — webview не делает произвольных сетевых вызовов и не спавнит произвольные процессы. (Реформулировано 2026-07-07: это НЕ «local-first как продуктовая догма» — сетевое/AI живёт в отдельном companion-продукте за opt-in границей, не в редакторе. Причина границы: `fs:scope-home-recursive` + сетевой egress = поверхность утечки; `web/` тянется submodule'ом, не аудируется построчно.) Исключения через `tauri-plugin-shell`:
+- Не добавлять Tauri permissions в `src-tauri/capabilities/default.json` без явного подтверждения. Модель: **редактор держит границу no-network-egress** — webview не делает произвольных сетевых вызовов и не спавнит произвольные процессы. (Реформулировано 2026-07-07: это НЕ «local-first как продуктовая догма» — сетевое/AI живёт в отдельном companion-продукте за opt-in границей, не в редакторе. Причина границы: `fs:scope-home-recursive` + сетевой egress = поверхность утечки; фронтенд — 13 тысяч строк, построчно не аудируется.) Исключения через `tauri-plugin-shell`:
   - `tmux` — отправка текста в выбранную pane + чтение топологии read-only (`list-panes`/`list-windows`/`list-sessions` для target picker'а). Заскоуплен `args:true`.
   - `orca-ide` (Orca ADE CLI) — **Policy B, scoped по подкомандам (НЕ `args:true`)**: только `terminal send` (отправка промпта), `terminal list` / `worktree ps` (read-only топология + `lastAssistantMessage`), `terminal wait --for tui-idle` (settle/refresh). Явно НЕ разрешены: `computer` (управление десктопом), `terminal create --command` (спавн процессов), `worktree create/rm`, browser/automations — поверхность `orca-ide` качественно опаснее tmux, `args:true` молча выдал бы desktop-control + произвольные процессы. Подтверждено 2026-07-01.
   - Остальной shell, сеть и произвольные процессы не разрешены.
@@ -93,7 +83,6 @@
 - Не делать `git push --force` на `master`.
 - Не запускать `./uninstall.sh` без подтверждения (стирает установленный бинарник).
 - Не коммитить `HANDOFF.md`.
-- Не обновлять указатель submodule в desktop до коммита в `web/`.
 - Не вводить миграции данных, feature flags, backwards-compat shims.
 
 ### ALWAYS

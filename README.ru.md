@@ -239,7 +239,7 @@ Webview получает намеренно узкую shell-поверхнос�
 ### Установка зависимостей
 
 ```bash
-git clone --recurse-submodules https://github.com/exviolet/sendoff.git
+git clone https://github.com/exviolet/sendoff.git
 cd sendoff
 bun install
 ```
@@ -265,11 +265,11 @@ bun run build:bin   # только бинарник (tauri build --no-bundle)
 ### Обновить установленную копию
 
 ```bash
-./update.sh   # git pull + синк web-сабмодуля + build:bin + install
+./update.sh   # git pull + build:bin + install
 ```
 
-Тянет `master`, выставляет закоммиченный указатель сабмодуля `web/`, пересобирает
-бинарник и переустанавливает одним шагом. После — перезапусти приложение из лаунчера.
+Тянет `master`, пересобирает бинарник и переустанавливает одним шагом.
+После — перезапусти приложение из лаунчера.
 
 > Закрой приложение перед обновлением. `install.sh` откажется работать при живом
 > инстансе: каталог данных между версиями может переезжать.
@@ -291,19 +291,16 @@ docker run --rm -v "$PWD":/src -u "$(id -u):$(id -g)" -e HOME=/tmp \
 никто не ставил на Debian или Fedora, а выкладывать непроверенные пакеты — это
 обещание, которое проект не потянет.
 
-## Структура репозиториев
+## Структура репозитория
 
 Этот репозиторий — сам продукт: оболочка на Tauri v2, релизные артефакты и
 интеграции, благодаря которым `Ctrl+Enter` приземляется в терминал.
 
-Сам редактор — React + Zustand + Vite — живёт в
-[**sendoff-web**](https://github.com/exviolet/sendoff-web) и подключён сюда
-git-сабмодулем `web/`. Клонируй с `--recurse-submodules` (см. [Установку](#установка-зависимостей)).
-
-```bash
-bun update-web                                  # бампнуть web/ до свежего коммита
-git add web && git commit -m "chore: bump web submodule"
-```
+Сам редактор — React + Zustand + Vite — живёт в `web/` со своим `package.json`;
+Tauri ставит и собирает его оттуда. До августа 2026 это был отдельный репозиторий,
+подключённый сабмодулем, — что не давало ничего: фронтенд зависит от
+`@tauri-apps/*`, `Ctrl+Enter` в обычной вкладке браузера деградирует до копирования
+в буфер, и отдельных потребителей у него не было.
 
 ## Статус
 
@@ -324,7 +321,7 @@ issues могут висеть. Тесты покрывают только чи�
 ## Благодарности
 
 В комплекте [JetBrains Mono](https://www.jetbrains.com/lp/mono/) (v2.304) под
-[SIL Open Font License 1.1](https://github.com/exviolet/sendoff-web/blob/master/public/assets/fonts/JetBrainsMono-OFL.txt).
+[SIL Open Font License 1.1](web/public/assets/fonts/JetBrainsMono-OFL.txt).
 Системный Nerd Font имеет приоритет, если установлен, — чтобы иконки в выводе
 агента не ломались.
 

@@ -9,9 +9,6 @@ cd "$(dirname "$0")"
 echo "→ git pull (desktop, ff-only)…"
 git pull --ff-only
 
-echo "→ submodule update (web → закоммиченный указатель)…"
-git submodule update --init --recursive
-
 echo "→ bun install (на случай смены зависимостей)…"
 bun install
 
