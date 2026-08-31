@@ -1,0 +1,252 @@
+import { describe, test, expect, beforeEach } from "bun:test";
+import "fake-indexeddb/auto";
+import { openDB } from "idb";
+import { closeDB, loadSession, saveSession, type SessionSnapshot } from "./db";
+import type { Tab } from "../store/editorStore";
+
+// Единственный слой, где можно реально навредить чужим данным: у 2-го пользователя
+// в этой базе лежит его работа. Проверяем round-trip и апгрейд старых версий на
+// настоящем IndexedDB (fake-indexeddb — та же спецификация, без браузера).
+
+const DB_NAME = "rewrite-db";
+
+async function wipe() {
+  // Соединение обязано быть закрыто: открытое БЛОКИРУЕТ deleteDatabase, и весь
+  // файл повисает на первом же тесте после round-trip'а.
+  await closeDB();
+  await new Promise<void>((resolve) => {
+    const req = indexedDB.deleteDatabase(DB_NAME);
+    req.onsuccess = () => resolve();
+    req.onerror = () => resolve();
+    req.onblocked = () => resolve();
+  });
+}
+
+function tab(id: string, extra: Partial<Tab> = {}): Tab {
+  return {
+    id,
+    title: id,
+    content: `текст ${id}`,
+    createdAt: 1,
+    updatedAt: 2,
+    workspaceId: "ws-1",
+    ...extra,
+  } as Tab;
+}
+
+function snapshot(over: Partial<SessionSnapshot> = {}): SessionSnapshot {
+  return {
+    tabs: [tab("a"), tab("b")],
+    closedTabs: [],
+    activeTabId: "a",
+    tabCounter: 2,
+    workspaces: [{ id: "ws-1", name: "Default", createdAt: 0 }],
+    activeWorkspaceId: "ws-1",
+    tabGroups: [],
+    presets: [],
+    triggerPhrases: [],
+    theme: "dark",
+    fontSize: 13,
+    wordWrap: true,
+    tmuxAutoSubmit: true,
+    fontFamily: "",
+    phraseInsertMode: "prepend",
+    shortcutOverrides: {},
+    referenceText: "",
+    referenceWidth: 320,
+    ...over,
+  };
+}
+
+beforeEach(wipe);
+
+describe("round-trip сессии", () => {
+  test("что записали, то и прочитали", async () => {
+    const snap = snapshot({
+      fontSize: 18,
+      fontFamily: "JetBrainsMono Nerd Font",
+      phraseInsertMode: "cursor",
+      shortcutOverrides: {
+        "new-tab": [{ code: "KeyQ", ctrl: true }],
+      },
+      theme: "light",
+      referenceText: "заметка",
+      tabGroups: [{ id: "g", name: "Группа", color: "blue", collapsed: true, workspaceId: "ws-1", createdAt: 0 }],
+      tabs: [tab("a", { groupId: "g", pinned: true }), tab("b")],
+    });
+    await saveSession(snap);
+    const out = await loadSession();
+
+    expect(out.tabs.map((t) => t.id)).toEqual(["a", "b"]);
+    expect(out.tabs[0].groupId).toBe("g");
+    expect(out.tabs[0].pinned).toBe(true);
+    expect(out.tabGroups[0].collapsed).toBe(true);
+    expect(out.fontSize).toBe(18);
+    expect(out.fontFamily).toBe("JetBrainsMono Nerd Font");
+    expect(out.phraseInsertMode).toBe("cursor");
+    expect(out.shortcutOverrides).toEqual({
+      "new-tab": [{ code: "KeyQ", ctrl: true }],
+    });
+    expect(out.theme).toBe("light");
+    expect(out.referenceText).toBe("заметка");
+  });
+
+  test("порядок табов держится ключом tabOrder, а не порядком выдачи стора", async () => {
+    // getAll отдаёт по ключу (алфавитно) — без tabOrder полоса перетасовалась бы.
+    await saveSession(snapshot({ tabs: [tab("z"), tab("a"), tab("m")], activeTabId: "z" }));
+    expect((await loadSession()).tabs.map((t) => t.id)).toEqual(["z", "a", "m"]);
+  });
+
+  test("удалённые табы не воскресают (стор переписывается целиком)", async () => {
+    await saveSession(snapshot({ tabs: [tab("a"), tab("b"), tab("c")] }));
+    await saveSession(snapshot({ tabs: [tab("a")], activeTabId: "a" }));
+    expect((await loadSession()).tabs.map((t) => t.id)).toEqual(["a"]);
+  });
+
+  test("привязки переживают запись и чтение", async () => {
+    const binding = { source: "herdr", paneId: "wK:p1", workspace: "rw", tab: "claude" } as const;
+    await saveSession(snapshot({ tabs: [tab("a", { binding })] }));
+    expect((await loadSession()).tabs[0].binding).toEqual(binding);
+  });
+});
+
+// Архив закрытых табов — новая гарантия «закрыть ≠ потерять». Он лежит в том же
+// сторе, что живые табы, с маркером closedAt: перепутать их местами = либо потерять
+// работу, либо показать в полосе закрытое.
+describe("архив закрытых табов", () => {
+  test("закрытые переживают запись и чтение и НЕ попадают в живые", async () => {
+    await saveSession(snapshot({
+      tabs: [tab("live")],
+      closedTabs: [tab("closed", { content: "закрытая работа" })],
+      activeTabId: "live",
+    }));
+    const out = await loadSession();
+    expect(out.tabs.map((t) => t.id)).toEqual(["live"]);
+    expect(out.closedTabs.map((t) => t.id)).toEqual(["closed"]);
+    expect(out.closedTabs[0].content).toBe("закрытая работа");
+  });
+
+  test("маркер closedAt не протекает в модель таба", async () => {
+    await saveSession(snapshot({ tabs: [tab("live")], closedTabs: [tab("c")], activeTabId: "live" }));
+    const out = await loadSession();
+    expect("closedAt" in out.closedTabs[0]).toBe(false);
+  });
+
+  test("порядок архива сохраняется — Ctrl+Shift+T обязан отдавать последний закрытый", async () => {
+    const closed = [tab("первый"), tab("второй"), tab("третий")];
+    await saveSession(snapshot({ tabs: [tab("live")], closedTabs: closed, activeTabId: "live" }));
+    const out = await loadSession();
+    expect(out.closedTabs.map((t) => t.id)).toEqual(["первый", "второй", "третий"]);
+  });
+
+  test("возврат таба убирает его из архива и не плодит дублей", async () => {
+    await saveSession(snapshot({ tabs: [tab("a")], closedTabs: [tab("b")], activeTabId: "a" }));
+    // b вернули: теперь он живой, архив пуст
+    await saveSession(snapshot({ tabs: [tab("a"), tab("b")], closedTabs: [], activeTabId: "b" }));
+    const out = await loadSession();
+    expect(out.tabs.map((t) => t.id)).toEqual(["a", "b"]);
+    expect(out.closedTabs).toEqual([]);
+  });
+
+  test("пустой архив читается как пустой массив, а не undefined", async () => {
+    await saveSession(snapshot());
+    expect((await loadSession()).closedTabs).toEqual([]);
+  });
+});
+
+describe("пустая и порченая база", () => {
+  test("чтение пустой базы даёт рабочие дефолты, а не падение", async () => {
+    const out = await loadSession();
+    expect(out.tabs).toEqual([]);
+    expect(out.activeTabId).toBeNull();
+    expect(out.theme).toBe("dark");
+    expect(out.fontSize).toBe(13);
+    expect(out.wordWrap).toBe(true);
+    expect(out.phraseInsertMode).toBe("prepend");
+    expect(out.shortcutOverrides).toEqual({});
+  });
+
+  test("незнакомое значение phraseInsertMode → исходное поведение, не сбой", async () => {
+    await saveSession(snapshot());
+    const db = await openDB(DB_NAME, 6);
+    await db.put("meta", { мусор: true } as never, "phraseInsertMode");
+    db.close();
+    expect((await loadSession()).phraseInsertMode).toBe("prepend");
+  });
+
+  test("shortcutOverrides сужается: мусор не отключает команды", async () => {
+    await saveSession(snapshot());
+    const db = await openDB(DB_NAME, 6);
+    await db.put("meta", {
+      "new-tab": [
+        { code: "KeyQ", ctrl: true },
+        { code: 42, ctrl: true },
+      ],
+      unknown: [{ code: "KeyU", ctrl: true }],
+      "close-tab": "not-an-array",
+      open: [{ code: "AltLeft", alt: true }],
+      save: [],
+      shortcuts: [],
+    } as never, "shortcutOverrides");
+    db.close();
+
+    expect((await loadSession()).shortcutOverrides).toEqual({
+      "new-tab": [{ code: "KeyQ", ctrl: true }],
+      save: [],
+    });
+  });
+
+  test("tabOrder со ссылками на удалённые табы не создаёт дыр", async () => {
+    await saveSession(snapshot({ tabs: [tab("a")], activeTabId: "a" }));
+    const db = await openDB(DB_NAME, 6);
+    await db.put("meta", ["призрак", "a"], "tabOrder");
+    db.close();
+    const out = await loadSession();
+    expect(out.tabs.map((t) => t.id)).toEqual(["a"]);
+    expect(out.tabs.every(Boolean)).toBe(true);
+  });
+});
+
+describe("апгрейд старых версий базы", () => {
+  test("v5 → v6: табы 2-го пользователя целы, стор групп создан пустым", async () => {
+    // Старая база: нет tabGroups, у табов нет groupId, зато есть isDirty.
+    const legacy = await openDB(DB_NAME, 5, {
+      upgrade(db) {
+        db.createObjectStore("tabs", { keyPath: "id" });
+        db.createObjectStore("presets", { keyPath: "id" });
+        db.createObjectStore("meta");
+        db.createObjectStore("triggerPhrases", { keyPath: "id" });
+        db.createObjectStore("workspaces", { keyPath: "id" });
+      },
+    });
+    await legacy.put("tabs", {
+      id: "old", title: "Старый таб", content: "накопленная работа",
+      isDirty: true, createdAt: 1, updatedAt: 2, workspaceId: "ws-1",
+      tmuxBinding: { session: "work", window: "claude" },
+    } as never);
+    await legacy.put("meta", ["old"], "tabOrder");
+    legacy.close();
+
+    const out = await loadSession();
+    expect(out.tabs).toHaveLength(1);
+    expect(out.tabs[0].content).toBe("накопленная работа");
+    expect(out.tabGroups).toEqual([]);
+  });
+
+  test("v1 → v6: база без workspaces и triggerPhrases открывается", async () => {
+    const ancient = await openDB(DB_NAME, 1, {
+      upgrade(db) {
+        db.createObjectStore("tabs", { keyPath: "id" });
+        db.createObjectStore("presets", { keyPath: "id" });
+        db.createObjectStore("meta");
+      },
+    });
+    await ancient.put("tabs", { id: "t1", title: "Древний", content: "текст", createdAt: 0, updatedAt: 0 } as never);
+    ancient.close();
+
+    const out = await loadSession();
+    expect(out.tabs[0].content).toBe("текст");
+    expect(out.workspaces).toEqual([]);
+    expect(out.triggerPhrases).toEqual([]);
+  });
+});

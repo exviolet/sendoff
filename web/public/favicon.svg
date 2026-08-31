@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0.8" y2="1">
+      <stop offset="0%" stop-color="#2a2650"/>
+      <stop offset="100%" stop-color="#1a1832"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="108" fill="url(#bg)"/>
+
+  <!-- Ghost S — same offset and opacity the ghost R had -->
+  <path d="M336,178 C336,138 293,108 236,108 C179,108 136,138 136,180
+           C136,222 179,246 236,252 C293,258 336,282 336,324
+           C336,366 293,396 236,396 C179,396 136,366 136,326"
+        fill="none" stroke="#c4b5fd" stroke-width="24" stroke-linecap="round" stroke-linejoin="round" opacity="0.2"/>
+
+  <!-- Bold S -->
+  <path d="M388,190 C388,150 345,120 288,120 C231,120 188,150 188,192
+           C188,234 231,258 288,264 C345,270 388,294 388,336
+           C388,378 345,408 288,408 C231,408 188,378 188,338"
+        fill="none" stroke="#ffffff" stroke-width="30" stroke-linecap="round" stroke-linejoin="round" opacity="0.95"/>
+</svg>

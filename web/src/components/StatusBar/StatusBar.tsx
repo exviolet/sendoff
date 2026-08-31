@@ -1,0 +1,109 @@
+import { useEditorStore } from "../../store/editorStore";
+import { describeBinding } from "../../lib/terminalTargets";
+import { useTargetStatus } from "../../hooks/useTargetStatus";
+
+// Статусы агентов: herdr отдаёт idle|working|blocked|done, Orca — свой набор.
+// Сводим к одной шкале; неизвестный статус рисуем нейтрально, но в тултипе показываем
+// как есть — врать про чужой словарь хуже, чем показать незнакомое слово.
+const STATUS_COLOR: Record<string, string> = {
+  working: "bg-accent",
+  blocked: "bg-dirty",
+  waiting: "bg-dirty",
+  idle: "bg-text-muted/50",
+  done: "bg-text-muted/50",
+};
+
+const STATUS_LABEL: Record<string, string> = {
+  working: "working",
+  blocked: "waiting for you",
+  waiting: "waiting for you",
+  idle: "idle",
+  done: "done",
+};
+
+// Состояния, которые ждут ДЕЙСТВИЯ ПОЛЬЗОВАТЕЛЯ, а не просто сообщают о себе.
+// Из release-notes herdr 0.7.5: «question prompts now report blocked until the user
+// answers or dismisses them» — то есть blocked это «агент встал и ждёт тебя».
+// Только они получают подпись и пульсацию: остальное — фон, который не должен
+// дёргать внимание и менять ширину полосы.
+const NEEDS_YOU = new Set(["blocked", "waiting"]);
+
+interface StatusBarProps {
+  onBindTarget: () => void;
+  onWorkspaceSwitch: () => void;
+}
+
+export function StatusBar({ onBindTarget, onWorkspaceSwitch }: StatusBarProps) {
+  const tab = useEditorStore((s) => s.tabs.find((t) => t.id === s.activeTabId));
+  const workspaceName = useEditorStore(
+    (s) => s.workspaces.find((w) => w.id === s.activeWorkspaceId)?.name,
+  );
+  // Хук зовётся ДО раннего return: порядок хуков обязан быть стабильным.
+  const status = useTargetStatus(tab?.binding);
+
+  if (!tab) return null;
+
+  const content = tab.content;
+  const chars = content.length;
+  const words = content.trim() ? content.trim().split(/\s+/).length : 0;
+  const lines = content.split("\n").length;
+
+  const binding = tab.binding;
+  const bindingLabel = binding ? describeBinding(binding) : null;
+  const bindTitle = binding
+    ? `Bound: ${bindingLabel} — Ctrl+Alt+B to rebind, Ctrl+Alt+Shift+B to unbind`
+    : "Not bound — Ctrl+Alt+B to bind a terminal";
+
+  return (
+    <footer className="flex items-center h-6 px-3 bg-surface border-t border-border text-[10px] tracking-wide text-text-muted shrink-0 select-none gap-4">
+      <button
+        onClick={onWorkspaceSwitch}
+        title="Active workspace — Ctrl+Shift+W to switch"
+        className="flex items-center gap-1 px-1.5 h-4 rounded-[3px] text-accent bg-accent/10 hover:bg-accent/20 transition-colors max-w-[160px]"
+      >
+        <svg width="11" height="11" viewBox="0 0 16 16" fill="none">
+          <rect x="2" y="3" width="12" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.4" />
+          <path d="M2 6.5h12" stroke="currentColor" strokeWidth="1.4" />
+        </svg>
+        <span className="truncate text-text">{workspaceName ?? "—"}</span>
+      </button>
+
+      <button
+        onClick={onBindTarget}
+        title={bindTitle}
+        className={`
+          flex items-center gap-1 px-1.5 h-4 rounded-[3px] transition-colors
+          ${binding ? "text-accent hover:bg-accent/10" : "text-text-muted/45 hover:text-text-muted hover:bg-surface-hover"}
+        `}
+      >
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+          <path d="M6.5 9.5l3-3M7 4.5l1-1a2.5 2.5 0 0 1 3.5 3.5l-1 1M9 11.5l-1 1a2.5 2.5 0 0 1-3.5-3.5l1-1" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        <span className="tabular-nums">{binding ? bindingLabel : "bind"}</span>
+      </button>
+
+      {/* Живой статус привязанного агента. tmux статусов не отдаёт — чипа просто нет. */}
+      {binding && status && (
+        <span
+          className="flex items-center gap-1.5 -ml-2.5"
+          title={`Agent: ${STATUS_LABEL[status] ?? status}`}
+        >
+          <span
+            className={`
+              w-1.5 h-1.5 rounded-full shrink-0
+              ${STATUS_COLOR[status] ?? "bg-border"}
+              ${NEEDS_YOU.has(status) ? "animate-pulse" : ""}
+            `}
+          />
+          {NEEDS_YOU.has(status) && (
+            <span className="text-dirty">{STATUS_LABEL[status] ?? status}</span>
+          )}
+        </span>
+      )}
+
+      <span className="ml-auto">{lines} {lines === 1 ? "line" : "lines"}</span>
+      <span>{words} {words === 1 ? "word" : "words"}</span>
+      <span>{chars} {chars === 1 ? "char" : "chars"}</span>
+    </footer>
+  );
+}

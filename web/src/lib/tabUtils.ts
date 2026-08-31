@@ -1,0 +1,212 @@
+import type { LegacyBindings, LegacyFields, Tab, TabBinding, TabGroup } from "../store/editorStore";
+
+const AUTO_TITLE_MAX_LENGTH = 48;
+const UNTITLED_RE = /^Untitled \d+$/;
+
+export function makeTab(n: number, workspaceId: string): Tab {
+  return {
+    id: crypto.randomUUID(),
+    title: `Untitled ${n}`,
+    content: "",
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    titleSource: "auto",
+    workspaceId,
+  };
+}
+
+// Табы активного workspace. Порядок сохраняется, поэтому глобальной partitionPinned
+// достаточно: внутри каждого workspace pinned остаются левее обычных.
+export function tabsOf(tabs: Tab[], workspaceId: string): Tab[] {
+  return tabs.filter((t) => t.workspaceId === workspaceId);
+}
+
+function firstContentLine(content: string) {
+  return content
+    .split(/\r?\n/)
+    .map((line) => line.trim().replace(/\s+/g, " "))
+    .find(Boolean) ?? "";
+}
+
+export function makeAutoTitle(content: string, fallback: string) {
+  const line = firstContentLine(content);
+  if (!line) return fallback;
+  return line.length > AUTO_TITLE_MAX_LENGTH
+    ? `${line.slice(0, AUTO_TITLE_MAX_LENGTH - 3)}...`
+    : line;
+}
+
+// Привязки до объединения жили в трёх отдельных полях. Конвертируем на ЧТЕНИИ и
+// стираем легаси-поля, чтобы они не ездили в IndexedDB вечно. Это не миграция
+// данных (их мы не вводим) — это нормализация в том же месте, где чинится
+// titleSource: схема стора табов не меняется, bump версии БД не нужен.
+//
+// Без этого шага у автора пропали бы 4 живые привязки, а у второго пользователя —
+// свои. Единственное место, где можно молча навредить чужому человеку.
+function liftLegacyBinding(tab: Tab & LegacyBindings): TabBinding | undefined {
+  if (tab.binding) return tab.binding;
+  if (tab.herdrBinding) return { source: "herdr", ...tab.herdrBinding };
+  if (tab.orcaBinding) return { source: "orca", ...tab.orcaBinding };
+  if (tab.tmuxBinding) return { source: "tmux", ...tab.tmuxBinding };
+  return undefined;
+}
+
+export function normalizeTab(tab: Tab): Tab {
+  const titleSource = tab.titleSource ?? (UNTITLED_RE.test(tab.title) ? "auto" : "manual");
+  const title = titleSource === "auto"
+    ? makeAutoTitle(tab.content, tab.title)
+    : tab.title;
+
+  const next: Tab & LegacyBindings & LegacyFields = { ...tab, title, titleSource };
+  const binding = liftLegacyBinding(next);
+  delete next.tmuxBinding;
+  delete next.orcaBinding;
+  delete next.herdrBinding;
+  // Ручного «сохранения» больше нет — флаг из старых баз стираем здесь же.
+  delete next.isDirty;
+  if (binding) next.binding = binding;
+  else delete next.binding;
+
+  return next;
+}
+
+// Pinned tabs always sort ahead of unpinned, preserving relative order within each group.
+export function partitionPinned(tabs: Tab[]): Tab[] {
+  return [...tabs.filter((t) => t.pinned), ...tabs.filter((t) => !t.pinned)];
+}
+
+// Табы одной группы — непрерывным run'ом. Позиция run'а задаётся ПЕРВЫМ табом группы,
+// порядок внутри run'а сохраняется, остальные табы не сдвигаются друг относительно друга.
+// Непрерывность — инвариант, а не соглашение: без неё группа разъезжается при первом же
+// reorder, и собрать её обратно руками пользователь не сможет (tasks/14, решение 2).
+//
+// Закреплённые табы не втягиваются в run: пин и группа взаимоисключимы, а partitionPinned
+// держит пины слева. Если `pinned` и `groupId` всё же встретились вместе (порченые данные),
+// таб остаётся на месте как обычный — молча его не перекладываем.
+export function partitionGroups(tabs: Tab[]): Tab[] {
+  const placed = new Set<string>();
+  const result: Tab[] = [];
+
+  for (const tab of tabs) {
+    if (!tab.groupId || tab.pinned) {
+      result.push(tab);
+      continue;
+    }
+    if (placed.has(tab.groupId)) continue; // уже уехал вместе со своим run'ом
+    placed.add(tab.groupId);
+    result.push(...tabs.filter((t) => t.groupId === tab.groupId && !t.pinned));
+  }
+
+  return result;
+}
+
+// Порядок в полосе = пины слева, затем непрерывные run'ы групп. Одна точка вызова на оба
+// инварианта: разъедутся, если где-то вызвать только partitionPinned.
+export function arrangeTabs(tabs: Tab[]): Tab[] {
+  return partitionGroups(partitionPinned(tabs));
+}
+
+// Табы, реально видимые в полосе: члены свёрнутых групп скрыты. Свёрнутость — ТОЛЬКО
+// видимость: сами табы живы, ищутся через Ctrl+T / Ctrl+Shift+D и персистятся.
+export function visibleTabsOf(tabs: Tab[], groups: TabGroup[], workspaceId: string): Tab[] {
+  const collapsed = new Set(groups.filter((g) => g.collapsed).map((g) => g.id));
+  return tabsOf(tabs, workspaceId).filter((t) => !t.groupId || !collapsed.has(t.groupId));
+}
+
+// Перенос таба на место другого (DnD). Возвращает новый порядок или null, если двигать
+// нечего.
+//
+// **Сторона вставки зависит от направления, и это не косметика.** Вставка всегда «перед
+// целью» ломается ровно в одном случае — шаг вправо на соседа: таб вынимается, цель
+// съезжает на его место, и вставка перед целью возвращает таб туда, откуда взяли. Со
+// стороны это выглядит как «перетаскивание не работает», и выглядело так с 2026-08-07.
+// Поэтому при движении вправо таб встаёт ПОСЛЕ цели.
+//
+// Членство определяется целью, а не соседом по индексу вставки: при движении вправо на
+// позиции вставки стоит уже следующий таб, и групповая принадлежность бралась бы у чужого.
+export function reorderTabs(tabs: Tab[], fromId: string, toId: string): Tab[] | null {
+  if (fromId === toId) return null;
+
+  const from = tabs.findIndex((t) => t.id === fromId);
+  const target = tabs.find((t) => t.id === toId);
+  if (from < 0 || !target) return null;
+
+  const movingRight = from < tabs.indexOf(target);
+
+  const next = [...tabs];
+  const [moved] = next.splice(from, 1);
+  const at = next.findIndex((t) => t.id === toId);
+
+  // Бросил внутрь группы — таб в ней, бросил наружу — вышел. Иначе таб сел бы в run
+  // визуально, оставшись вне группы логически, и уехал бы обратно при следующем
+  // arrangeTabs (tasks/14, ловушки). Пин своей группы не меняет.
+  const landed = moved.pinned ? moved : { ...moved, groupId: target.groupId };
+  next.splice(movingRight ? at + 1 : at, 0, landed);
+  return next;
+}
+
+// Шаг таба на одну ВИДИМУЮ позицию влево/вправо. Возвращает новый порядок или null,
+// если двигать некуда. Своя арифметика, а не reorderTabs: тот работает по цели броска,
+// а шагу нужен видимый сосед — члены свёрнутых групп в полосе отсутствуют.
+//
+// Одно нажатие меняет ровно одну вещь. Граница группы — сама по себе шаг: её пересечение
+// меняет ТОЛЬКО членство, позиция остаётся, а двигает уже следующее нажатие. Иначе вход в
+// группу одновременно перепрыгивал бы соседа — два изменения за раз, и таб проскакивает
+// мимо места, куда его вели.
+//
+// Свёрнутую группу таб перепрыгивает целиком: её члены не видимы, соседом оказывается таб
+// за run'ом, границы не возникает — провалиться внутрь и исчезнуть из полосы нельзя.
+export function stepTab(
+  tabs: Tab[],
+  groups: TabGroup[],
+  id: string,
+  dir: -1 | 1
+): Tab[] | null {
+  const tab = tabs.find((t) => t.id === id);
+  if (!tab) return null;
+
+  const visible = visibleTabsOf(tabs, groups, tab.workspaceId);
+  const i = visible.findIndex((t) => t.id === id);
+  if (i < 0) return null; // таб спрятан в свёрнутой группе — двигать нечего
+
+  const neighbor = visible[i + dir];
+  if (!neighbor) return null;
+  // Через границу закреплённых шаг не переносит: пин — отдельный жест, а partitionPinned
+  // всё равно вернул бы таб обратно, и клавиша выглядела бы сломанной.
+  if (!!neighbor.pinned !== !!tab.pinned) return null;
+
+  // Позиция при смене членства не трогается намеренно: partitionGroups и так поставит
+  // run на место (входящий таб оказывается крайним членом с той стороны, откуда пришёл).
+  if (!tab.pinned && tab.groupId !== neighbor.groupId) {
+    const groupId = tab.groupId ? undefined : neighbor.groupId;
+    return tabs.map((t) => (t.id === id ? { ...t, groupId } : t));
+  }
+
+  const next = tabs.filter((t) => t.id !== id);
+  const at = next.findIndex((t) => t.id === neighbor.id);
+  next.splice(dir < 0 ? at : at + 1, 0, tab);
+  return next;
+}
+
+// Группы активного workspace, в порядке появления их первого таба в полосе.
+export function groupsOf(groups: TabGroup[], workspaceId: string): TabGroup[] {
+  return groups.filter((g) => g.workspaceId === workspaceId);
+}
+
+// Группа без единого таба бесполезна: пустой чип в полосе не на что нажать и нечем
+// наполнить. Чистим сразу после любой операции, уносящей табы (закрытие, ungroup, переезд).
+export function pruneGroups(tabs: Tab[], groups: TabGroup[]): TabGroup[] {
+  const alive = new Set(tabs.map((t) => t.groupId).filter(Boolean) as string[]);
+  return groups.filter((g) => alive.has(g.id));
+}
+
+export function isAutoTitled(tab: Tab) {
+  return tab.titleSource === "auto" || (tab.titleSource === undefined && UNTITLED_RE.test(tab.title));
+}
+
+// «Пустой» = нет текста. Условия `!isDirty` здесь больше нет: оно означало «не трогали
+// с последнего Ctrl+S», а ручного сохранения не осталось. На поведение это влияет так:
+// таб, в котором писали и всё стёрли, теперь тоже считается пустым — и правильно.
+export function canCleanupTab(tab: Tab) {
+  return tab.content.trim() === "" && !tab.pinned && isAutoTitled(tab);
+}
