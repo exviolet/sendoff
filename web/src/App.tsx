@@ -199,7 +199,17 @@ function App() {
     openDoctor: () => setDoctorOpen(true),
   });
 
+  // Фокус-перехватывающие оверлеи: пока любой открыт, глобальные хоткеи гасятся
+  // (см. isModalOpen в useKeyboardShortcuts). Доки-панели (panelMode/sidePanel) сюда НЕ
+  // входят — редактор при них остаётся основным, Ctrl+W и прочее должны работать.
+  const overlayOpen =
+    commandPaletteOpen || doctorOpen || onboardingActive || tabSwitcherOpen ||
+    globalSearchOpen || triggerPhrasesOpen || shortcutsOpen ||
+    Boolean(targetPicker) || Boolean(workspacePicker) || Boolean(groupPickerTabId) ||
+    Boolean(pendingClose);
+
   useKeyboardShortcuts({
+    isModalOpen: () => overlayOpen,
     onFind: () => setPanelMode("find"),
     onFindReplace: () => setPanelMode("findReplace"),
     onClosePanels: () => {
