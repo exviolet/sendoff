@@ -128,11 +128,16 @@ function writeSession(): Promise<void> {
     fontSize, wordWrap, tmuxAutoSubmit, fontFamily, phraseInsertMode, shortcutOverrides, referenceText, referenceWidth,
   })
     .then(() => { saveErrorShown = false; })
-    .catch(() => {
-      // Throttle: one toast per failure streak, not every 500ms tick.
+    .catch((error: unknown) => {
+      // Причину НЕ глотать. Как и на чтении (инцидент 2026-08-10 с WebKit), провал записи
+      // без причины нерасследуем: раньше здесь стоял `.catch(() => …)` без аргумента, и
+      // настоящая ошибка уходила в мусор. console.error — в лог, describeError — в тост,
+      // чтобы пользователь мог сообщить, ЧТО именно упало.
+      console.error("Failed to save session:", error);
+      // Throttle: один тост на серию провалов, а не каждые 500мс.
       if (!saveErrorShown) {
         saveErrorShown = true;
-        toast("Failed to save session", "error");
+        toast(`Failed to save session: ${describeError(error)}`, "error");
       }
     });
 }
