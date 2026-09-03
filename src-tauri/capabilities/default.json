@@ -20,9 +20,24 @@
       "identifier": "shell:allow-execute",
       "allow": [
         {
-          "name": "tmux",
+          "name": "tmux-list-panes",
           "cmd": "tmux",
-          "args": true
+          "args": ["list-panes", "-a", "-F", { "validator": "^[\\s\\S]*$" }]
+        },
+        {
+          "name": "tmux-set-buffer",
+          "cmd": "tmux",
+          "args": ["set-buffer", "-b", "sendoff-desktop", "--", { "validator": "^[\\s\\S]*$" }]
+        },
+        {
+          "name": "tmux-paste-buffer",
+          "cmd": "tmux",
+          "args": ["paste-buffer", "-d", "-p", "-b", "sendoff-desktop", "-t", { "validator": "^%[0-9]+$" }]
+        },
+        {
+          "name": "tmux-send-enter",
+          "cmd": "tmux",
+          "args": ["send-keys", "-t", { "validator": "^%[0-9]+$" }, "Enter"]
         },
         {
           "name": "orca-terminal-send-text",

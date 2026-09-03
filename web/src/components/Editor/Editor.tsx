@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { marked } from "marked";
+import DOMPurify from "dompurify";
 import { useEditorStore } from "../../store/editorStore";
 import { useTriggerPhrasesStore } from "../../store/triggerPhrasesStore";
 import { isTauri } from "../../lib/platform";
@@ -336,7 +337,12 @@ export function Editor({ highlights = [], activeHighlight = -1, textareaRef, mar
 
   const renderedMarkdown = useMemo(() => {
     if (!markdownPreview) return "";
-    return marked.parse(renderContent, { async: false }) as string;
+    // marked НЕ санитизирует HTML (это их явная позиция с v5), а результат уходит в
+    // dangerouslySetInnerHTML. Без очистки открытый чужой .md с <img onerror=…> или
+    // <script> исполнял бы JS прямо в webview — а у него IPC-доступ ко всем выданным
+    // capabilities (fs-home, shell). Это XSS-sink, поэтому прогоняем через DOMPurify.
+    const html = marked.parse(renderContent, { async: false }) as string;
+    return DOMPurify.sanitize(html);
   }, [markdownPreview, renderContent]);
 
   if (!hasTab) return null;

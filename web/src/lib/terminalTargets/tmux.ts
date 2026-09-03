@@ -4,13 +4,21 @@ import type { TmuxSessionInfo } from "../tmuxResolve";
 import { runScoped } from "./shell";
 import type { Resolution, TabBinding, TerminalProvider, TerminalTarget } from "./types";
 
+// ВАЖНО: значение обязано совпадать с литералом "-b sendoff-desktop" в
+// capabilities/default.json (entry tmux-set-buffer / tmux-paste-buffer). Переименуешь
+// здесь — validator в манифесте отвергнет команду, а сообщение укажет не туда (см.
+// комментарий про herdr pane_id в shell.ts). Менять только вместе.
 const BUFFER_NAME = "sendoff-desktop";
 
-const run = (args: string[], target?: string) => runScoped("tmux", args, "tmux error", target);
+// tmux заскоуплен по подкомандам (НЕ args:true): каждая — отдельный entry в манифесте,
+// поэтому зовём по имени entry, а не через один общий "tmux". Раньше args:true давал
+// доступ к run-shell и send-keys с произвольным текстом в любую pane — цепочка XSS→RCE.
+const run = (name: string, args: string[], target?: string) =>
+  runScoped(name, args, "tmux error", target);
 
 async function listSessions(): Promise<TmuxSessionInfo[]> {
   if (!isTauri) throw new Error("tmux is available only in the desktop build");
-  const output = await run(["list-panes", "-a", "-F", TARGET_FIELDS]);
+  const output = await run("tmux-list-panes", ["list-panes", "-a", "-F", TARGET_FIELDS]);
   return parseTmuxTargets(output.stdout);
 }
 
@@ -58,15 +66,17 @@ export const tmuxProvider: TerminalProvider = {
   },
 
   async send(handle: string, text: string, submit: boolean): Promise<string> {
-    await run(["set-buffer", "-b", BUFFER_NAME, "--", text]);
+    await run("tmux-set-buffer", ["set-buffer", "-b", BUFFER_NAME, "--", text]);
     // -p: bracketed paste, если приложение его запросило (codex/Claude Code).
     // Даёт чёткую границу вставки, иначе TUI глотает следующий Enter как часть пасты.
-    await run(["paste-buffer", "-d", "-p", "-b", BUFFER_NAME, "-t", handle], handle);
+    await run("tmux-paste-buffer", ["paste-buffer", "-d", "-p", "-b", BUFFER_NAME, "-t", handle], handle);
 
     if (submit) {
       // settle-задержка: детерминирует тайминг-эвристику «вставка vs ввод».
       await new Promise((resolve) => setTimeout(resolve, 80));
-      await run(["send-keys", "-t", handle, "Enter"], handle);
+      // Только литерал Enter: send-keys с произвольным текстом заскоуплен ВНЕ манифеста
+      // (иначе — набор любой команды в чужую pane). Текст едет исключительно пастой выше.
+      await run("tmux-send-enter", ["send-keys", "-t", handle, "Enter"], handle);
     }
     return handle;
   },
