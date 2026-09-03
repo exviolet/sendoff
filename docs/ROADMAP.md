@@ -1459,6 +1459,61 @@ git submodule deinit -f web && rm -rf .git/modules/web web && git pull --ff-only
 
 Шим в `update.sh` не заводится: ситуация одноразовая, а код остался бы навсегда.
 
+## Сессия 2026-09-03 — webview XSS→RCE hardening
+
+Найдена и закрыта потенциальная цепочка удалённого выполнения кода. Merge `d6a7637`.
+
+### Уязвимость
+
+Содержимое пользовательского таба шло в `marked.parse()` и **напрямую** в
+`dangerouslySetInnerHTML` (markdown-preview, `Editor.tsx`). marked с v5 HTML не
+санитизирует — их явная позиция. При `csp: null` и tmux с `args: true` складывалась
+цепочка: чужой `.md` с `<img onerror>` / `<script>` → JS в webview → Tauri IPC
+(`plugin:shell|execute`) → произвольный tmux subcommand (`run-shell`, либо `send-keys`
+с любым текстом в чужую pane) → выполнение кода.
+
+Ключевой момент: вся граница permissions (см. NEVER в `CLAUDE.md`) построена на
+допущении «в webview исполняется только код Sendoff». XSS-sink это допущение снимает,
+и тогда уже выданный `fs:scope-home-recursive` становится частью поверхности утечки —
+**независимо от tmux**. То есть это не «баг в tmux», а брешь в самом фундаменте
+threat-model'и. Отсюда — чинить в первую очередь, поверх YAGNI (правило само выносит
+безопасность в исключение «не потом»).
+
+### Фикс — три независимых слоя (defense-in-depth)
+
+1. **Санитизация** (`Editor.tsx`, dep `dompurify`): `DOMPurify.sanitize()` на выходе
+   `marked` перед вставкой. Нативный HTML Sanitizer API (`Element.setHTML`) **не
+   годится**: наш единственный рантайм — WebKitGTK (Safari-семейство), который его не
+   реализует; прогрессивное улучшение было бы веткой без жильца. Второй
+   `dangerouslySetInnerHTML` (подсветка совпадений) — не sink: он гонит текст через
+   `escapeHTML`, править не нужно.
+2. **CSP** (`tauri.conf.json`): `csp: null` → `script-src 'self'` без `unsafe-inline`
+   (глушит inline-обработчики независимо от санитайзера). Отдельный `devCsp` с
+   послаблениями под Vite HMR (`unsafe-inline` + `ws://localhost:1420`). `style-src`
+   оставлен `unsafe-inline` (React inline-стили до IPC не дотягиваются), `img-src` —
+   `self data: blob:` (внешние `img` заблокированы: эксфил через tracking-pixel закрыт).
+3. **Скоуп tmux** (`default.json` + `tmux.ts`): `args: true` → 4 именованных entry с
+   валидаторами (`list-panes` / `set-buffer` / `paste-buffer` / `send-keys`). `send-keys`
+   заперт на литерал `Enter` — набор произвольной команды в чужую pane убран. Приводит
+   tmux к той же строгости, что `orca-ide` / `herdr`. Устраняет и молчаливое расхождение
+   с ними.
+
+### Проверка и её пределы
+
+Статика зелёная (tsc / lint / 184 теста; манифест собирается; Rust компилируется).
+Рантайм на изолированной инстанции (свой HOME, реальные данные не тронуты): под жёстким
+прод-CSP приложение полностью рендерится, а пикер целей полон живых herdr/tmux-данных —
+значит IPC/shell ходят сквозь `connect-src ipc:` (будь CSP кривой, список пуст). tmux
+read-path под скоупом отработал (таргет появился), реальный `pane_id %0` матчит
+валидатор write-path `^%[0-9]+$` — write-path закрыт по композиции.
+
+**Изолировать отдельное срабатывание DOMPurify и атрибуцию PoC не удалось**, и это не
+пробел в защите: (1) eval-канал `tauri-plugin-mcp-bridge` виснет на WebKitGTK, а wtype не
+проставляет `KeyboardEvent.code` для хоткеев; (2) три слоя независимо дают «маркер не
+создан», поэтому чёрный ящик на исправленной сборке в принципе не может сказать, какой
+слой поймал. Каждый слой подтверждён отдельно. Детали инструментов — в Claude-memory
+`reference_runtime_verify_tooling`.
+
 ## Отложенные идеи (не сейчас, требуют предусловий)
 
 - **Chained Presets** + **Live Preview Transformation** — это пивот в pipeline-builder, ломает позиционирование «prompt-first editor». Включать только если появятся реально сложные пресеты и подтверждённая потребность.
