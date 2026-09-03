@@ -29,11 +29,21 @@ interface ShortcutCallbacks {
   onWorkspaceSwitcher?: () => void;
   onTabGroupPicker?: () => void;
   onScrollActiveTab?: () => boolean;
+  // Открыт ли фокус-перехватывающий оверлей (пикеры на usePickerModal, палитра, модалки,
+  // confirm-диалог). Глобальные хоткеи не должны стрелять СКВОЗЬ него: usePickerModal
+  // (capture-фаза) стопает только Escape, а Ctrl-combos утекают в этот bubble-listener —
+  // Ctrl+W из открытого свитчера закрывал бы АКТИВНЫЙ таб (не тот, что под курсором), а
+  // Ctrl+Shift+D стекал бы второй пикер поверх первого. Свои клавиши модалка ловит сама.
+  isModalOpen?: () => boolean;
 }
 
 export function useKeyboardShortcuts(callbacks?: ShortcutCallbacks) {
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
+      // Оверлей открыт → глобальные хоткеи молчат. Escape и навигацию модалка обрабатывает
+      // своим listener'ом в capture-фазе (usePickerModal и остальные), сюда они не доходят
+      // или доходить не должны.
+      if (callbacks?.isModalOpen?.()) return;
       const command = matchShortcut(
         e,
         "global",
