@@ -1,6 +1,6 @@
 [package]
 name = "sendoff-desktop"
-version = "0.2.0"
+version = "0.3.0"
 description = "Sendoff — desktop wrapper via Tauri v2"
 authors = ["exviolet"]
 license = "MIT"
