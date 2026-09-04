@@ -8,7 +8,7 @@
 
 <img src="https://img.shields.io/badge/license-MIT-8b5cf6?style=for-the-badge" alt="License MIT" />
 <img src="https://img.shields.io/badge/platform-Linux-c4b5fd?style=for-the-badge" alt="Platform: Linux" />
-<img src="https://img.shields.io/badge/version-0.2.x-2a2650?style=for-the-badge" alt="Version 0.2.x" />
+<img src="https://img.shields.io/badge/version-0.3.x-2a2650?style=for-the-badge" alt="Version 0.3.x" />
 
 [English](README.md) · Русский
 
