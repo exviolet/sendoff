@@ -104,3 +104,40 @@ describe("hydrate", () => {
     expect(st.isHydrated).toBe(true);
   });
 });
+
+// Закрытие расходилось по трём путям (одиночное, пачечное, cleanup), и cleanup был
+// единственным без обрезки групп и очистки выделения. Тесты держат общий эпилог.
+describe("эпилог закрытия", () => {
+  test("cleanupEmptyTabs: группа, оставшаяся без табов, не переживает уборку", () => {
+    h()(
+      [tab("keep", { content: "текст" }), tab("e1", { groupId: "g1" }), tab("e2", { groupId: "g1" })],
+      "keep", 3, [ws("w1")], "w1", [group("g1", "w1")], [],
+    );
+    expect(s().tabGroups.map((g) => g.id)).toEqual(["g1"]);
+
+    expect(s().cleanupEmptyTabs()).toBe(2);
+    expect(s().tabs.map((t) => t.id)).toEqual(["keep"]);
+    expect(s().tabGroups).toEqual([]);
+  });
+
+  test("cleanupEmptyTabs: выделение не удерживает id убранных табов", () => {
+    h()([tab("keep", { content: "текст" }), tab("e1")], "keep", 2, [ws("w1")], "w1", [], []);
+    s().toggleTabSelection("keep");
+    s().toggleTabSelection("e1");
+
+    s().cleanupEmptyTabs();
+    expect(s().selectedTabIds).toEqual(["keep"]);
+  });
+
+  test("closeTab последнего таба: refill создаёт свежий, группа закрытого не остаётся", () => {
+    h()([tab("e1", { groupId: "g1" })], "e1", 1, [ws("w1")], "w1", [group("g1", "w1")], []);
+
+    s().closeTab("e1");
+    const st = s();
+    expect(st.tabs).toHaveLength(1);
+    expect(st.tabs[0].id).not.toBe("e1");
+    expect(st.tabs[0].workspaceId).toBe("w1");
+    expect(st.activeTabId).toBe(st.tabs[0].id);
+    expect(st.tabGroups).toEqual([]);
+  });
+});

@@ -223,43 +223,43 @@ export const useEditorStore = create<EditorStore>((set, get) => {
     return get().selectedTabIds.filter((id) => alive.has(id));
   }
 
+  // Единая запись результата закрытия: refill опустевшего workspace, обрезка групп и
+  // очистка выделения обязаны случаться на ВСЕХ путях. Разойдись они — получаются
+  // осиротевшая группа и выделение, держащее id уже закрытых табов.
+  function commitClose(remaining: Tab[], fallbackActiveId: string | null, newClosedTabs: Tab[]) {
+    const { activeWorkspaceId, tabCounter, workspaces } = get();
+    const refill = refillIfEmpty(remaining, activeWorkspaceId, tabCounter);
+    const tabs = refill?.tabs ?? remaining;
+    const activeTabId = refill?.activeTabId ?? fallbackActiveId;
+    set({
+      tabs,
+      activeTabId,
+      ...(refill ? { tabCounter: refill.tabCounter } : {}),
+      closedTabs: newClosedTabs,
+      workspaces: rememberActive(workspaces, activeWorkspaceId, activeTabId),
+      tabGroups: pruneGroups(tabs, get().tabGroups),
+      selectedTabIds: keepSelection(tabs),
+    });
+  }
+
   function performClose(id: string) {
-    const { tabs, activeTabId, closedTabs, activeWorkspaceId, tabCounter, workspaces } = get();
+    const { tabs, activeTabId, closedTabs, activeWorkspaceId } = get();
     const tab = tabs.find((t) => t.id === id);
     if (!tab) return;
     const newClosedTabs = [...closedTabs, tab].slice(-MAX_CLOSED_TABS);
     const remaining = tabs.filter((t) => t.id !== id);
     disposeHistory(id);
 
-    const refill = refillIfEmpty(remaining, activeWorkspaceId, tabCounter);
-    if (refill) {
-      set({
-        ...refill,
-        closedTabs: newClosedTabs,
-        workspaces: rememberActive(workspaces, activeWorkspaceId, refill.activeTabId),
-        tabGroups: pruneGroups(refill.tabs, get().tabGroups),
-        selectedTabIds: keepSelection(refill.tabs),
-      });
-      return;
-    }
-
+    // Соседа выбираем в пределах видимого (workspace-)списка, не глобального.
+    // Пустой список — закрыли последний: активный назначит refill внутри commitClose.
+    const visibleAfter = tabsOf(remaining, activeWorkspaceId);
     let newActiveId = activeTabId;
-    if (activeTabId === id) {
-      // Соседа выбираем в пределах видимого (workspace-)списка, не глобального.
-      const visibleBefore = tabsOf(tabs, activeWorkspaceId);
-      const visibleAfter = tabsOf(remaining, activeWorkspaceId);
-      const closedIndex = visibleBefore.findIndex((t) => t.id === id);
+    if (activeTabId === id && visibleAfter.length > 0) {
+      const closedIndex = tabsOf(tabs, activeWorkspaceId).findIndex((t) => t.id === id);
       newActiveId = visibleAfter[Math.min(closedIndex, visibleAfter.length - 1)].id;
     }
 
-    set({
-      tabs: remaining,
-      activeTabId: newActiveId,
-      closedTabs: newClosedTabs,
-      workspaces: rememberActive(workspaces, activeWorkspaceId, newActiveId),
-      tabGroups: pruneGroups(remaining, get().tabGroups),
-      selectedTabIds: keepSelection(remaining),
-    });
+    commitClose(remaining, newActiveId, newClosedTabs);
   }
 
   // Кого bulk-close реально заберёт. Одна точка правды на подсчёт и на исполнение:
@@ -280,7 +280,7 @@ export const useEditorStore = create<EditorStore>((set, get) => {
 
   function performCloseMany(ids: string[]) {
     if (ids.length === 0) return 0;
-    const { tabs, activeTabId, closedTabs, tabCounter, activeWorkspaceId, workspaces } = get();
+    const { tabs, activeTabId, closedTabs, activeWorkspaceId } = get();
     const closing = bulkTargets(ids);
     if (closing.length === 0) return 0;
     const closingIds = new Set(closing.map((t) => t.id));
@@ -288,36 +288,18 @@ export const useEditorStore = create<EditorStore>((set, get) => {
     const newClosedTabs = [...closedTabs, ...closing].slice(-MAX_CLOSED_TABS);
     const remaining = tabs.filter((t) => !closingIds.has(t.id));
 
-    const refill = refillIfEmpty(remaining, activeWorkspaceId, tabCounter);
-    if (refill) {
-      set({
-        ...refill,
-        closedTabs: newClosedTabs,
-        workspaces: rememberActive(workspaces, activeWorkspaceId, refill.activeTabId),
-        tabGroups: pruneGroups(refill.tabs, get().tabGroups),
-        selectedTabIds: keepSelection(refill.tabs),
-      });
-      return closing.length;
-    }
-
     let newActiveId = activeTabId;
     if (activeTabId && closingIds.has(activeTabId)) {
       const visibleBefore = tabsOf(tabs, activeWorkspaceId);
       const closedIndex = visibleBefore.findIndex((t) => t.id === activeTabId);
+      // Пережившего может не быть вовсе — тогда активный за refill'ом в commitClose.
       const survivor =
         visibleBefore.slice(closedIndex).find((t) => !closingIds.has(t.id)) ??
         tabsOf(remaining, activeWorkspaceId)[0];
-      newActiveId = survivor.id;
+      newActiveId = survivor?.id ?? null;
     }
 
-    set({
-      tabs: remaining,
-      activeTabId: newActiveId,
-      closedTabs: newClosedTabs,
-      workspaces: rememberActive(workspaces, activeWorkspaceId, newActiveId),
-      tabGroups: pruneGroups(remaining, get().tabGroups),
-      selectedTabIds: keepSelection(remaining),
-    });
+    commitClose(remaining, newActiveId, newClosedTabs);
     return closing.length;
   }
 
@@ -376,7 +358,7 @@ export const useEditorStore = create<EditorStore>((set, get) => {
   },
 
   cleanupEmptyTabs: () => {
-    const { tabs, activeTabId, closedTabs, activeWorkspaceId, workspaces } = get();
+    const { tabs, activeTabId, closedTabs, activeWorkspaceId } = get();
     const visible = tabsOf(tabs, activeWorkspaceId);
     if (visible.length <= 1) return 0;
 
@@ -401,12 +383,7 @@ export const useEditorStore = create<EditorStore>((set, get) => {
       newActiveId = right?.id ?? left?.id ?? tabsOf(remaining, activeWorkspaceId)[0]?.id ?? null;
     }
 
-    set({
-      tabs: remaining,
-      activeTabId: newActiveId,
-      closedTabs: newClosedTabs,
-      workspaces: rememberActive(workspaces, activeWorkspaceId, newActiveId),
-    });
+    commitClose(remaining, newActiveId, newClosedTabs);
     return cleanupIds.size;
   },
 
