@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { TabBar } from "./components/TabBar/TabBar";
+import { AppToolbar } from "./components/TabBar/AppToolbar";
 import { Editor } from "./components/Editor/Editor";
 import { FindReplacePanel } from "./components/FindReplace/FindReplacePanel";
 import { PresetsPanel } from "./components/Presets/PresetsPanel";
@@ -262,19 +263,23 @@ function App() {
       <StorageErrorBanner />
       {!distractionFree && (
         <TabBar
-          sidePanel={sidePanel}
-          onSidePanelToggle={toggleSidePanel}
-          onDownloadTab={downloadCurrentTab}
-          onExportAll={exportAll}
-          onImportBackup={importBackup}
-          theme={theme}
-          onThemeToggle={toggleTheme}
           onCleanupEmptyTabs={cleanupEmptyTabs}
           onBindTarget={openBindPicker}
           onMoveTabToWorkspace={(tabId) => setWorkspacePicker({ mode: "move", tabId })}
           onGroupTab={(tabId) => setGroupPickerTabId(tabId)}
-          onTriggerPhrases={() => setTriggerPhrasesOpen(true)}
           activeTabRef={activeTabRef}
+          toolbar={
+            <AppToolbar
+              sidePanel={sidePanel}
+              onSidePanelToggle={toggleSidePanel}
+              onDownloadTab={downloadCurrentTab}
+              onExportAll={exportAll}
+              onImportBackup={importBackup}
+              theme={theme}
+              onThemeToggle={toggleTheme}
+              onTriggerPhrases={() => setTriggerPhrasesOpen(true)}
+            />
+          }
         />
       )}
       {!distractionFree && panelMode && (
