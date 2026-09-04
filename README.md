@@ -97,6 +97,13 @@ keep the agent's reply pinned in the reference panel while you write the next on
 - **Target picker** (`Ctrl+Shift+Enter`) — one list, sectioned by source, so you
   pick an agent or a pane by name instead of relying on whatever is focused.
   A source that is not running simply has no section.
+- **Sendoff Doctor** (`Ctrl+Shift+P` → *Sendoff Doctor*) — when the picker comes up
+  empty, this says why instead of leaving you to guess. Per target it reports whether
+  the executable is visible in *Sendoff's own* `PATH` (a GUI launch does not inherit
+  your shell's), whether discovery actually ran, and the live handle the target hands
+  back — the exact shape a send is validated against. It also prints the versions that
+  decide whether your data is readable at all: Sendoff, Tauri, WebKitGTK and the data
+  directory. It only reports — it fixes and configures nothing.
 - **Tab binding** (`Ctrl+Alt+B` / `Ctrl+Alt+Shift+B`) — pin a tab to one target;
   the status bar shows the live binding so `Ctrl+Enter` always lands in the right
   place. Bindings store a stable descriptor and resolve the live handle on every
