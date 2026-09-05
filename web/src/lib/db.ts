@@ -3,6 +3,7 @@ import type { Tab, Workspace, TabGroup } from "../store/editorStore";
 import type { ReplacePreset } from "../store/presetsStore";
 import type { TriggerPhrase } from "../store/triggerPhrasesStore";
 import type { PhraseInsertMode } from "../store/settingsStore";
+import { sanitizeHiddenToolbarButtons } from "./toolbarButtons";
 import {
   sanitizeShortcutOverrides,
   type ShortcutOverrides,
@@ -165,6 +166,11 @@ export async function loadSession() {
   // перенос Rewrite → Sendoff в src-tauri/src/lib.rs, там чтение не падает, читать
   // просто нечего), а провал чтения не означает отсутствие данных.
   const onboardingVersion = (await db.get("meta", "onboardingVersion")) as number | undefined;
+  // Сужаем на чтении по тем же соображениям, что и phraseInsertMode: в meta лежит что
+  // угодно, а мусор в списке молча спрятал бы кнопку или не спрятал бы ничего.
+  const hiddenToolbarButtons = sanitizeHiddenToolbarButtons(
+    await db.get("meta", "hiddenToolbarButtons"),
+  );
   const referenceText = (await db.get("meta", "referenceText")) as string | undefined;
   const referenceWidth = (await db.get("meta", "referenceWidth")) as number | undefined;
   return {
@@ -179,6 +185,7 @@ export async function loadSession() {
     fontFamily: fontFamily ?? "",
     phraseInsertMode,
     shortcutOverrides,
+    hiddenToolbarButtons,
     onboardingVersion: typeof onboardingVersion === "number" ? onboardingVersion : null,
     referenceText: referenceText ?? "",
     referenceWidth: typeof referenceWidth === "number" ? referenceWidth : undefined,
@@ -204,6 +211,7 @@ export interface SessionSnapshot {
   fontFamily: string;
   phraseInsertMode: PhraseInsertMode;
   shortcutOverrides: ShortcutOverrides;
+  hiddenToolbarButtons: string[];
   referenceText: string;
   referenceWidth: number;
 }
@@ -238,6 +246,7 @@ export async function saveSession(
     fontFamily,
     phraseInsertMode,
     shortcutOverrides,
+    hiddenToolbarButtons,
     referenceText,
     referenceWidth,
   }: SessionSnapshot,
@@ -302,6 +311,7 @@ export async function saveSession(
   await metaStore.put(fontFamily, "fontFamily");
   await metaStore.put(phraseInsertMode, "phraseInsertMode");
   await metaStore.put(shortcutOverrides, "shortcutOverrides");
+  await metaStore.put(hiddenToolbarButtons, "hiddenToolbarButtons");
   await metaStore.put(referenceText, "referenceText");
   await metaStore.put(referenceWidth, "referenceWidth");
 

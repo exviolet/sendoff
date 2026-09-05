@@ -1,5 +1,6 @@
 import { useSettingsStore } from "../../store/settingsStore";
 import { useThemeStore } from "../../store/themeStore";
+import { TOOLBAR_BUTTONS } from "../../lib/toolbarButtons";
 
 interface SettingsPanelProps {
   onClose: () => void;
@@ -17,6 +18,7 @@ export function SettingsPanel({ onClose, onOpenDoctor }: SettingsPanelProps) {
   const setTmuxAutoSubmit = useSettingsStore((s) => s.setTmuxAutoSubmit);
   const setFontFamily = useSettingsStore((s) => s.setFontFamily);
   const setPhraseInsertMode = useSettingsStore((s) => s.setPhraseInsertMode);
+  const setHiddenToolbarButtons = useSettingsStore((s) => s.setHiddenToolbarButtons);
 
   const theme = useThemeStore((s) => s.theme);
   const setTheme = useThemeStore((s) => s.setTheme);
@@ -178,6 +180,9 @@ export function SettingsPanel({ onClose, onOpenDoctor }: SettingsPanelProps) {
           </div>
         </div>
 
+        {/* Состав правого края шапки */}
+        <ToolbarButtonsSection />
+
         {/* Фразы-триггеры */}
         <div className="space-y-2">
           <label className="text-[10px] uppercase tracking-widest text-text-muted/60">
@@ -275,6 +280,7 @@ export function SettingsPanel({ onClose, onOpenDoctor }: SettingsPanelProps) {
               setWordWrap(true);
               setTmuxAutoSubmit(true);
               setFontFamily("");
+              setHiddenToolbarButtons([]);
             }}
             className="text-[11px] text-text-muted hover:text-accent transition-colors"
           >
@@ -288,5 +294,62 @@ export function SettingsPanel({ onClose, onOpenDoctor }: SettingsPanelProps) {
         Ctrl+, — open/close
       </div>
     </aside>
+  );
+}
+
+// Тумблеры видимости кнопок правого края шапки. Локальный компонент, а не ещё сто строк
+// в теле панели: SettingsPanel и так вдвое превышает ориентир в ~150 строк.
+//
+// Подписан на стор сам — родителю состав панели не нужен ни для чего другого.
+function ToolbarButtonsSection() {
+  const hidden = useSettingsStore((s) => s.hiddenToolbarButtons);
+  const toggleToolbarButton = useSettingsStore((s) => s.toggleToolbarButton);
+
+  return (
+    <div className="space-y-2">
+      <label className="text-[10px] uppercase tracking-widest text-text-muted/60">
+        Toolbar buttons
+      </label>
+      <div className="rounded-[6px] border border-border divide-y divide-border/60">
+        {TOOLBAR_BUTTONS.map((button) => {
+          const visible = !hidden.includes(button.id);
+          return (
+            <button
+              key={button.id}
+              onClick={() => toggleToolbarButton(button.id)}
+              className="flex items-center justify-between w-full gap-3 px-3 py-2 text-left hover:bg-surface-hover transition-colors first:rounded-t-[6px] last:rounded-b-[6px]"
+              aria-pressed={visible}
+            >
+              <span className="min-w-0">
+                <span className="block text-[12px] text-text truncate">{button.label}</span>
+                {/* Второй маршрут показываем только у спрятанной: у видимой он шум. */}
+                {!visible && (
+                  <span className="block text-[10px] text-text-muted/60 truncate">
+                    {button.fallback}
+                  </span>
+                )}
+              </span>
+              <div
+                className={`
+                  relative w-8 h-[18px] rounded-full shrink-0 transition-colors duration-200
+                  ${visible ? "bg-accent" : "bg-border"}
+                `}
+              >
+                <div
+                  className={`
+                    absolute top-[2px] w-[14px] h-[14px] rounded-full bg-white shadow-sm transition-transform duration-200
+                    ${visible ? "translate-x-[16px]" : "translate-x-[2px]"}
+                  `}
+                />
+              </div>
+            </button>
+          );
+        })}
+      </div>
+      <p className="text-[10px] leading-relaxed text-text-muted/60">
+        Hiding a button never removes the action — every one of them is also in the Command
+        Palette (<kbd className="font-mono">Ctrl+Shift+P</kbd>).
+      </p>
+    </div>
   );
 }
