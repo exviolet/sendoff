@@ -52,6 +52,7 @@ function snapshot(over: Partial<SessionSnapshot> = {}): SessionSnapshot {
     fontFamily: "",
     phraseInsertMode: "prepend",
     shortcutOverrides: {},
+    hiddenToolbarButtons: [],
     referenceText: "",
     referenceWidth: 320,
     ...over,
@@ -194,6 +195,19 @@ describe("пустая и порченая база", () => {
       "new-tab": [{ code: "KeyQ", ctrl: true }],
       save: [],
     });
+  });
+
+  test("спрятанные кнопки шапки переживают запись и чтение", async () => {
+    await saveSession(snapshot({ hiddenToolbarButtons: ["export", "import"] }));
+    expect((await loadSession()).hiddenToolbarButtons).toEqual(["export", "import"]);
+  });
+
+  test("мусор в hiddenToolbarButtons не прячет кнопку и не роняет чтение", async () => {
+    await saveSession(snapshot());
+    const db = await openDB(DB_NAME, 6);
+    await db.put("meta", ["presets", "no-such-button", 42] as never, "hiddenToolbarButtons");
+    db.close();
+    expect((await loadSession()).hiddenToolbarButtons).toEqual(["presets"]);
   });
 
   test("tabOrder со ссылками на удалённые табы не создаёт дыр", async () => {

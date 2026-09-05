@@ -19,7 +19,7 @@ export function useSessionPersistence() {
     if (hasRestored.current) return;
     hasRestored.current = true;
 
-    loadSession().then(({ tabs, closedTabs, presets, triggerPhrases, workspaces, tabGroups, activeTabId, activeWorkspaceId, tabCounter, theme, fontSize, wordWrap, tmuxAutoSubmit, fontFamily, phraseInsertMode, shortcutOverrides, referenceText, referenceWidth, onboardingVersion }) => {
+    loadSession().then(({ tabs, closedTabs, presets, triggerPhrases, workspaces, tabGroups, activeTabId, activeWorkspaceId, tabCounter, theme, fontSize, wordWrap, tmuxAutoSubmit, fontFamily, phraseInsertMode, shortcutOverrides, hiddenToolbarButtons, referenceText, referenceWidth, onboardingVersion }) => {
       // hydrate зовём и при пустых табах: он поднимает workspaces и держит инвариант
       // «активный workspace непуст» (создаст свежий таб, если надо).
       if (tabs.length > 0 || workspaces.length > 0) {
@@ -36,7 +36,7 @@ export function useSessionPersistence() {
       if (theme === "light" || theme === "dark" || theme === "system") {
         useThemeStore.getState().hydrate(theme);
       }
-      useSettingsStore.getState().hydrate({ fontSize, wordWrap, tmuxAutoSubmit, fontFamily, phraseInsertMode, shortcutOverrides });
+      useSettingsStore.getState().hydrate({ fontSize, wordWrap, tmuxAutoSubmit, fontFamily, phraseInsertMode, shortcutOverrides, hiddenToolbarButtons });
       useReferenceStore.getState().hydrate({
         text: referenceText,
         width: referenceWidth ?? useReferenceStore.getState().width,
@@ -119,13 +119,13 @@ function writeSession(): Promise<void> {
   const { presets } = usePresetsStore.getState();
   const { phrases } = useTriggerPhrasesStore.getState();
   const { theme } = useThemeStore.getState();
-  const { fontSize, wordWrap, tmuxAutoSubmit, fontFamily, phraseInsertMode, shortcutOverrides } = useSettingsStore.getState();
+  const { fontSize, wordWrap, tmuxAutoSubmit, fontFamily, phraseInsertMode, shortcutOverrides, hiddenToolbarButtons } = useSettingsStore.getState();
   const { text: referenceText, width: referenceWidth } = useReferenceStore.getState();
 
   return saveSession({
     tabs, closedTabs, activeTabId, tabCounter, workspaces, activeWorkspaceId, tabGroups,
     presets, triggerPhrases: phrases, theme,
-    fontSize, wordWrap, tmuxAutoSubmit, fontFamily, phraseInsertMode, shortcutOverrides, referenceText, referenceWidth,
+    fontSize, wordWrap, tmuxAutoSubmit, fontFamily, phraseInsertMode, shortcutOverrides, hiddenToolbarButtons, referenceText, referenceWidth,
   })
     .then(() => { saveErrorShown = false; })
     .catch((error: unknown) => {
