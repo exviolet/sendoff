@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { TargetSource } from "../lib/terminalTargets";
+import type { TabBinding, TargetSource } from "../lib/terminalTargets";
 
 // Последний выбранный в пикере таргет — второе звено цепочки Explicit → Last → Modal.
 //
@@ -13,6 +13,7 @@ export interface LastTargetRef {
   source: TargetSource;
   handle: string;
   label: string;
+  binding?: TabBinding;
 }
 
 interface LastTargetStore {

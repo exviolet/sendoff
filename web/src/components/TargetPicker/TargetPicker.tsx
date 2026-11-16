@@ -3,6 +3,7 @@ import { usePickerModal } from "../../hooks/usePickerModal";
 import { PickerModal, PickerHeader, PickerHint } from "../PickerModal/PickerModal";
 import { useEditorStore } from "../../store/editorStore";
 import { useLastTargetStore } from "../../store/lastTargetStore";
+import { useSettingsStore } from "../../store/settingsStore";
 import { PROVIDERS, sameBinding, type TargetSource, type TerminalTarget } from "../../lib/terminalTargets";
 
 interface TargetPickerProps {
@@ -31,20 +32,23 @@ export function TargetPicker({ onClose, onPick, mode = "send" }: TargetPickerPro
   const [sections, setSections] = useState<Section[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
+  const autoSubmit = useSettingsStore((s) => s.tmuxAutoSubmit);
 
   // Провайдеры опрашиваются параллельно и НЕЗАВИСИМО: отвалившийся источник (herdr-сервер
   // не запущен, Orca не установлена) просто не даёт секции — остальные работают.
   // Отдельного isAvailable() нет: это был бы второй вызов ради того же ответа.
   useEffect(() => {
     let cancelled = false;
-    Promise.allSettled(PROVIDERS.map((p) => p.listTargets())).then((results) => {
+    const providers = PROVIDERS.filter((p) => p.source !== "herdr-core" || autoSubmit);
+    Promise.allSettled(providers.map((p) => p.listTargets())).then((results) => {
       if (cancelled) return;
       const next: Section[] = [];
       results.forEach((result, i) => {
-        const provider = PROVIDERS[i];
+        const provider = providers[i];
         if (result.status === "fulfilled" && result.value.length > 0) {
           next.push({ source: provider.source, label: provider.label, targets: result.value });
         }
+        if (result.status === "rejected") console.error(`[${provider.label}] discovery failed`, result.reason);
       });
       setSections(next);
       setLoading(false);
@@ -52,7 +56,7 @@ export function TargetPicker({ onClose, onPick, mode = "send" }: TargetPickerPro
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [autoSubmit]);
 
   // Плоский список — источник правды для курсора; секции рисуются поверх него.
   const rows = useMemo(() => {
@@ -139,7 +143,8 @@ export function TargetPicker({ onClose, onPick, mode = "send" }: TargetPickerPro
             {query.trim() ? "No matches" : "No targets available"}
             {!query.trim() && (
               <div className="mt-1 text-[10px] text-text-muted/40">
-                Neither herdr, Orca nor tmux is responding
+                No supported agents or panes found. Check installed targets with Sendoff Doctor.
+                {!autoSubmit && <div>Herdr Core requires Auto-submit.</div>}
               </div>
             )}
           </div>

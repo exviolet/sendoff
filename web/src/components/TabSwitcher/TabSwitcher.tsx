@@ -280,7 +280,7 @@ export function TabSwitcher({ onClose }: TabSwitcherProps) {
               onClick={() => toggleBoundOnly(setSelectedIndex)}
               aria-label="Bound to a terminal only"
               aria-pressed={boundOnly}
-              title="Bound to a terminal only — herdr / Orca / tmux (Tab)"
+              title="Bound to a terminal only — Herdr / Herdr Core / Orca / tmux (Tab)"
               className={`shrink-0 flex items-center justify-center w-7 h-6 rounded-[4px] border transition-colors ${
                 boundOnly
                   ? "border-accent/30 bg-accent/15 text-accent"

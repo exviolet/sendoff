@@ -218,7 +218,7 @@ export function SettingsPanel({ onClose, onOpenDoctor }: SettingsPanelProps) {
           </label>
 
           <p className="text-[10px] leading-relaxed text-text-muted/60">
-            A target is a herdr agent, an Orca agent or a tmux window. Choose it via the picker
+            A target is a Herdr, Herdr Core or Orca agent, or a tmux window. Choose it via the picker
             (<kbd className="font-mono">Ctrl+Shift+Enter</kbd>) or by binding the tab
             (<kbd className="font-mono">Ctrl+Alt+B</kbd>). <kbd className="font-mono">Ctrl+Enter</kbd>:
             binding → last choice → picker.

@@ -1,5 +1,7 @@
 import { expect, test } from "bun:test";
 import { parseHerdrCoreTargets, resolveHerdrCoreTarget, type HerdrCoreBinding } from "./herdrCoreResolve";
+import { herdrCoreProvider } from "./terminalTargets/herdrCore";
+import { sameBinding } from "./terminalTargets";
 
 const binding: HerdrCoreBinding = { source: "herdr-core", address: "t1", agent: "codex", where: "project / 1", cwd: "/project" };
 
@@ -27,4 +29,16 @@ test("смена адреса восстанавливается только о
   expect(resolveHerdrCoreTarget([moved], binding)).toEqual({ kind: "ok", handle: "t2" });
   expect(resolveHerdrCoreTarget([moved, { ...moved, address: "t3" }], binding))
     .toEqual({ kind: "ambiguous", count: 2 });
+});
+
+test("смена подписи ломает привязку, точный адрес различает дубликаты", () => {
+  expect(resolveHerdrCoreTarget([{ ...binding, where: "other" }], binding)).toEqual({ kind: "not-found" });
+  expect(resolveHerdrCoreTarget([binding, { ...binding, address: "t2" }], binding))
+    .toEqual({ kind: "ok", handle: "t1" });
+  expect(sameBinding(binding, { ...binding, address: "t2" })).toBe(true);
+  expect(sameBinding(binding, { ...binding, cwd: "/other" })).toBe(false);
+});
+
+test("без автосабмита команда отправки не запускается", async () => {
+  await expect(herdrCoreProvider.send("t1", "prompt", false)).rejects.toThrow("requires Auto-submit");
 });
