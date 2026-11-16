@@ -4,7 +4,7 @@
 // таргеты»): tmux и Orca разошлись бы по швам, которых мы ещё не знали. К третьей
 // реализации швы известны — они здесь и зафиксированы.
 
-export type TargetSource = "herdr" | "orca" | "tmux";
+export type TargetSource = "herdr" | "herdr-core" | "orca" | "tmux";
 
 // Дескриптор привязки таба. Дискриминированное объединение: одно поле `binding`
 // вместо трёх взаимоисключимых полей, которые приходилось руками гасить друг о друга.
@@ -16,7 +16,8 @@ export type TargetSource = "herdr" | "orca" | "tmux";
 export type TabBinding =
   | { source: "tmux"; session: string; window: string; windowId?: string }
   | { source: "orca"; worktree: string; titleHint?: string }
-  | { source: "herdr"; paneId: string; workspace: string; tab: string };
+  | { source: "herdr"; paneId: string; workspace: string; tab: string }
+  | { source: "herdr-core"; address: string; agent: string; where: string; cwd: string };
 
 // Строка в пикере. Провайдер сам решает, что показать — оболочка только рисует.
 export interface TerminalTarget {
