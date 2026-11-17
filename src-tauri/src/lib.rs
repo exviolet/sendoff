@@ -80,7 +80,7 @@ fn sniff_image_ext(bytes: &[u8]) -> Option<&'static str> {
 /// Список бинарей, о которых Doctor вправе спрашивать. Задан ЗДЕСЬ, а не приходит из
 /// вебвью: иначе команда превратилась бы в «проверь наличие произвольного файла» —
 /// generic-проба файловой системы под видом диагностики. Вебвью не передаёт ничего.
-const DIAGNOSED_EXECUTABLES: [&str; 3] = ["tmux", "herdr", "orca-ide"];
+const DIAGNOSED_EXECUTABLES: [&str; 4] = ["tmux", "herdr", "orca-ide", "hc"];
 
 #[derive(serde::Serialize)]
 struct ExecutableLocation {
