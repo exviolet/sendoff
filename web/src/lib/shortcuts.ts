@@ -24,7 +24,7 @@ export interface ShortcutEvent {
 export const shortcutCommands = [
   {
     id: "target-pick",
-    label: "Pick target (herdr / Orca / tmux)",
+    label: "Pick target (Herdr / Herdr Core / Orca / tmux)",
     group: "Editing",
     scope: "global",
     defaults: [{ code: "Enter", ctrl: true, shift: true }],

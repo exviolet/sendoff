@@ -109,6 +109,12 @@ describe("round-trip сессии", () => {
     await saveSession(snapshot({ tabs: [tab("a", { binding })] }));
     expect((await loadSession()).tabs[0].binding).toEqual(binding);
   });
+
+  test("привязка Herdr Core сохраняет все защитные поля", async () => {
+    const binding = { source: "herdr-core", address: "t1h", agent: "codex", where: "project / 1", cwd: "/project" } as const;
+    await saveSession(snapshot({ tabs: [tab("a", { binding })] }));
+    expect((await loadSession()).tabs[0].binding).toEqual(binding);
+  });
 });
 
 // Архив закрытых табов — новая гарантия «закрыть ≠ потерять». Он лежит в том же

@@ -1,4 +1,6 @@
 import { herdrProvider } from "./herdr";
+import { herdrCoreProvider } from "./herdrCore";
+import { sameHerdrCoreTarget } from "../herdrCoreResolve";
 import { orcaProvider } from "./orca";
 import { tmuxProvider } from "./tmux";
 import type { TabBinding, TargetSource, TerminalProvider } from "./types";
@@ -15,10 +17,11 @@ export type {
 
 // Порядок = порядок секций в пикере, по частоте использования: herdr — daily driver
 // (≤3 проектов), Orca — когда проектов больше, tmux — не-агентская работа.
-export const PROVIDERS: TerminalProvider[] = [herdrProvider, orcaProvider, tmuxProvider];
+export const PROVIDERS: TerminalProvider[] = [herdrProvider, herdrCoreProvider, orcaProvider, tmuxProvider];
 
 const BY_SOURCE: Record<TargetSource, TerminalProvider> = {
   herdr: herdrProvider,
+  "herdr-core": herdrCoreProvider,
   orca: orcaProvider,
   tmux: tmuxProvider,
 };
@@ -59,6 +62,9 @@ export async function statusOf(binding: TabBinding): Promise<string | null> {
 // соответствующую текущей привязке таба.
 export function sameBinding(a: TabBinding, b: TabBinding): boolean {
   if (a.source !== b.source) return false;
+  if (a.source === "herdr-core" && b.source === "herdr-core") {
+    return sameHerdrCoreTarget(a, b);
+  }
   if (a.source === "herdr" && b.source === "herdr") {
     return a.workspace === b.workspace && a.tab === b.tab;
   }

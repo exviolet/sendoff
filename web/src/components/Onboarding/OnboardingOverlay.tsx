@@ -117,7 +117,7 @@ export function OnboardingOverlay({ onOpenDoctor }: { onOpenDoctor: () => void }
             <div className="space-y-3">
               <div className="text-text">No terminal agents found.</div>
               <div className="text-text-muted leading-relaxed">
-                Sendoff looks for tmux, Herdr and Orca. Start one of them, or check what Sendoff
+                Sendoff looks for tmux, Herdr, Herdr Core and Orca. Start one of them, or check what Sendoff
                 actually sees.
               </div>
               <div className="flex gap-2">

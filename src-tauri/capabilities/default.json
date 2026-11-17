@@ -65,6 +65,16 @@
           "args": ["terminal", "wait", "--terminal", { "validator": "^term_[0-9a-fA-F-]+$" }, "--for", "tui-idle", "--timeout-ms", { "validator": "^[0-9]+$" }, "--json"]
         },
         {
+          "name": "herdr-core-list",
+          "cmd": "hc",
+          "args": ["ls", "--json"]
+        },
+        {
+          "name": "herdr-core-send",
+          "cmd": "hc",
+          "args": ["send", { "validator": "^t[0-9a-z]+$" }, { "validator": "^[\\s\\S]*$" }]
+        },
+        {
           "name": "herdr-agent-list",
           "cmd": "herdr",
           "args": ["agent", "list"]

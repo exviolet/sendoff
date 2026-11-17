@@ -89,11 +89,22 @@ keep the agent's reply pinned in the reference panel while you write the next on
 
 **Prompt workflow**
 - **Send the prompt** (`Ctrl+Enter`) — push the current buffer into the terminal
-  the tab is bound to, without leaving the keyboard. Three kinds of target are
+  the tab is bound to, without leaving the keyboard. Four kinds of target are
   supported: [Herdr](https://herdr.dev) agents (**0.7 or newer** — pane ids changed
   shape after 0.6 and the older form is rejected by the command allowlist),
+  Herdr Core / Herdr GUI agents via `hc`,
   [Orca ADE](https://github.com/stablyai/orca) agents, and plain `tmux` panes.
   Multi-line prompts arrive as one block and are submitted once.
+- **Herdr Core / GUI requirements:** install `hc` and make it available in
+  Sendoff's `PATH`, with Core running and **Auto-submit enabled**.
+  Currently only these detected agent types are supported: Codex CLI (`codex`),
+  Claude Code (`claude-code`), OpenCode (`opencode`), Antigravity CLI
+  (`antigravity`), and Pi Agent (`pi`). Shells and unrecognized agents are hidden;
+  Gemini CLI and Hermes Agent are not supported while Core reports them as `zsh`.
+  `hc send` always submits with Enter; Sendoff does not focus or launch the GUI.
+  `jq` is not required: Sendoff parses CLI JSON internally.
+  If `hc` is missing or discovery fails, its picker section is omitted;
+  use Sendoff Doctor to check Sendoff's PATH. A failed bound send reports an error.
 - **Target picker** (`Ctrl+Shift+Enter`) — one list, sectioned by source, so you
   pick an agent or a pane by name instead of relying on whatever is focused.
   A source that is not running simply has no section.
@@ -219,7 +230,8 @@ to record a new one.
 
 The editor makes **no network calls** and spawns **no arbitrary processes**. The
 webview gets a deliberately narrow shell surface: `tmux`, plus `orca-ide` and
-`herdr` scoped to individual read/send subcommands. Scoping matters most for
+`herdr` scoped to individual read/send subcommands. Herdr Core is restricted to
+`hc ls --json` and `hc send <local-address> <text>`. Scoping matters most for
 `herdr` — the same binary can also run arbitrary processes and tear down
 sessions, so it is allowlisted per subcommand rather than wholesale.
 

@@ -44,6 +44,7 @@ export function useTerminalActions(textareaRef: RefObject<HTMLTextAreaElement | 
     async (source: TargetSource, handle: string, text: string) => {
       const provider = providerBySource(source);
       try {
+        if (source === "herdr-core" && !autoSubmit) throw new Error("Herdr Core requires Auto-submit");
         const where = await provider.send(handle, text, autoSubmit);
         toast(`Sent to ${provider.label}: ${where} (${text.length} chars)`, "success");
         // Первый запуск закрывается ровно здесь — по факту успешно отработавшего
@@ -88,7 +89,18 @@ export function useTerminalActions(textareaRef: RefObject<HTMLTextAreaElement | 
     if (tab && binding) {
       const provider = providerFor(binding);
       const where = provider.describe(binding);
-      const resolution = await provider.resolve(binding);
+      if (binding.source === "herdr-core" && !autoSubmit) {
+        toast("Herdr Core requires Auto-submit", "error");
+        return;
+      }
+      let resolution;
+      try {
+        resolution = await provider.resolve(binding);
+      } catch (error) {
+        toast(`${provider.label}: ${describeError(error)}`, "error");
+        console.error(`[${provider.label}] resolve failed`, error);
+        return;
+      }
 
       if (resolution.kind === "ambiguous") {
         // Не угадываем: промпт чужому агенту хуже лишнего клика. Зовём перепривязать —
@@ -109,6 +121,9 @@ export function useTerminalActions(textareaRef: RefObject<HTMLTextAreaElement | 
       if (binding.source === "herdr" && resolution.handle !== binding.paneId) {
         useEditorStore.getState().setTabBinding(tab.id, { ...binding, paneId: resolution.handle });
       }
+      if (binding.source === "herdr-core" && resolution.handle !== binding.address) {
+        useEditorStore.getState().setTabBinding(tab.id, { ...binding, address: resolution.handle });
+      }
 
       await sendVia(binding.source, resolution.handle, text);
       return;
@@ -117,13 +132,35 @@ export function useTerminalActions(textareaRef: RefObject<HTMLTextAreaElement | 
     // 2. Last — последний выбор в пикере (in-memory).
     const last = useLastTargetStore.getState().lastTarget;
     if (last) {
+      if (last.source === "herdr-core") {
+        if (!autoSubmit) {
+          toast("Herdr Core requires Auto-submit", "error");
+          return;
+        }
+        try {
+          if (!last.binding) {
+            setTargetPicker({ mode: "send" });
+            return;
+          }
+          const resolution = await providerFor(last.binding).resolve(last.binding);
+          if (resolution.kind !== "ok") {
+            setTargetPicker({ mode: "send" });
+            return;
+          }
+          await sendVia(last.source, resolution.handle, text);
+        } catch (error) {
+          toast(describeError(error), "error");
+          console.error("[Herdr Core] resolve failed", error);
+        }
+        return;
+      }
       await sendVia(last.source, last.handle, text);
       return;
     }
 
     // 3. Modal.
     setTargetPicker({ mode: "send" });
-  }, [getSendText, sendVia]);
+  }, [getSendText, sendVia, autoSubmit]);
 
   // Выбор в пикере: привязать таб (bind) или отправить (send).
   const handlePick = useCallback(
@@ -144,8 +181,26 @@ export function useTerminalActions(textareaRef: RefObject<HTMLTextAreaElement | 
         source: target.source,
         handle: target.handle,
         label: target.primary,
+        binding: target.binding,
       });
-      void sendVia(target.source, target.handle, text);
+      if (target.source === "herdr-core") {
+        void (async () => {
+          try {
+            const resolution = await providerFor(target.binding).resolve(target.binding);
+            if (resolution.kind !== "ok") {
+              toast("Herdr Core target changed — pick another target", "error");
+              setTargetPicker({ mode: "send" });
+              return;
+            }
+            await sendVia(target.source, resolution.handle, text);
+          } catch (error) {
+            toast(describeError(error), "error");
+            console.error("[Herdr Core] resolve failed", error);
+          }
+        })();
+      } else {
+        void sendVia(target.source, target.handle, text);
+      }
     },
     [targetPicker, getSendText, sendVia],
   );
