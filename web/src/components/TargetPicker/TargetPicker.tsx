@@ -4,7 +4,8 @@ import { PickerModal, PickerHeader, PickerHint } from "../PickerModal/PickerModa
 import { useEditorStore } from "../../store/editorStore";
 import { useLastTargetStore } from "../../store/lastTargetStore";
 import { useSettingsStore } from "../../store/settingsStore";
-import { PROVIDERS, sameBinding, type TargetSource, type TerminalTarget } from "../../lib/terminalTargets";
+import { PROVIDERS, type TargetSource, type TerminalTarget } from "../../lib/terminalTargets";
+import { boundTargetIndex } from "../../lib/terminalTargets/preselection";
 
 interface TargetPickerProps {
   onClose: () => void;
@@ -96,7 +97,11 @@ export function TargetPicker({ onClose, onPick, mode = "send" }: TargetPickerPro
     const binding = tabs.find((t) => t.id === activeTabId)?.binding;
     const last = useLastTargetStore.getState().lastTarget;
 
-    const byBinding = binding ? rows.findIndex((r) => sameBinding(binding, r.binding)) : -1;
+    const byBinding = binding ? boundTargetIndex(rows, binding) : -1;
+    if (byBinding === null) {
+      setSelectedIndex(-1);
+      return;
+    }
     const byLast = last ? rows.findIndex((r) => r.source === last.source && r.handle === last.handle) : -1;
     const byActive = rows.findIndex((r) => r.isActive);
 
